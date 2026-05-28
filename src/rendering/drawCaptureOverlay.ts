@@ -31,12 +31,12 @@ export function drawCaptureTopPanel(
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
 
-  const pad = 28;
-  const iconSize = 52;
-  const nameRowY = 148;
-  const weapRowY = 212;
+  const pad = 42;
+  const iconSize = 78;
+  const nameRowY = 222;
+  const weapRowY = 318;
   const halfW = W / 2;
-  const maxNameW = halfW - pad - iconSize - 14 - 48;
+  const maxNameW = halfW - pad - iconSize - 21 - 72;
 
   // ── Name row ─────────────────────────────────────────────────────────
 
@@ -47,22 +47,22 @@ export function drawCaptureTopPanel(
   ctx.fillStyle = TEXT;
   ctx.fillText(teamA.ball.icon ?? '⚽', pad, nameRowY);
 
-  ctx.font = `20px ${RETRO}`;
+  ctx.font = `30px ${RETRO}`;
   ctx.fillStyle = teamA.ball.color;
   ctx.textAlign = 'left';
-  ctx.fillText(truncate(ctx, teamA.name, maxNameW), pad + iconSize + 12, nameRowY);
+  ctx.fillText(truncate(ctx, teamA.name, maxNameW), pad + iconSize + 18, nameRowY);
 
   // VS center
-  ctx.font = `16px ${RETRO}`;
+  ctx.font = `24px ${RETRO}`;
   ctx.textAlign = 'center';
   ctx.fillStyle = DIM;
   ctx.fillText('VS', halfW, nameRowY);
 
   // Team B: name then icon (right-aligned)
-  ctx.font = `20px ${RETRO}`;
+  ctx.font = `30px ${RETRO}`;
   ctx.fillStyle = teamB.ball.color;
   ctx.textAlign = 'right';
-  ctx.fillText(truncate(ctx, teamB.name, maxNameW), W - pad - iconSize - 12, nameRowY);
+  ctx.fillText(truncate(ctx, teamB.name, maxNameW), W - pad - iconSize - 18, nameRowY);
 
   ctx.font = `${iconSize}px sans-serif`;
   ctx.textAlign = 'right';
@@ -71,7 +71,7 @@ export function drawCaptureTopPanel(
 
   // ── Weapon subtitle row ───────────────────────────────────────────────
 
-  ctx.font = `12px ${RETRO}`;
+  ctx.font = `18px ${RETRO}`;
   ctx.textBaseline = 'middle';
 
   ctx.textAlign = 'left';

@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
-import { GameSimulator } from '../../simulation/GameSimulator';
 
 export default function SimulatingScreen() {
   const teamA = useGameStore((s) => s.teamA);
@@ -10,24 +9,34 @@ export default function SimulatingScreen() {
 
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('Simulating fight...');
-  const didRun = useRef(false);
 
   useEffect(() => {
-    if (didRun.current) return;
-    didRun.current = true;
-
     if (!initialVelocities) return;
 
-    const sim = new GameSimulator({ teamA, teamB, initialVelocities });
+    const worker = new Worker(
+      new URL('../../simulation/simulator.worker.ts', import.meta.url),
+      { type: 'module' },
+    );
 
-    sim.run((pct) => {
-      setProgress(pct);
-      if (pct >= 0.99) setStatusText('Encoding video...');
-    }).then(({ blob, vels, result }) => {
-      setSimulationComplete(blob, vels, result);
-    }).catch((err) => {
-      console.error('Simulation failed:', err);
-    });
+    worker.onmessage = (e: MessageEvent) => {
+      const { type } = e.data;
+      if (type === 'progress') {
+        setProgress(e.data.pct);
+        if (e.data.pct >= 0.99) setStatusText('Encoding video...');
+      } else if (type === 'complete') {
+        const blob = new Blob([e.data.buffer as ArrayBuffer], { type: 'video/mp4' });
+        setSimulationComplete(blob, e.data.vels, e.data.result);
+        worker.terminate();
+      } else if (type === 'error') {
+        console.error('Simulation worker error:', e.data.message);
+        worker.terminate();
+      }
+    };
+
+    worker.onerror = (err) => console.error('Worker crashed:', err);
+    worker.postMessage({ teamA, teamB, initialVelocities });
+
+    return () => worker.terminate();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -3,7 +3,9 @@ import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 import type { TeamConfig, WeaponStats, WinnerType } from '../models/types';
 import type { Particle, WeaponEffect, FloatingDamage, ScreenShake } from '../models/GameState';
 import { Renderer } from '../rendering/Renderer';
+import { drawBackground, drawArenaWalls } from '../rendering/drawBackground';
 import { drawCaptureTopPanel, drawCaptureBottomPanel } from '../rendering/drawCaptureOverlay';
+import { drawIntroCard, drawResultCard } from '../rendering/drawBattleCard';
 import { spawnParticleBurst, stepParticles } from '../rendering/drawParticles';
 import { stepFloaters, createFloater } from '../rendering/drawFloaters';
 import { createWeaponEffect } from '../rendering/drawWeaponEffect';
@@ -33,6 +35,9 @@ import {
   HEAVY_HIT_THRESHOLD,
   WEAPON_ORBIT_SPEED_SCALE,
   WEAPON_HIT_COOLDOWN_MIN,
+  INTRO_DURATION_S,
+  RESULT_DURATION_S,
+  WHITE_FLASH_FRAMES,
 } from '../constants/gameConstants';
 import type { InitialVelocities, SimulationResult } from '../store/useGameStore';
 
@@ -47,6 +52,7 @@ interface GameSimulatorConfig {
   teamB: TeamConfig;
   initialVelocities: InitialVelocities;
   fps?: number;
+  workerMode?: boolean;
 }
 
 interface StuckState {
@@ -101,13 +107,21 @@ export class GameSimulator {
 
   private physicsCanvas: OffscreenCanvas;
   private captureCanvas: OffscreenCanvas;
+  private captureBg!: OffscreenCanvas;
+  private captureCtx: Ctx2D;
   private renderer: Renderer;
+
+  // Pre-computed arena layout (constant throughout the match)
+  private readonly arenaDrawSize: number = CAPTURE_CANVAS_WIDTH - CAPTURE_ARENA_PAD * 2;
+  private readonly arenaX: number = CAPTURE_ARENA_PAD;
+  private readonly arenaY: number = CAPTURE_TOP_HEIGHT + CAPTURE_ARENA_PAD;
 
   private encoder: VideoEncoder | null = null;
   private muxer: Muxer<ArrayBufferTarget> | null = null;
   private target: ArrayBufferTarget | null = null;
   private frameCount = 0;
   private fps: number;
+  private workerMode: boolean;
 
   private teamA: TeamConfig;
   private teamB: TeamConfig;
@@ -118,6 +132,7 @@ export class GameSimulator {
     this.teamB = config.teamB;
     this.initialVelocities = config.initialVelocities;
     this.fps = config.fps ?? 60;
+    this.workerMode = config.workerMode ?? false;
 
     this.hp = { A: config.teamA.ball.durability, B: config.teamB.ball.durability };
     this.maxHp = { A: config.teamA.ball.durability, B: config.teamB.ball.durability };
@@ -156,10 +171,51 @@ export class GameSimulator {
     // ── Canvases ─────────────────────────────────────────────────────────────
     this.physicsCanvas = new OffscreenCanvas(ARENA_SIZE, ARENA_SIZE);
     this.captureCanvas = new OffscreenCanvas(CAPTURE_CANVAS_WIDTH, CAPTURE_CANVAS_HEIGHT);
+    this.captureCtx = this.captureCanvas.getContext('2d') as unknown as Ctx2D;
 
+    // Pre-render the physics arena background (grid + walls) once.
+    // These 25+ draw calls are completely static and are replaced by a single drawImage each frame.
+    const physicsStaticBg = this.buildPhysicsStaticBg();
     const physicsCtx = this.physicsCanvas.getContext('2d') as unknown as Ctx2D;
-    this.renderer = new Renderer(physicsCtx);
+    this.renderer = new Renderer(physicsCtx, physicsStaticBg);
+
+    // Pre-render the capture canvas static parts (top panel + arena bg + card shadow + bottom panel)
+    // and stamp them onto captureCanvas ONCE. Per-frame rendering only overwrites the arena region.
+    // captureBg is kept so run() can restore it after the intro card phase.
+    this.captureBg = this.buildCaptureBg();
+    this.captureCtx.drawImage(this.captureBg as unknown as HTMLCanvasElement, 0, 0);
   }
+
+  private buildPhysicsStaticBg(): OffscreenCanvas {
+    const bg = new OffscreenCanvas(ARENA_SIZE, ARENA_SIZE);
+    const ctx = bg.getContext('2d') as unknown as Ctx2D;
+    drawBackground(ctx);
+    drawArenaWalls(ctx, this.teamA.ball.color, this.teamB.ball.color);
+    return bg;
+  }
+
+  private buildCaptureBg(): OffscreenCanvas {
+    const bg = new OffscreenCanvas(CAPTURE_CANVAS_WIDTH, CAPTURE_CANVAS_HEIGHT);
+    const ctx = bg.getContext('2d') as unknown as Ctx2D;
+
+    drawCaptureTopPanel(ctx, this.teamA, this.teamB);
+
+    ctx.fillStyle = '#FFFADE';
+    ctx.fillRect(0, CAPTURE_TOP_HEIGHT, CAPTURE_CANVAS_WIDTH, CAPTURE_CANVAS_WIDTH);
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(1, 0, 107, 0.18)';
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetY = 6;
+    ctx.fillStyle = '#FEFEFE';
+    ctx.fillRect(this.arenaX, this.arenaY, this.arenaDrawSize, this.arenaDrawSize);
+    ctx.restore();
+
+    drawCaptureBottomPanel(ctx, 0, 0, 0, this.teamA.ball.color, this.teamB.ball.color);
+
+    return bg;
+  }
+
 
   private initEncoder(): void {
     try {
@@ -175,11 +231,12 @@ export class GameSimulator {
         error: (e) => console.error('GameSimulator VideoEncoder error:', e),
       });
       this.encoder.configure({
-        codec: 'avc1.4D0029',
+        codec: 'avc1.640033',          // H.264 High Profile Level 5.1 — supports 1080p@60fps
         width: CAPTURE_CANVAS_WIDTH,
         height: CAPTURE_CANVAS_HEIGHT,
-        bitrate: 10_000_000,
+        bitrate: 20_000_000,           // 20 Mbps for 1080p60 HD quality
         framerate: this.fps,
+        hardwareAcceleration: 'prefer-hardware',
       });
     } catch (err) {
       console.error('GameSimulator: failed to init encoder', err);
@@ -213,20 +270,28 @@ export class GameSimulator {
     };
     Events.on(this.engine, 'collisionStart', handleCollision);
 
-    let frameIdx = 0;
+    // ── Phase 1: Intro card ───────────────────────────────────────────────
+    let frameIdx = await this.encodeIntroPhase(0, onProgress);
+
+    // ── Intro → Fight transition flash ───────────────────────────────────
+    frameIdx = this.encodeWhiteFlash(frameIdx);
+
+    // Restore the static fight-view background before encoding fight frames.
+    this.captureCtx.drawImage(this.captureBg as unknown as HTMLCanvasElement, 0, 0);
+
+    // ── Phase 2: Fight simulation ─────────────────────────────────────────
     const STEP = 1000 / this.fps;
 
     while (!this.matchEnded && this.simTime < STALEMATE_TIME_MS) {
       this.tick(STEP);
-      this.encodeFrame(frameIdx, false);
+      this.encodeFrame(frameIdx);
       frameIdx++;
 
-      // Yield every 30 frames to keep the browser responsive and drain the encoder
-      if (frameIdx % 30 === 0) {
-        onProgress(Math.min(0.95, this.simTime / STALEMATE_TIME_MS));
-        if (this.encoder && this.encoder.state === 'configured' && this.encoder.encodeQueueSize > 0) {
-          try { await this.encoder.flush(); } catch { /* ignore */ }
-        }
+      // Yield periodically to drain encoder output callbacks and (on main thread) keep UI responsive.
+      // In worker mode fewer yields are needed since the UI thread is never blocked.
+      const yieldInterval = this.workerMode ? 120 : 60;
+      if (frameIdx % yieldInterval === 0 || (this.encoder?.encodeQueueSize ?? 0) > 60) {
+        onProgress(0.05 + 0.88 * Math.min(this.simTime / STALEMATE_TIME_MS, 1));
         await new Promise<void>((r) => setTimeout(r, 0));
       }
     }
@@ -237,22 +302,11 @@ export class GameSimulator {
 
     Events.off(this.engine, 'collisionStart', handleCollision);
 
-    // ── Encode 2-second result hold: final frame + winner overlay ─────────
-    // This ensures the video always shows a clear winner before ending,
-    // even if the fight was very short (e.g. one-hit KO).
-    const RESULT_FRAMES = Math.round(this.fps * 2); // 2 s
-    for (let ri = 0; ri < RESULT_FRAMES; ri++) {
-      const fadeIn = Math.min(1, ri / (this.fps * 0.4)); // fade in over 0.4 s
-      this.encodeFrame(frameIdx, true, fadeIn);
-      frameIdx++;
-      if (ri % 30 === 0) {
-        onProgress(0.95 + 0.04 * (ri / RESULT_FRAMES));
-        if (this.encoder && this.encoder.state === 'configured' && this.encoder.encodeQueueSize > 0) {
-          try { await this.encoder.flush(); } catch { /* ignore */ }
-        }
-        await new Promise<void>((r) => setTimeout(r, 0));
-      }
-    }
+    // ── Fight → Result transition flash ──────────────────────────────────
+    frameIdx = this.encodeWhiteFlash(frameIdx);
+
+    // ── Phase 3: Result card ──────────────────────────────────────────────
+    frameIdx = await this.encodeResultPhase(frameIdx, onProgress);
 
     onProgress(1.0);
 
@@ -440,8 +494,8 @@ export class GameSimulator {
     }
   }
 
-  private encodeFrame(frameIdx: number, showResult = false, resultAlpha = 0): void {
-    // Render to physics canvas
+  private encodeFrame(frameIdx: number): void {
+    // 1. Render dynamic content to the small physics canvas (480×480).
     this.renderer.render({
       bodyA: this.bodyA,
       bodyB: this.bodyB,
@@ -463,39 +517,19 @@ export class GameSimulator {
       colorB: this.teamB.ball.color,
     });
 
-    // Composite onto capture canvas
-    const cctx = this.captureCanvas.getContext('2d') as unknown as Ctx2D;
-
-    drawCaptureTopPanel(cctx, this.teamA, this.teamB);
-
-    cctx.fillStyle = '#FFFADE';
-    cctx.fillRect(0, CAPTURE_TOP_HEIGHT, CAPTURE_CANVAS_WIDTH, CAPTURE_CANVAS_WIDTH);
-
-    const arenaDrawSize = CAPTURE_CANVAS_WIDTH - CAPTURE_ARENA_PAD * 2;
-    const arenaX = CAPTURE_ARENA_PAD;
-    const arenaY = CAPTURE_TOP_HEIGHT + CAPTURE_ARENA_PAD;
-
-    cctx.save();
-    cctx.shadowColor = 'rgba(1, 0, 107, 0.18)';
-    cctx.shadowBlur = 24;
-    cctx.shadowOffsetY = 6;
-    cctx.fillStyle = '#FEFEFE';
-    cctx.fillRect(arenaX, arenaY, arenaDrawSize, arenaDrawSize);
-    cctx.restore();
-
+    // 2. Blit current physics frame into the arena region of the capture canvas.
+    //    captureCanvas was pre-initialized with the static background (top panel,
+    //    arena bg, card shadow, bottom panel), so only the arena area needs updating.
+    const cctx = this.captureCtx;
     (cctx as unknown as OffscreenCanvasRenderingContext2D).imageSmoothingEnabled = false;
-    cctx.drawImage(this.physicsCanvas as unknown as HTMLCanvasElement, arenaX, arenaY, arenaDrawSize, arenaDrawSize);
+    cctx.drawImage(this.physicsCanvas as unknown as HTMLCanvasElement, this.arenaX, this.arenaY, this.arenaDrawSize, this.arenaDrawSize);
 
-    drawCaptureBottomPanel(cctx, this.damageDealt.A, this.damageDealt.B, this.turns, this.teamA.ball.color, this.teamB.ball.color);
+    this.commitFrame(frameIdx);
+  }
 
-    // Draw winner overlay during result hold frames
-    if (showResult && resultAlpha > 0) {
-      this.drawResultOverlay(cctx, resultAlpha);
-    }
-
-    // Encode frame
+  /** Commits whatever is currently drawn on captureCanvas as the next encoded video frame. */
+  private commitFrame(frameIdx: number): void {
     if (!this.encoder || this.encoder.state === 'closed') return;
-
     try {
       const durationUs = Math.round(1_000_000 / this.fps);
       const timestampUs = frameIdx * durationUs;
@@ -509,51 +543,44 @@ export class GameSimulator {
     }
   }
 
-  private drawResultOverlay(cctx: Ctx2D, alpha: number): void {
-    const W = CAPTURE_CANVAS_WIDTH;
-    const arenaY = CAPTURE_TOP_HEIGHT + CAPTURE_ARENA_PAD;
-    const arenaCX = W / 2;
-    const arenaCY = arenaY + (W - CAPTURE_ARENA_PAD * 2) / 2;
-
-    const isDraw = this.winner === 'draw';
-    const winnerTeam = this.winner === 'A' ? this.teamA : this.winner === 'B' ? this.teamB : null;
-    const bgColor = winnerTeam ? winnerTeam.ball.color : '#888888';
-
-    cctx.save();
-    cctx.globalAlpha = alpha * 0.88;
-
-    // Dark pill background
-    const pillW = 480, pillH = 180;
-    const pillX = arenaCX - pillW / 2;
-    const pillY = arenaCY - pillH / 2;
-    cctx.fillStyle = '#0a0a1a';
-    cctx.beginPath();
-    (cctx as CanvasRenderingContext2D).roundRect?.(pillX, pillY, pillW, pillH, 28);
-    cctx.fill();
-
-    cctx.globalAlpha = alpha;
-    cctx.textAlign = 'center';
-    cctx.textBaseline = 'middle';
-
-    if (isDraw) {
-      cctx.fillStyle = '#aaaaaa';
-      cctx.font = '900 52px sans-serif';
-      cctx.fillText('🤝', arenaCX, arenaCY - 28);
-      cctx.font = 'bold 28px "Press Start 2P", monospace';
-      cctx.fillStyle = '#cccccc';
-      cctx.fillText("DRAW", arenaCX, arenaCY + 40);
-    } else if (winnerTeam) {
-      cctx.font = '900 46px sans-serif';
-      cctx.fillText('🏆', arenaCX, arenaCY - 34);
-      cctx.font = 'bold 16px "Press Start 2P", monospace';
-      cctx.fillStyle = '#aaaaaa';
-      cctx.fillText('WINNER', arenaCX, arenaCY + 10);
-      cctx.font = 'bold 22px "Press Start 2P", monospace';
-      cctx.fillStyle = bgColor;
-      cctx.fillText(winnerTeam.name, arenaCX, arenaCY + 48);
+  private async encodeIntroPhase(baseFrameIdx: number, onProgress: (pct: number) => void): Promise<number> {
+    const INTRO_FRAMES = Math.round(this.fps * INTRO_DURATION_S);
+    let frameIdx = baseFrameIdx;
+    for (let i = 0; i < INTRO_FRAMES; i++) {
+      drawIntroCard(this.captureCtx, i / this.fps, this.teamA, this.teamB);
+      this.commitFrame(frameIdx++);
+      const yieldInterval = this.workerMode ? 120 : 60;
+      if (i % yieldInterval === 0 || (this.encoder?.encodeQueueSize ?? 0) > 60) {
+        onProgress(0.02 * (i / INTRO_FRAMES));
+        await new Promise<void>((r) => setTimeout(r, 0));
+      }
     }
+    return frameIdx;
+  }
 
-    cctx.restore();
+  private async encodeResultPhase(baseFrameIdx: number, onProgress: (pct: number) => void): Promise<number> {
+    const RESULT_FRAMES = Math.round(this.fps * RESULT_DURATION_S);
+    let frameIdx = baseFrameIdx;
+    for (let i = 0; i < RESULT_FRAMES; i++) {
+      drawResultCard(this.captureCtx, i / this.fps, this.teamA, this.teamB, this.winner);
+      this.commitFrame(frameIdx++);
+      const yieldInterval = this.workerMode ? 120 : 60;
+      if (i % yieldInterval === 0 || (this.encoder?.encodeQueueSize ?? 0) > 60) {
+        onProgress(0.95 + 0.04 * (i / RESULT_FRAMES));
+        await new Promise<void>((r) => setTimeout(r, 0));
+      }
+    }
+    return frameIdx;
+  }
+
+  private encodeWhiteFlash(baseFrameIdx: number): number {
+    let frameIdx = baseFrameIdx;
+    for (let i = 0; i < WHITE_FLASH_FRAMES; i++) {
+      this.captureCtx.fillStyle = '#ffffff';
+      this.captureCtx.fillRect(0, 0, CAPTURE_CANVAS_WIDTH, CAPTURE_CANVAS_HEIGHT);
+      this.commitFrame(frameIdx++);
+    }
+    return frameIdx;
   }
 
   private async finalizeVideo(): Promise<Blob> {

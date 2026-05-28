@@ -34,17 +34,17 @@ export interface RenderState {
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
+  private staticBg: OffscreenCanvas | null;
 
-  constructor(ctx: CanvasRenderingContext2D) {
+  constructor(ctx: CanvasRenderingContext2D, staticBg?: OffscreenCanvas) {
     this.ctx = ctx;
+    this.staticBg = staticBg ?? null;
   }
 
   render(state: RenderState): void {
     const { ctx } = this;
     const { screenShake } = state;
 
-    // Clear canvas before every frame so screen-shake translations don't
-    // leave stale pixels along the edges (the main cause of visual noise).
     ctx.clearRect(0, 0, ARENA_SIZE, ARENA_SIZE);
 
     // ── Apply screen shake ─────────────────────────────────────────────
@@ -57,16 +57,18 @@ export class Renderer {
       );
     }
 
-    // 1. Background
-    drawBackground(ctx);
+    // 1. Background + arena border (pre-rendered if available, otherwise dynamic)
+    if (this.staticBg) {
+      ctx.drawImage(this.staticBg as unknown as HTMLCanvasElement, 0, 0);
+    } else {
+      drawBackground(ctx);
+      drawArenaWalls(ctx, state.colorA, state.colorB);
+    }
 
-    // 2. Arena border
-    drawArenaWalls(ctx, state.colorA, state.colorB);
-
-    // 3. Shield-type weapon effects (drawn behind balls so ball sits in front of shield)
+    // 2. Shield-type weapon effects (drawn behind balls so ball sits in front of shield)
     drawWeaponEffects(ctx, state.weaponEffects.filter((e) => e.type === 'shield'));
 
-    // 4. Balls
+    // 3. Balls
     drawBall(
       ctx,
       state.bodyA.position.x,
@@ -88,7 +90,7 @@ export class Renderer {
       'B'
     );
 
-    // 5. Orbiting weapons (drawn on top of balls, inside the shake transform)
+    // 4. Orbiting weapons (drawn on top of balls, inside the shake transform)
     drawOrbitWeapon(
       ctx,
       state.bodyA.position.x,
@@ -108,15 +110,15 @@ export class Renderer {
       'B'
     );
 
-    // 6. Remaining weapon effects (explosions, lasers, sword flashes, etc.)
+    // 5. Remaining weapon effects (explosions, lasers, sword flashes, etc.)
     drawWeaponEffects(ctx, state.weaponEffects.filter((e) => e.type !== 'shield'));
 
-    // 7. Particles
+    // 6. Particles
     drawParticles(ctx, state.particles);
 
     ctx.restore(); // end shake transform
 
-    // 8. Floating damage numbers (outside shake so they stay legible)
+    // 7. Floating damage numbers (outside shake so they stay legible)
     drawFloaters(ctx, state.floaters);
   }
 

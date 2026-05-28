@@ -52,11 +52,12 @@ export function useVideoExport(): VideoExportHook {
       });
 
       encoder.configure({
-        codec: 'avc1.4D0029',  // H.264 Main Profile Level 4.1 — broad compatibility
+        codec: 'avc1.640033',  // H.264 High Profile Level 5.1 — supports 1080p@60fps
         width,
         height,
-        bitrate: 10_000_000,   // 10 Mbps for 60fps
+        bitrate: 20_000_000,   // 20 Mbps for 1080p60 HD quality
         framerate: fps,
+        hardwareAcceleration: 'prefer-hardware',
       });
 
       encoderRef.current = encoder;

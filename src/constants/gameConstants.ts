@@ -1,10 +1,10 @@
 export const ARENA_SIZE = 480;          // canvas width & height in px
-export const CAPTURE_SCALE = 1.5;            // upscale factor: 480 → 720 (pixel-perfect ×1.5)
-export const CAPTURE_CANVAS_WIDTH = 720;     // 480 × 1.5
-export const CAPTURE_TOP_HEIGHT = 260;       // top info panel
-export const CAPTURE_BOTTOM_HEIGHT = 380;    // bottom stats panel (1280 − 180 − 720)
-export const CAPTURE_CANVAS_HEIGHT = 1280;   // 720 × 16/9 — TikTok-ready 9:16
-export const CAPTURE_ARENA_PAD = 50;         // padding around fight area on all four sides
+export const CAPTURE_SCALE = 2.25;           // upscale factor: 480 → 1080 (×2.25)
+export const CAPTURE_CANVAS_WIDTH = 1080;    // 1080p wide
+export const CAPTURE_TOP_HEIGHT = 390;       // top info panel
+export const CAPTURE_BOTTOM_HEIGHT = 450;    // bottom stats panel (1920 − 390 − 1080)
+export const CAPTURE_CANVAS_HEIGHT = 1920;   // 1080p × 16/9 — TikTok-ready 9:16 HD
+export const CAPTURE_ARENA_PAD = 75;         // padding around fight area on all four sides
 export const WALL_THICKNESS = 20;       // static wall body thickness
 export const MAX_PARTICLES = 50;        // hard cap on simultaneous particles
 export const STALEMATE_TIME_MS = 30_000; // 30 seconds → force end
@@ -36,3 +36,7 @@ export const HP_RING_STROKE = 4;        // px — HP arc ring width
 export const WEAPON_ORBIT_GAP = 8;           // px gap between ball edge and weapon hitbox center
 export const WEAPON_ORBIT_SPEED_SCALE = 1.5; // rad/s per weapon.speed unit
 export const WEAPON_HIT_COOLDOWN_MIN = 320;  // ms minimum between orbit hits (prevents frame-spam)
+// ── Intro / result card timing ────────────────────────────────────────────────
+export const INTRO_DURATION_S = 2;           // seconds of intro card before fight
+export const RESULT_DURATION_S = 3;          // seconds of result card after fight
+export const WHITE_FLASH_FRAMES = 3;         // solid-white frames at each scene transition
