@@ -3,11 +3,22 @@ import { useGameStore } from '../../store/useGameStore';
 import ControlPanel from './ControlPanel';
 import { CAPTURE_CANVAS_WIDTH, CAPTURE_CANVAS_HEIGHT } from '../../constants/gameConstants';
 
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 export default function PlaybackScreen() {
   const preSimBlob = useGameStore((s) => s.preSimBlob);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoRef   = useRef<HTMLVideoElement | null>(null);
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
-  const [isEnded, setIsEnded] = useState(false);
+  const [isEnded,   setIsEnded]   = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!preSimBlob) return;
@@ -23,10 +34,54 @@ export default function PlaybackScreen() {
     videoRef.current.play().catch(() => {/* autoplay may be blocked */});
   }, [objectUrl]);
 
-  function handleReplay() {
-    setIsEnded(false);
+  function handleReplay() { setIsEnded(false); }
+
+  // ── Mobile: video fills top flex-1, panel pinned at bottom ───────────
+  if (isMobile) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          height: '100svh',
+          display: 'flex',
+          flexDirection: 'column',
+          background: '#0d0d1a',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+          }}
+        >
+          <video
+            ref={videoRef}
+            playsInline
+            style={{
+              height: '100%',
+              width: 'auto',
+              aspectRatio: `${CAPTURE_CANVAS_WIDTH} / ${CAPTURE_CANVAS_HEIGHT}`,
+              display: 'block',
+            }}
+            onEnded={() => setIsEnded(true)}
+          />
+        </div>
+
+        <ControlPanel
+          videoRef={videoRef}
+          isEnded={isEnded}
+          onReplay={handleReplay}
+          isMobile
+        />
+      </div>
+    );
   }
 
+  // ── Desktop: video + panel side by side ───────────────────────────────
   return (
     <div
       style={{
@@ -41,7 +96,6 @@ export default function PlaybackScreen() {
         overflow: 'hidden',
       }}
     >
-      {/* Centered group: video + panel side by side */}
       <div
         style={{
           display: 'flex',
@@ -53,7 +107,6 @@ export default function PlaybackScreen() {
           boxShadow: '0 4px 40px rgba(1,0,107,0.13)',
         }}
       >
-        {/* Fight video */}
         <video
           ref={videoRef}
           playsInline
@@ -68,7 +121,6 @@ export default function PlaybackScreen() {
           onEnded={() => setIsEnded(true)}
         />
 
-        {/* Control panel directly next to video */}
         <ControlPanel
           videoRef={videoRef}
           isEnded={isEnded}

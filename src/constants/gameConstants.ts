@@ -1,8 +1,8 @@
 export const ARENA_SIZE = 480;          // canvas width & height in px
 export const CAPTURE_SCALE = 2.25;           // upscale factor: 480 → 1080 (×2.25)
 export const CAPTURE_CANVAS_WIDTH = 1080;    // 1080p wide
-export const CAPTURE_TOP_HEIGHT = 390;       // top info panel
-export const CAPTURE_BOTTOM_HEIGHT = 450;    // bottom stats panel (1920 − 390 − 1080)
+export const CAPTURE_TOP_HEIGHT = 220;       // top info panel
+export const CAPTURE_BOTTOM_HEIGHT = 352;    // bottom stats panel (1920 − 488 − 1080)
 export const CAPTURE_CANVAS_HEIGHT = 1920;   // 1080p × 16/9 — TikTok-ready 9:16 HD
 export const CAPTURE_ARENA_PAD = 75;         // padding around fight area on all four sides
 export const WALL_THICKNESS = 20;       // static wall body thickness

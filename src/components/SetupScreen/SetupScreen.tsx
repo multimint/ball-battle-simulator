@@ -1,138 +1,221 @@
 import React from 'react';
 import { useGameStore } from '../../store/useGameStore';
-import { Button } from '../ui/Button';
 import FighterSelector from './FighterSelector';
 import StatsPanel from './StatsPanel';
+import { FIGHTER_PRESETS } from '../../constants/fighterPresets';
+import {
+  CAPTURE_CANVAS_WIDTH,
+  CAPTURE_CANVAS_HEIGHT,
+} from '../../constants/gameConstants';
 
 const COLOR_A = '#E47D79';
 const COLOR_B = '#4A90E2';
+const PANEL_W = 220;
+const RATIO   = CAPTURE_CANVAS_WIDTH / CAPTURE_CANVAS_HEIGHT;
+const RETRO   = '"Press Start 2P", monospace';
 
 export default function SetupScreen() {
   const startNewSimulation = useGameStore((s) => s.startNewSimulation);
+  const teamA = useGameStore((s) => s.teamA);
+  const teamB = useGameStore((s) => s.teamB);
 
-  function handleStart() {
-    startNewSimulation();
-  }
+  const fighterA = FIGHTER_PRESETS.find((f) => f.weapon.name === teamA.weapon.name);
+  const fighterB = FIGHTER_PRESETS.find((f) => f.weapon.name === teamB.weapon.name);
 
   return (
-    /* ── Full-screen bg ── */
     <div
-      className="h-screen w-full flex flex-col items-center justify-center overflow-hidden p-0 lg:p-4"
-      style={{ background: 'var(--color-bg)' }}
+      style={{
+        width: '100%',
+        height: '100svh',
+        background: 'var(--color-bg, #FFFADE)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '32px 24px',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+      }}
     >
-      {/* ── Centered game panel ── */}
       <div
-        className="w-full lg:max-w-4xl h-full lg:h-[94vh] flex flex-col overflow-hidden lg:rounded-2xl"
         style={{
-          background: 'var(--color-bg)',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          width: `calc((100svh - 64px) * ${RATIO.toFixed(6)} + ${PANEL_W}px)`,
+          maxWidth: '100%',
+          borderRadius: 14,
+          overflow: 'hidden',
+          boxShadow: '0 4px 40px rgba(1,0,107,0.13)',
           border: '1.5px solid rgba(1,0,107,0.10)',
-          boxShadow: '0 8px 48px rgba(1,0,107,0.07), 0 2px 12px rgba(1,0,107,0.04)',
+          background: 'var(--color-bg, #FFFADE)',
         }}
       >
-        {/* ════ HEADER ════ */}
-        <header className="flex-shrink-0 text-center py-2.5 border-b border-game-primary/12">
-          <h1 className="font-retro text-[13px] text-game-primary">⚔️ BALL BATTLE</h1>
-          <p className="font-retro text-[6px] text-game-primary/35 mt-0.5 tracking-widest">
-            1V1 PHYSICS DUEL SIMULATOR
-          </p>
-        </header>
+        {/* ── TOP: Player 1 | VS | Player 2 ── */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'row', minHeight: 0 }}>
+          <TeamColumn team="A" color={COLOR_A} />
 
-        {/* ════ COLUMNS ════ */}
-        <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+          {/* VS divider */}
+          <div
+            style={{
+              width: 14,
+              flexShrink: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(1,0,107,0.02)',
+              borderLeft: '1px solid rgba(1,0,107,0.07)',
+              borderRight: '1px solid rgba(1,0,107,0.07)',
+            }}
+          >
+            <span
+              style={{
+                fontFamily: RETRO,
+                fontSize: 6,
+                color: 'rgba(1,0,107,0.22)',
+                writingMode: 'vertical-lr',
+                letterSpacing: '0.35em',
+              }}
+            >
+              VS
+            </span>
+          </div>
 
-          <TeamColumn team="A" color={COLOR_A} showMatchup={false} />
-          <VsDivider />
-          <TeamColumn team="B" color={COLOR_B} showMatchup />
-
+          <TeamColumn team="B" color={COLOR_B} />
         </div>
 
-        {/* ════ START BUTTON ════ */}
+        {/* ── BOTTOM: battle bar ── */}
         <div
-          className="flex-shrink-0 px-4 py-3 border-t border-game-primary/10 flex justify-center"
-        >
-          <Button variant="success" size="xl" onClick={handleStart} className="w-full max-w-xs">
-            ⚔️ START BATTLE!
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────
-   Team column
-───────────────────────────────────────── */
-function TeamColumn({
-  team,
-  color,
-  showMatchup,
-}: {
-  team: 'A' | 'B';
-  color: string;
-  showMatchup: boolean;
-}) {
-  const label = team === 'A' ? 'PLAYER 1' : 'PLAYER 2';
-
-  return (
-    <div
-      className="flex-1 flex flex-col min-w-0 min-h-0 border-b lg:border-b-0 lg:border-r border-game-primary/10 last:border-r-0"
-    >
-      {/* Colored header strip */}
-      <div
-        className="flex-shrink-0 flex items-center gap-2.5 px-4 py-2.5"
-        style={{ background: `${color}18`, borderBottom: `1px solid ${color}30` }}
-      >
-        <div
-          className="w-3 h-3 rounded-full ring-2 ring-white/70 shadow-sm flex-shrink-0"
-          style={{ backgroundColor: color }}
-        />
-        <span className="font-retro text-[8px]" style={{ color }}>
-          {label}
-        </span>
-      </div>
-
-      {/* Scrollable: cards + stats */}
-      <div className="flex-1 overflow-y-auto min-h-0 px-3 pt-2 pb-3 flex flex-col gap-2">
-        <FighterSelector team={team} />
-        <StatsPanel team={team} showMatchup={showMatchup} />
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────
-   VS divider
-───────────────────────────────────────── */
-function VsDivider() {
-  return (
-    <>
-      {/* Desktop vertical */}
-      <div className="hidden lg:flex w-10 flex-col items-center flex-shrink-0 py-6">
-        <div
-          className="w-px flex-1"
-          style={{ background: 'linear-gradient(to bottom, transparent, #E47D7944, #4A90E244, transparent)' }}
-        />
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center my-3 flex-shrink-0"
           style={{
-            background: 'linear-gradient(135deg, #E47D7922, #4A90E222)',
-            border: '1.5px solid #01006B1a',
+            flexShrink: 0,
+            borderTop: '1.5px solid rgba(1,0,107,0.10)',
+            padding: '12px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            background: 'rgba(1,0,107,0.02)',
           }}
         >
-          <span className="font-retro text-[7px]" style={{ color: '#01006B55' }}>VS</span>
+          {/* Fighter A preview */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: '50%',
+                background: teamA.ball.color,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 17,
+                flexShrink: 0,
+              }}
+            >
+              {fighterA?.icon ?? '⚽'}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontFamily: RETRO, fontSize: 6, color: COLOR_A, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {teamA.name}
+              </p>
+              <p style={{ fontFamily: RETRO, fontSize: 5, color: 'rgba(1,0,107,0.35)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {teamA.weapon.name}
+              </p>
+            </div>
+          </div>
+
+          {/* VS badge */}
+          <span style={{ fontFamily: RETRO, fontSize: 8, color: 'rgba(1,0,107,0.30)', flexShrink: 0 }}>
+            VS
+          </span>
+
+          {/* Fighter B preview */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, justifyContent: 'flex-end' }}>
+            <div style={{ minWidth: 0, textAlign: 'right' }}>
+              <p style={{ fontFamily: RETRO, fontSize: 6, color: COLOR_B, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {teamB.name}
+              </p>
+              <p style={{ fontFamily: RETRO, fontSize: 5, color: 'rgba(1,0,107,0.35)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {teamB.weapon.name}
+              </p>
+            </div>
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: '50%',
+                background: teamB.ball.color,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 17,
+                flexShrink: 0,
+              }}
+            >
+              {fighterB?.icon ?? '⚽'}
+            </div>
+          </div>
+
+          {/* START button */}
+          <button
+            onClick={startNewSimulation}
+            style={{
+              fontFamily: RETRO,
+              fontSize: 7,
+              padding: '11px 18px',
+              borderRadius: 8,
+              border: 'none',
+              background: '#01006B',
+              color: '#FFFADE',
+              cursor: 'pointer',
+              flexShrink: 0,
+              letterSpacing: '0.05em',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.85'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '1'; }}
+          >
+            ⚔ START
+          </button>
         </div>
-        <div
-          className="w-px flex-1"
-          style={{ background: 'linear-gradient(to bottom, transparent, #4A90E244, #E47D7944, transparent)' }}
-        />
+      </div>
+    </div>
+  );
+}
+
+function TeamColumn({ team, color }: { team: 'A' | 'B'; color: string }) {
+  const label = team === 'A' ? 'PLAYER 1' : 'PLAYER 2';
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      {/* Header strip */}
+      <div
+        style={{
+          flexShrink: 0,
+          padding: '10px 14px',
+          background: `${color}14`,
+          borderBottom: `1px solid ${color}28`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
+        <span style={{ fontFamily: RETRO, fontSize: 7, color }}>{label}</span>
       </div>
 
-      {/* Mobile horizontal */}
-      <div className="lg:hidden flex-shrink-0 flex items-center px-4 py-1">
-        <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, #E47D7940, transparent)' }} />
-        <span className="font-retro text-[8px] px-3" style={{ color: '#01006B40' }}>VS</span>
-        <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, #4A90E240, transparent)' }} />
+      {/* Scrollable content */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+      >
+        <FighterSelector team={team} />
+        <StatsPanel team={team} showMatchup={false} />
       </div>
-    </>
+    </div>
   );
 }

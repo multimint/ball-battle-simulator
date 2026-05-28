@@ -51,16 +51,16 @@ export default function SimulatingScreen() {
         {/* Title */}
         <div className="text-center">
           <p
-            className="font-retro text-[10px] mb-1"
-            style={{ color: 'var(--color-primary, #01006B)', opacity: 0.5, letterSpacing: '0.1em' }}
+            className="font-retro text-[28px] mb-2"
+            style={{ color: 'var(--color-primary, #01006B)' }}
           >
             BALL BATTLE
           </p>
           <p
-            className="font-retro text-[14px]"
-            style={{ color: 'var(--color-primary, #01006B)' }}
+            className="font-retro text-[13px]"
+            style={{ color: 'var(--color-primary, #01006B)', opacity: 0.55, letterSpacing: '0.12em' }}
           >
-            {statusText}
+            {statusText.toUpperCase()}
           </p>
         </div>
 

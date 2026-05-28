@@ -5,9 +5,8 @@ import {
   CAPTURE_CANVAS_HEIGHT,
 } from '../constants/gameConstants';
 
-const BG = '#FFFADE';
-const TEXT = '#01006B';
-const DIM = 'rgba(1, 0, 107, 0.4)';
+const BG   = '#FFFADE';
+const DIM  = 'rgba(1, 0, 107, 0.70)';
 const RETRO = '"Press Start 2P", monospace';
 
 function truncate(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
@@ -19,7 +18,14 @@ function truncate(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return t + '…';
 }
 
-/** Top panel: compact fighter row + weapon subtitle. */
+function darkenHex(hex: string, factor = 0.75): string {
+  const r = Math.round(parseInt(hex.slice(1, 3), 16) * factor);
+  const g = Math.round(parseInt(hex.slice(3, 5), 16) * factor);
+  const b = Math.round(parseInt(hex.slice(5, 7), 16) * factor);
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+/** Top panel: cream background, team names + VS only. */
 export function drawCaptureTopPanel(
   ctx: CanvasRenderingContext2D,
   teamA: TeamConfig,
@@ -27,63 +33,33 @@ export function drawCaptureTopPanel(
 ): void {
   const W = CAPTURE_CANVAS_WIDTH;
   const H = CAPTURE_TOP_HEIGHT;
+  const halfW  = W / 2;
+  const quarterW = W / 4;
+  const pad = 56;
+  const maxNameW = halfW - pad * 2;
+  const textY = H - 38;
 
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
 
-  const pad = 42;
-  const iconSize = 78;
-  const nameRowY = 222;
-  const weapRowY = 318;
-  const halfW = W / 2;
-  const maxNameW = halfW - pad - iconSize - 21 - 72;
-
-  // ── Name row ─────────────────────────────────────────────────────────
-
-  // Team A: icon then name (left-aligned)
-  ctx.font = `${iconSize}px sans-serif`;
-  ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = TEXT;
-  ctx.fillText(teamA.ball.icon ?? '⚽', pad, nameRowY);
-
-  ctx.font = `30px ${RETRO}`;
-  ctx.fillStyle = teamA.ball.color;
-  ctx.textAlign = 'left';
-  ctx.fillText(truncate(ctx, teamA.name, maxNameW), pad + iconSize + 18, nameRowY);
-
-  // VS center
-  ctx.font = `24px ${RETRO}`;
   ctx.textAlign = 'center';
+
+  // Team A name
+  ctx.font = `48px ${RETRO}`;
+  ctx.fillStyle = darkenHex(teamA.ball.color);
+  ctx.fillText(truncate(ctx, teamA.name, maxNameW), quarterW, textY);
+
+  // VS
+  ctx.font = `28px ${RETRO}`;
   ctx.fillStyle = DIM;
-  ctx.fillText('VS', halfW, nameRowY);
+  ctx.fillText('VS', halfW, textY);
 
-  // Team B: name then icon (right-aligned)
-  ctx.font = `30px ${RETRO}`;
-  ctx.fillStyle = teamB.ball.color;
-  ctx.textAlign = 'right';
-  ctx.fillText(truncate(ctx, teamB.name, maxNameW), W - pad - iconSize - 18, nameRowY);
+  // Team B name
+  ctx.font = `48px ${RETRO}`;
+  ctx.fillStyle = darkenHex(teamB.ball.color);
+  ctx.fillText(truncate(ctx, teamB.name, maxNameW), halfW + quarterW, textY);
 
-  ctx.font = `${iconSize}px sans-serif`;
-  ctx.textAlign = 'right';
-  ctx.fillStyle = TEXT;
-  ctx.fillText(teamB.ball.icon ?? '⚽', W - pad, nameRowY);
-
-  // ── Weapon subtitle row ───────────────────────────────────────────────
-
-  ctx.font = `18px ${RETRO}`;
-  ctx.textBaseline = 'middle';
-
-  ctx.textAlign = 'left';
-  ctx.fillStyle = teamA.ball.color;
-  ctx.globalAlpha = 0.65;
-  ctx.fillText(truncate(ctx, teamA.weapon.name, halfW - pad - 24), pad, weapRowY);
-
-  ctx.textAlign = 'right';
-  ctx.fillStyle = teamB.ball.color;
-  ctx.fillText(truncate(ctx, teamB.weapon.name, halfW - pad - 24), W - pad, weapRowY);
-
-  ctx.globalAlpha = 1;
 }
 
 /** Bottom panel: plain background, no text. */
