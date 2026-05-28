@@ -114,7 +114,7 @@ function drawCentreBadge(
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(label, 0, -14);
+  ctx.fillText(label, 0, subLabel ? -14 : 0);
 
   if (subLabel) {
     ctx.font = `bold 24px ${RETRO}`;
@@ -224,10 +224,15 @@ export function drawResultCard(
   // ── Divider Y — sits at the meeting edge of both panels ──────────────────
   // aWins: winner bottom = 0 + winnerPanelH = halfH*(1+expandT)  →  moves down
   // bWins: winner top    = halfH*(1-expandT)                       →  moves up
-  // Badge travels from halfH down to H+120 so it fully exits the frame (badge radius = 108 px)
+  // Badge exits in the same direction as the winner's expansion:
+  // A wins → expands downward → badge slides off the bottom
+  // B wins → expands upward  → badge slides off the top
+  // +120 / -120 ensures the full 108 px radius clears the frame edge
   const dividerY = slideT < 1
     ? halfH
-    : halfH + expandT * (halfH + 120);
+    : aWins
+      ? halfH + expandT * (halfH + 120)
+      : halfH - expandT * (halfH + 120);
 
   // ── Draw ─────────────────────────────────────────────────────────────────
   ctx.fillStyle = '#0a0a14';
