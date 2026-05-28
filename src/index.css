@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg: #FFFADE;
+    --color-canvas: #FEFEFE;
+    --color-teamA: #E47D79;
+    --color-teamB: #4A90E2;
+    --color-hud-left: #00B074;
+    --color-hud-right: #0F5F6B;
+    --color-text-primary: #01006B;
+    --font-retro: 'Press Start 2P', cursive;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    background: var(--color-bg);
+    font-family: var(--font-retro);
+    color: var(--color-text-primary);
+  }
+
+  #root {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100svh;
+    overflow-y: auto;
+  }
+}
+
+@layer utilities {
+  .font-retro {
+    font-family: var(--font-retro);
+  }
+  .text-team-a {
+    color: var(--color-teamA);
+  }
+  .text-team-b {
+    color: var(--color-teamB);
+  }
+}

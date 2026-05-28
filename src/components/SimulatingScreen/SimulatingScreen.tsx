@@ -1,0 +1,104 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { useGameStore } from '../../store/useGameStore';
+import { GameSimulator } from '../../simulation/GameSimulator';
+
+export default function SimulatingScreen() {
+  const teamA = useGameStore((s) => s.teamA);
+  const teamB = useGameStore((s) => s.teamB);
+  const initialVelocities = useGameStore((s) => s.initialVelocities);
+  const setSimulationComplete = useGameStore((s) => s.setSimulationComplete);
+
+  const [progress, setProgress] = useState(0);
+  const [statusText, setStatusText] = useState('Simulating fight...');
+  const didRun = useRef(false);
+
+  useEffect(() => {
+    if (didRun.current) return;
+    didRun.current = true;
+
+    if (!initialVelocities) return;
+
+    const sim = new GameSimulator({ teamA, teamB, initialVelocities });
+
+    sim.run((pct) => {
+      setProgress(pct);
+      if (pct >= 0.99) setStatusText('Encoding video...');
+    }).then(({ blob, vels, result }) => {
+      setSimulationComplete(blob, vels, result);
+    }).catch((err) => {
+      console.error('Simulation failed:', err);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const pct = Math.round(progress * 100);
+
+  return (
+    <div
+      className="w-full h-screen flex flex-col items-center justify-center"
+      style={{ background: 'var(--color-bg)' }}
+    >
+      <div className="flex flex-col items-center gap-6 px-8" style={{ maxWidth: 480, width: '100%' }}>
+        {/* Title */}
+        <div className="text-center">
+          <p
+            className="font-retro text-[10px] mb-1"
+            style={{ color: 'var(--color-primary, #01006B)', opacity: 0.5, letterSpacing: '0.1em' }}
+          >
+            BALL BATTLE
+          </p>
+          <p
+            className="font-retro text-[14px]"
+            style={{ color: 'var(--color-primary, #01006B)' }}
+          >
+            {statusText}
+          </p>
+        </div>
+
+        {/* Fighter matchup */}
+        <div
+          className="flex items-center gap-4 w-full justify-center"
+        >
+          <div className="text-center">
+            <span style={{ fontSize: 36 }}>{teamA.ball.icon ?? '⚽'}</span>
+            <p className="font-retro text-[7px] mt-1" style={{ color: '#E47D79' }}>{teamA.name}</p>
+          </div>
+          <p className="font-retro text-[10px]" style={{ color: '#01006B44' }}>VS</p>
+          <div className="text-center">
+            <span style={{ fontSize: 36 }}>{teamB.ball.icon ?? '⚽'}</span>
+            <p className="font-retro text-[7px] mt-1" style={{ color: '#4A90E2' }}>{teamB.name}</p>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="w-full">
+          <div
+            style={{
+              width: '100%',
+              height: 12,
+              borderRadius: 6,
+              background: 'rgba(1,0,107,0.08)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                width: `${pct}%`,
+                height: '100%',
+                borderRadius: 6,
+                background: 'linear-gradient(90deg, #E47D79, #4A90E2)',
+                transition: 'width 0.15s ease',
+              }}
+            />
+          </div>
+          <p
+            className="font-retro text-[7px] text-center mt-2"
+            style={{ color: 'rgba(1,0,107,0.35)' }}
+          >
+            {pct}%
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
