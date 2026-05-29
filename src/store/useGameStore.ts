@@ -44,16 +44,15 @@ const defaultTeamA: TeamConfig = {
 };
 
 const defaultTeamB: TeamConfig = {
-  name: FIGHTER_PRESETS[5].name,
-  ball: FIGHTER_PRESETS[5].ball,
-  weapon: FIGHTER_PRESETS[5].weapon,
+  name: FIGHTER_PRESETS[0].name,
+  ball: FIGHTER_PRESETS[0].ball,
+  weapon: FIGHTER_PRESETS[0].weapon,
 };
 
-function randomVelocity(maxSpeed: number): { x: number; y: number } {
+function randomVelocity(maxSpeed: number, baseAngle: number): { x: number; y: number } {
   const scaled = maxSpeed * PHYSICS_SPEED_SCALE;
-  const frac = INITIAL_SPEED_MIN_FRAC + Math.random() * (INITIAL_SPEED_MAX_FRAC - INITIAL_SPEED_MIN_FRAC);
-  const spd = scaled * frac;
-  const angle = Math.random() * Math.PI * 2;
+  const spd = scaled * (0.95 + Math.random() * 0.15);
+  const angle = baseAngle + (Math.random() - 0.5) * Math.PI * 0.7;
   return { x: Math.cos(angle) * spd, y: Math.sin(angle) * spd };
 }
 
@@ -84,8 +83,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   startNewSimulation: () => {
     const { teamA, teamB } = get();
     const vels: InitialVelocities = {
-      velA: randomVelocity(teamA.ball.maxSpeed),
-      velB: randomVelocity(teamB.ball.maxSpeed),
+      velA: randomVelocity(teamA.ball.maxSpeed, 0),           // aimed right toward B ±63°
+      velB: randomVelocity(teamB.ball.maxSpeed, Math.PI),    // aimed left toward A ±63°
     };
     set({ phase: 'simulating', initialVelocities: vels, preSimBlob: null, simulationResult: null });
   },

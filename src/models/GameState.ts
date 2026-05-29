@@ -59,10 +59,51 @@ export interface ScreenShake {
   ttl: number;      // frames remaining
 }
 
+// ─── Screen Flash ─────────────────────────────────────────────────────────────
+
+export interface ScreenFlash {
+  alpha: number;    // current opacity 0–1 (decays each frame)
+  color: string;    // fill color
+  ttl: number;      // frames remaining
+}
+
+// ─── Ball Hit Flash ───────────────────────────────────────────────────────────
+
+export interface HitFlash {
+  alpha: number;    // current opacity 0–1 (decays each frame)
+  color: string;    // overlay color on the struck ball
+  ttl: number;      // frames remaining
+}
+
 // ─── Stuck Detection ──────────────────────────────────────────────────────────
 
 export interface StuckState {
   lastX: number;
   lastY: number;
   stuckFrames: number;
+}
+
+// ─── Bullets ─────────────────────────────────────────────────────────────────
+
+export interface Bullet {
+  x: number;
+  y: number;
+  vx: number;  // px per ms
+  vy: number;  // px per ms
+  owner: 'A' | 'B';
+  radius: number;
+  color: string;
+  ttl: number;  // ms remaining
+}
+
+// ─── Ability Trail Segments ───────────────────────────────────────────────────
+
+export interface TrailSegment {
+  x: number;
+  y: number;
+  radius: number;
+  color: string;
+  alpha: number;
+  ttl: number;    // frames remaining
+  maxTtl: number; // total frames
 }

@@ -1,7 +1,7 @@
 import Matter from 'matter-js';
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
-import type { TeamConfig, WeaponStats, WinnerType } from '../models/types';
-import type { Particle, WeaponEffect, FloatingDamage, ScreenShake } from '../models/GameState';
+import type { TeamConfig, WeaponStats, WinnerType, BallAbility, BallAbilityType, StatusEffect, StatusEffectType } from '../models/types';
+import type { Particle, WeaponEffect, FloatingDamage, ScreenShake, ScreenFlash, HitFlash, TrailSegment, Bullet } from '../models/GameState';
 import { Renderer } from '../rendering/Renderer';
 import { drawBackground, drawArenaWalls } from '../rendering/drawBackground';
 import { drawCaptureTopPanel, drawCaptureBottomPanel } from '../rendering/drawCaptureOverlay';
@@ -22,7 +22,7 @@ import {
   BALL_A_START,
   BALL_B_START,
   MAX_PARTICLES,
-  STALEMATE_TIME_MS,
+
   VELOCITY_CLAMP,
   PHYSICS_SPEED_SCALE,
   INITIAL_SPEED_MIN_FRAC,
@@ -98,12 +98,23 @@ export class GameSimulator {
 
   private particles: Particle[] = [];
   private floaters: FloatingDamage[] = [];
+  private trailSegments: TrailSegment[] = [];
+  private activeEffectsA: StatusEffect[] = [];
+  private activeEffectsB: StatusEffect[] = [];
   private weaponEffects: WeaponEffect[] = [];
   private screenShake: ScreenShake = { magnitude: 0, ttl: 0 };
+  private screenFlash: ScreenFlash = { alpha: 0, color: '#FFFFFF', ttl: 0 };
+  private hitFlashA: HitFlash = { alpha: 0, color: '#FFFFFF', ttl: 0 };
+  private hitFlashB: HitFlash = { alpha: 0, color: '#FFFFFF', ttl: 0 };
   private slowMotion = 1.0;
 
   private stuckA: StuckState = { lastX: 0, lastY: 0, stuckFrames: 0 };
   private stuckB: StuckState = { lastX: 0, lastY: 0, stuckFrames: 0 };
+
+  private chargeA = 0;
+  private chargeB = 0;
+
+  private bullets: Bullet[] = [];
 
   private physicsCanvas: OffscreenCanvas;
   private captureCanvas: OffscreenCanvas;
@@ -267,6 +278,18 @@ export class GameSimulator {
         spawnParticleBurst(this.particles, point.x, point.y, this.teamA.ball.color, 8, MAX_PARTICLES);
         this.turns++;
       }
+
+      // Wall-bounce ability trigger
+      for (const pair of event.pairs) {
+        const isWall = (b: Matter.Body) => b.label === 'wall';
+        const isBallA = (b: Matter.Body) => b.id === this.bodyA.id;
+        const isBallB = (b: Matter.Body) => b.id === this.bodyB.id;
+        if ((isWall(pair.bodyA) && isBallA(pair.bodyB)) || (isWall(pair.bodyB) && isBallA(pair.bodyA))) {
+          this.applyBallAbility(this.teamA.ball.ability, 'A', 'onBounce', { x: this.bodyA.position.x, y: this.bodyA.position.y });
+        } else if ((isWall(pair.bodyA) && isBallB(pair.bodyB)) || (isWall(pair.bodyB) && isBallB(pair.bodyA))) {
+          this.applyBallAbility(this.teamB.ball.ability, 'B', 'onBounce', { x: this.bodyB.position.x, y: this.bodyB.position.y });
+        }
+      }
     };
     Events.on(this.engine, 'collisionStart', handleCollision);
 
@@ -282,7 +305,7 @@ export class GameSimulator {
     // ── Phase 2: Fight simulation ─────────────────────────────────────────
     const STEP = 1000 / this.fps;
 
-    while (!this.matchEnded && this.simTime < STALEMATE_TIME_MS) {
+    while (!this.matchEnded) {
       this.tick(STEP);
       this.encodeFrame(frameIdx);
       frameIdx++;
@@ -291,13 +314,9 @@ export class GameSimulator {
       // In worker mode fewer yields are needed since the UI thread is never blocked.
       const yieldInterval = this.workerMode ? 120 : 60;
       if (frameIdx % yieldInterval === 0 || (this.encoder?.encodeQueueSize ?? 0) > 60) {
-        onProgress(0.05 + 0.88 * Math.min(this.simTime / STALEMATE_TIME_MS, 1));
+        onProgress(0.05 + 0.88 * Math.min(this.simTime / 60_000, 0.99));
         await new Promise<void>((r) => setTimeout(r, 0));
       }
-    }
-
-    if (!this.matchEnded) {
-      this.winner = this.hp.A > this.hp.B ? 'A' : this.hp.B > this.hp.A ? 'B' : 'draw';
     }
 
     Events.off(this.engine, 'collisionStart', handleCollision);
@@ -333,22 +352,91 @@ export class GameSimulator {
       this.slowMotion = Math.min(1.0, this.slowMotion + SLOW_MOTION_RECOVERY);
     }
     if (this.screenShake.ttl > 0) this.screenShake.ttl--;
+    if (this.screenFlash.ttl > 0) { this.screenFlash.ttl--; this.screenFlash.alpha *= 0.72; }
+    if (this.hitFlashA.ttl > 0) { this.hitFlashA.ttl--; this.hitFlashA.alpha *= 0.68; }
+    if (this.hitFlashB.ttl > 0) { this.hitFlashB.ttl--; this.hitFlashB.alpha *= 0.68; }
 
     Engine.update(this.engine, scaledDelta);
 
-    clampVelocity(this.bodyA, this.teamA.ball.maxSpeed, VELOCITY_CLAMP);
-    clampVelocity(this.bodyB, this.teamB.ball.maxSpeed, VELOCITY_CLAMP);
+    const speedMultA = this.getSpeedMultiplier('A');
+    const speedMultB = this.getSpeedMultiplier('B');
+    clampVelocity(this.bodyA, this.teamA.ball.maxSpeed * speedMultA, VELOCITY_CLAMP);
+    clampVelocity(this.bodyB, this.teamB.ball.maxSpeed * speedMultB, VELOCITY_CLAMP);
 
-    enforceMinSpeed(this.bodyA, this.teamA.ball.maxSpeed);
-    enforceMinSpeed(this.bodyB, this.teamB.ball.maxSpeed);
+    enforceMinSpeed(this.bodyA, this.teamA.ball.maxSpeed * speedMultA);
+    enforceMinSpeed(this.bodyB, this.teamB.ball.maxSpeed * speedMultB);
 
-    Body.setAngularVelocity(this.bodyA, this.teamA.ball.spinSpeed * 0.05 * Math.sign(this.bodyA.velocity.x || 1));
-    Body.setAngularVelocity(this.bodyB, this.teamB.ball.spinSpeed * 0.05 * Math.sign(this.bodyB.velocity.x || -1));
+    const berserkSpinA = this.teamA.ball.ability?.trigger === 'onLowHP' && this.hp.A / this.maxHp.A < Number(this.teamA.ball.ability?.params?.threshold ?? 0.3) ? 3.5 : 1.0;
+    const berserkSpinB = this.teamB.ball.ability?.trigger === 'onLowHP' && this.hp.B / this.maxHp.B < Number(this.teamB.ball.ability?.params?.threshold ?? 0.3) ? 3.5 : 1.0;
+    Body.setAngularVelocity(this.bodyA, this.teamA.ball.spinSpeed * 0.05 * berserkSpinA * Math.sign(this.bodyA.velocity.x || 1));
+    Body.setAngularVelocity(this.bodyB, this.teamB.ball.spinSpeed * 0.05 * berserkSpinB * Math.sign(this.bodyB.velocity.x || -1));
 
     this.updateStuck(this.stuckA, this.bodyA);
     this.updateStuck(this.stuckB, this.bodyB);
 
     this.updateWeaponOrbit(scaledDelta);
+    this.updateBullets(scaledDelta);
+
+    // Tick status effects (DoT damage, duration countdown)
+    this.tickStatusEffects(scaledDelta);
+
+    // Ball ability ticks (trail, passive, onLowHP)
+    this.applyBallAbility(this.teamA.ball.ability, 'A', 'trail', { delta: scaledDelta, x: this.bodyA.position.x, y: this.bodyA.position.y });
+    this.applyBallAbility(this.teamB.ball.ability, 'B', 'trail', { delta: scaledDelta, x: this.bodyB.position.x, y: this.bodyB.position.y });
+    this.applyBallAbility(this.teamA.ball.ability, 'A', 'passive', { delta: scaledDelta });
+    this.applyBallAbility(this.teamB.ball.ability, 'B', 'passive', { delta: scaledDelta });
+
+    // Quickstrike orbit trail — spawns at weapon position when speedBoost stacks >= 2
+    for (const team of ['A', 'B'] as const) {
+      const teamData = team === 'A' ? this.teamA : this.teamB;
+      if (teamData.ball.ability?.id === 'quickstrike-momentum') {
+        const effects = team === 'A' ? this.activeEffectsA : this.activeEffectsB;
+        const boost = effects.find(e => e.type === 'speedBoost');
+        if (boost && boost.stacks >= 2 && Math.random() < 0.75) {
+          const body = team === 'A' ? this.bodyA : this.bodyB;
+          const orbitAngle = team === 'A' ? this.orbitAngleA : this.orbitAngleB;
+          const hitboxR = getWeaponHitboxRadius(teamData.weapon);
+          const pos = getOrbitPosition(body.position.x, body.position.y, teamData.ball.radius, orbitAngle, hitboxR);
+          this.trailSegments.push({
+            x: pos.x,
+            y: pos.y,
+            radius: hitboxR * 0.45,
+            color: '#44FF44',
+            alpha: 0.55,
+            ttl: 8,
+            maxTtl: 8,
+          });
+        }
+      }
+    }
+
+    const hpFracA = this.hp.A / this.maxHp.A;
+    const hpFracB = this.hp.B / this.maxHp.B;
+    if (hpFracA < Number(this.teamA.ball.ability?.params?.threshold ?? 0.3)) {
+      this.applyBallAbility(this.teamA.ball.ability, 'A', 'onLowHP', { delta: scaledDelta });
+    }
+    if (hpFracB < Number(this.teamB.ball.ability?.params?.threshold ?? 0.3)) {
+      this.applyBallAbility(this.teamB.ball.ability, 'B', 'onLowHP', { delta: scaledDelta });
+    }
+
+    // Soft attraction: pull balls toward each other when far apart
+    const adx = this.bodyB.position.x - this.bodyA.position.x;
+    const ady = this.bodyB.position.y - this.bodyA.position.y;
+    const adist = Math.hypot(adx, ady);
+    const ATTRACT_THRESHOLD = 200;
+    if (adist > ATTRACT_THRESHOLD) {
+      const k = 0.000004;
+      const excess = adist - ATTRACT_THRESHOLD;
+      const fx = (adx / adist) * k * excess;
+      const fy = (ady / adist) * k * excess;
+      Body.applyForce(this.bodyA, this.bodyA.position, { x: fx, y: fy });
+      Body.applyForce(this.bodyB, this.bodyB.position, { x: -fx, y: -fy });
+    }
+
+    // Step trail segments
+    this.trailSegments = this.trailSegments
+      .map((s) => ({ ...s, ttl: s.ttl - 1, alpha: s.alpha * (s.ttl / s.maxTtl) }))
+      .filter((s) => s.ttl > 0);
 
     this.particles = stepParticles(this.particles);
     this.floaters = stepFloaters(this.floaters);
@@ -362,36 +450,67 @@ export class GameSimulator {
     this.simTime += delta;
   }
 
+  private isBerserk(team: 'A' | 'B'): boolean {
+    const t = team === 'A' ? this.teamA : this.teamB;
+    const threshold = Number(t.ball.ability?.params?.threshold ?? 0.3);
+    return t.ball.ability?.trigger === 'onLowHP' && this.hp[team] / this.maxHp[team] < threshold;
+  }
+
   private updateWeaponOrbit(delta: number): void {
     const dt = delta / 1000;
     const { teamA, teamB, bodyA, bodyB } = this;
+    const berserkMult = 2.5;
 
-    this.orbitAngleA += orbitSpeed(teamA.weapon) * dt;
-    this.orbitAngleB -= orbitSpeed(teamB.weapon) * dt;
+    if (teamA.weapon.aimAtEnemy) {
+      this.orbitAngleA = Math.atan2(bodyB.position.y - bodyA.position.y, bodyB.position.x - bodyA.position.x);
+    } else {
+      this.orbitAngleA += orbitSpeed(teamA.weapon) * (this.isBerserk('A') ? berserkMult : 1) * dt;
+    }
+    if (teamB.weapon.aimAtEnemy) {
+      this.orbitAngleB = Math.atan2(bodyA.position.y - bodyB.position.y, bodyA.position.x - bodyB.position.x);
+    } else {
+      this.orbitAngleB -= orbitSpeed(teamB.weapon) * (this.isBerserk('B') ? berserkMult : 1) * dt;
+    }
 
     const hitboxA = getWeaponHitboxRadius(teamA.weapon);
     const hitboxB = getWeaponHitboxRadius(teamB.weapon);
-    const posA = getOrbitPosition(bodyA.position.x, bodyA.position.y, teamA.ball.radius, this.orbitAngleA, hitboxA);
-    const posB = getOrbitPosition(bodyB.position.x, bodyB.position.y, teamB.ball.radius, this.orbitAngleB, hitboxB);
 
     if (this.hp.A > 0 && this.hp.B > 0) {
-      const distAtoB = Math.hypot(posA.x - bodyB.position.x, posA.y - bodyB.position.y);
-      if (distAtoB < hitboxA + teamB.ball.radius) {
+      if (teamA.weapon.aimAtEnemy) {
         const cooldown = Math.max(WEAPON_HIT_COOLDOWN_MIN, teamA.weapon.cooldown * 1000);
         if (this.simTime - this.lastHitA >= cooldown) {
           this.lastHitA = this.simTime;
-          this.applyHit(teamA.weapon, bodyA, bodyB, 'A');
+          this.spawnBullet('A', teamA.weapon, hitboxA);
+        }
+      } else {
+        const posA = getOrbitPosition(bodyA.position.x, bodyA.position.y, teamA.ball.radius, this.orbitAngleA, hitboxA);
+        const distAtoB = Math.hypot(posA.x - bodyB.position.x, posA.y - bodyB.position.y);
+        if (distAtoB < hitboxA + teamB.ball.radius) {
+          const cooldown = Math.max(WEAPON_HIT_COOLDOWN_MIN, teamA.weapon.cooldown * 1000);
+          if (this.simTime - this.lastHitA >= cooldown) {
+            this.lastHitA = this.simTime;
+            this.applyHit(teamA.weapon, bodyA, bodyB, 'A');
+          }
         }
       }
     }
 
     if (this.hp.A > 0 && this.hp.B > 0) {
-      const distBtoA = Math.hypot(posB.x - bodyA.position.x, posB.y - bodyA.position.y);
-      if (distBtoA < hitboxB + teamA.ball.radius) {
+      if (teamB.weapon.aimAtEnemy) {
         const cooldown = Math.max(WEAPON_HIT_COOLDOWN_MIN, teamB.weapon.cooldown * 1000);
         if (this.simTime - this.lastHitB >= cooldown) {
           this.lastHitB = this.simTime;
-          this.applyHit(teamB.weapon, bodyB, bodyA, 'B');
+          this.spawnBullet('B', teamB.weapon, hitboxB);
+        }
+      } else {
+        const posB = getOrbitPosition(bodyB.position.x, bodyB.position.y, teamB.ball.radius, this.orbitAngleB, hitboxB);
+        const distBtoA = Math.hypot(posB.x - bodyA.position.x, posB.y - bodyA.position.y);
+        if (distBtoA < hitboxB + teamA.ball.radius) {
+          const cooldown = Math.max(WEAPON_HIT_COOLDOWN_MIN, teamB.weapon.cooldown * 1000);
+          if (this.simTime - this.lastHitB >= cooldown) {
+            this.lastHitB = this.simTime;
+            this.applyHit(teamB.weapon, bodyB, bodyA, 'B');
+          }
         }
       }
     }
@@ -400,13 +519,64 @@ export class GameSimulator {
     this.weaponEffects = this.weaponEffects.filter((e) => e.progress < e.maxProgress);
   }
 
+  private spawnBullet(team: 'A' | 'B', weapon: WeaponStats, hitboxR: number): void {
+    const body = team === 'A' ? this.bodyA : this.bodyB;
+    const opponent = team === 'A' ? this.bodyB : this.bodyA;
+    const angle = team === 'A' ? this.orbitAngleA : this.orbitAngleB;
+    const ballRadius = (team === 'A' ? this.teamA : this.teamB).ball.radius;
+    const start = getOrbitPosition(body.position.x, body.position.y, ballRadius, angle, hitboxR);
+    const dx = opponent.position.x - start.x;
+    const dy = opponent.position.y - start.y;
+    const dist = Math.hypot(dx, dy);
+    const speed = 2.0; // px per ms
+    this.bullets.push({
+      x: start.x,
+      y: start.y,
+      vx: dist > 0 ? (dx / dist) * speed : speed,
+      vy: dist > 0 ? (dy / dist) * speed : 0,
+      owner: team,
+      radius: 5,
+      color: weapon.color ?? '#4488CC',
+      ttl: 2000,
+    });
+  }
+
+  private updateBullets(scaledDelta: number): void {
+    for (let i = this.bullets.length - 1; i >= 0; i--) {
+      const b = this.bullets[i];
+      b.x += b.vx * scaledDelta;
+      b.y += b.vy * scaledDelta;
+      b.ttl -= scaledDelta;
+      if (b.ttl <= 0) {
+        this.bullets.splice(i, 1);
+        continue;
+      }
+      const attacker = b.owner === 'A' ? this.bodyA : this.bodyB;
+      const enemy = b.owner === 'A' ? this.bodyB : this.bodyA;
+      const enemyBall = b.owner === 'A' ? this.teamB.ball : this.teamA.ball;
+      const dx = enemy.position.x - b.x;
+      const dy = enemy.position.y - b.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < enemyBall.radius + b.radius && this.hp.A > 0 && this.hp.B > 0) {
+        const weapon = b.owner === 'A' ? this.teamA.weapon : this.teamB.weapon;
+        this.applyHit(weapon, attacker, enemy, b.owner);
+        this.bullets.splice(i, 1);
+      }
+    }
+  }
+
   private applyHit(weapon: WeaponStats, attacker: Matter.Body, defender: Matter.Body, attackerTeam: 'A' | 'B'): void {
     const targetTeam: 'A' | 'B' = attackerTeam === 'A' ? 'B' : 'A';
     const dir = directionBetween(attacker, defender);
     const hitAngle = Math.atan2(dir.y, dir.x);
 
-    const damage = (team: 'A' | 'B', amount: number) => {
-      const rounded = Math.round(amount);
+    let lastDmg = 0;
+    const damage = (team: 'A' | 'B', amount: number): number => {
+      // Apply attacker buff and defender debuff multipliers
+      const attackingTeam: 'A' | 'B' = team === 'A' ? 'B' : 'A';
+      let modified = amount * this.getOutgoingDamageMultiplier(attackingTeam) * this.getIncomingDamageMultiplier(team);
+      modified = this.consumeShield(team, modified);
+      const rounded = Math.round(modified);
       const actual = Math.min(rounded, this.hp[team]);
       this.hp[team] = Math.max(0, this.hp[team] - rounded);
       const opponent: 'A' | 'B' = team === 'A' ? 'B' : 'A';
@@ -419,27 +589,60 @@ export class GameSimulator {
           targetTeam === 'A' ? '#E47D79' : '#4A90E2',
         ),
       );
+      // Lifesteal: heal the attacker for a fraction of damage dealt
+      const lifesteal = this.activeEffectsA.concat(this.activeEffectsB)
+        .find((e) => e.type === 'lifesteal' && (team === 'B' ? attackerTeam === 'A' : attackerTeam === 'B'));
+      if (lifesteal) {
+        const heal = Math.round(actual * lifesteal.magnitude);
+        if (heal > 0) {
+          this.hp[attackerTeam] = Math.min(this.maxHp[attackerTeam], this.hp[attackerTeam] + heal);
+          this.floaters.push(createFloater(`+${heal}`, attacker.position.x, attacker.position.y - 20, '#44FF88'));
+        }
+      }
+      lastDmg = rounded;
+      return rounded;
     };
 
     const burst = (x: number, y: number, color: string, count: number) => {
       spawnParticleBurst(this.particles, x, y, color, count, MAX_PARTICLES);
     };
 
-    const heavyHit = (mag: number) => {
-      this.slowMotion = SLOW_MOTION_FACTOR;
-      this.screenShake = { magnitude: mag, ttl: SCREEN_SHAKE_TTL };
+    const applyTierEffects = (category: string, defTeam: 'A' | 'B', color: string, dmg: number) => {
+      // Damage-scaled screen shake — magnitude and duration both grow with damage
+      const shakeMag = Math.min(8, dmg / 10);
+      const shakeTtl = Math.round(Math.min(SCREEN_SHAKE_TTL, dmg / 4));
+      if (shakeMag >= 0.5) {
+        this.screenShake = { magnitude: shakeMag, ttl: shakeTtl };
+      }
+      // Slow motion on heavy hits (≥60 damage) or any aoe
+      if (dmg >= 60 || category === 'aoe') {
+        this.slowMotion = SLOW_MOTION_FACTOR;
+      }
+      const c = color || '#FFFFFF';
+      if (category === 'melee') {
+        if (defTeam === 'A') this.hitFlashA = { alpha: 0.65, color: c, ttl: 5 };
+        else this.hitFlashB = { alpha: 0.65, color: c, ttl: 5 };
+      } else if (category === 'projectile') {
+        this.screenFlash = { alpha: 0.22, color: c, ttl: 5 };
+      } else if (category === 'aoe') {
+        this.screenFlash = { alpha: 0.40, color: c, ttl: 7 };
+        if (defTeam === 'A') this.hitFlashA = { alpha: 0.75, color: '#FFFFFF', ttl: 6 };
+        else this.hitFlashB = { alpha: 0.75, color: '#FFFFFF', ttl: 6 };
+      } else if (category === 'shield') {
+        if (defTeam === 'A') this.hitFlashA = { alpha: 0.50, color: c, ttl: 4 };
+        else this.hitFlashB = { alpha: 0.50, color: c, ttl: 4 };
+      }
     };
 
     switch (weapon.category) {
       case 'melee': {
-        let kbMult = 1.0, dmgMult = 1.0, heavyShake = 0;
-        if (weapon.name === 'Heavy Hammer') { kbMult = 1.6; dmgMult = 1.2; heavyShake = 6; }
+        let kbMult = 1.0, dmgMult = 1.0;
+        if (weapon.name === 'Heavy Hammer') { kbMult = 1.6; dmgMult = 1.2; }
         else if (weapon.name === 'Long Spear') { kbMult = 0.9; }
         else if (weapon.name === 'Chain Flail') { kbMult = 0.7; dmgMult = 0.8; }
         applyKnockback(defender, dir.x, dir.y, weapon.knockback * kbMult);
         damage(targetTeam, weapon.damage * dmgMult);
         burst(defender.position.x, defender.position.y, weapon.color ?? '#CC6633', 8);
-        if (heavyShake > 0) heavyHit(heavyShake);
         const et = weapon.name === 'Heavy Hammer' ? 'hammer' : weapon.name === 'Long Spear' ? 'spear' : weapon.name === 'Chain Flail' ? 'flail' : 'sword';
         this.weaponEffects.push(createWeaponEffect(et, attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#CC6633', 12));
         break;
@@ -456,10 +659,8 @@ export class GameSimulator {
         if (weapon.name === 'Grenade Bomb') {
           dmgMult = 1.3; kbMult = 1.2;
           this.weaponEffects.push(createWeaponEffect('explosion', defender.position.x, defender.position.y, 0, weapon.color ?? '#44AA44', 20, { radius: 70 }));
-          heavyHit(5);
         } else if (weapon.name === 'Power Cannon') {
           dmgMult = 1.1; kbMult = 1.5;
-          heavyHit(4);
         } else if (weapon.name === 'Energy Laser') {
           this.weaponEffects.push(createWeaponEffect('laser', attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#44AAFF', 10, { x2: defender.position.x, y2: defender.position.y }));
         }
@@ -472,7 +673,6 @@ export class GameSimulator {
         applyKnockback(defender, dir.x, dir.y, weapon.knockback * 1.5);
         damage(targetTeam, weapon.damage);
         this.weaponEffects.push(createWeaponEffect('shockwave', attacker.position.x, attacker.position.y, 0, weapon.color ?? '#FF44FF', 25, { radius: weapon.range * 30 }));
-        heavyHit(5);
         burst(attacker.position.x, attacker.position.y, weapon.color ?? '#FF44FF', 15);
         break;
       }
@@ -487,11 +687,38 @@ export class GameSimulator {
           applyKnockback(attacker, -dir.x, -dir.y, weapon.knockback * 0.4);
           damage(targetTeam, weapon.damage);
           this.weaponEffects.push(createWeaponEffect('explosion', attacker.position.x, attacker.position.y, 0, weapon.color ?? '#FFFF44', 18, { radius: 55 }));
-          heavyHit(4);
         }
         break;
       }
     }
+
+    applyTierEffects(weapon.category, targetTeam, weapon.color ?? '#FFFFFF', lastDmg);
+
+    // Velocity burst in hit direction — amplified when attacker is in berserk
+    if (lastDmg > 0) {
+      const attackerBerserk = this.isBerserk(attackerTeam);
+      const burstMult = attackerBerserk ? 2.5 : 1.0;
+      const burst = Math.min(10, (lastDmg / 8) * burstMult);
+      Body.setVelocity(defender, {
+        x: defender.velocity.x + dir.x * burst,
+        y: defender.velocity.y + dir.y * burst,
+      });
+      const boostMag = attackerBerserk ? Math.min(1.2, lastDmg * 0.018) : Math.min(0.7, lastDmg * 0.01);
+      const boostDur = Math.round(attackerBerserk ? Math.min(1000, lastDmg * 18) : Math.min(700, lastDmg * 12));
+      this.applyStatusEffect(targetTeam, 'speedBoost', boostDur, boostMag, 'refresh', 1, '#FF6600', '💨');
+    }
+
+    // Ball ability triggers for hit events
+    this.applyBallAbility(
+      attackerTeam === 'A' ? this.teamA.ball.ability : this.teamB.ball.ability,
+      attackerTeam, 'onHitDealt',
+      { x: defender.position.x, y: defender.position.y },
+    );
+    this.applyBallAbility(
+      targetTeam === 'A' ? this.teamA.ball.ability : this.teamB.ball.ability,
+      targetTeam, 'onHitReceived',
+      { x: defender.position.x, y: defender.position.y },
+    );
   }
 
   private encodeFrame(frameIdx: number): void {
@@ -513,8 +740,17 @@ export class GameSimulator {
       orbitAngleA: this.orbitAngleA,
       orbitAngleB: this.orbitAngleB,
       screenShake: this.screenShake,
+      screenFlash: this.screenFlash,
+      hitFlashA: this.hitFlashA,
+      hitFlashB: this.hitFlashB,
       colorA: this.teamA.ball.color,
       colorB: this.teamB.ball.color,
+      trailSegments: this.trailSegments,
+      bullets: this.bullets,
+      abilityA: this.teamA.ball.ability,
+      abilityB: this.teamB.ball.ability,
+      effectsA: this.activeEffectsA,
+      effectsB: this.activeEffectsB,
     });
 
     // 2. Blit current physics frame into the arena region of the capture canvas.
@@ -613,5 +849,259 @@ export class GameSimulator {
     }
     state.lastX = body.position.x;
     state.lastY = body.position.y;
+  }
+
+  applyStatusEffect(
+    team: 'A' | 'B',
+    type: StatusEffectType,
+    durationMs: number,
+    magnitude: number,
+    stackBehavior: StatusEffect['stackBehavior'],
+    maxStacks: number,
+    color: string,
+    icon: string,
+  ): void {
+    const effects = team === 'A' ? this.activeEffectsA : this.activeEffectsB;
+    const existing = effects.find((e) => e.type === type);
+
+    if (existing) {
+      if (stackBehavior === 'refresh') {
+        existing.remainingMs = durationMs;
+      } else if (stackBehavior === 'stack' && existing.stacks < existing.maxStacks) {
+        existing.stacks++;
+        existing.remainingMs = durationMs;
+      }
+      // 'ignore' — do nothing
+      return;
+    }
+
+    effects.push({
+      id: `${type}-${team}-${this.simTime}`,
+      type,
+      remainingMs: durationMs,
+      magnitude,
+      stackBehavior,
+      stacks: 1,
+      maxStacks,
+      color,
+      icon,
+    });
+  }
+
+  private tickStatusEffects(delta: number): void {
+    for (const team of ['A', 'B'] as const) {
+      const effects = team === 'A' ? this.activeEffectsA : this.activeEffectsB;
+      const alive: StatusEffect[] = [];
+
+      for (const effect of effects) {
+        effect.remainingMs -= delta;
+
+        // Apply per-tick effects
+        if (effect.type === 'burn') {
+          const dmgPerMs = (effect.magnitude * effect.stacks) / 1000;
+          this.hp[team] = Math.max(0, this.hp[team] - dmgPerMs * delta);
+        } else if (effect.type === 'poison') {
+          const dmgPerMs = effect.magnitude / 1000;
+          this.hp[team] = Math.max(0, this.hp[team] - dmgPerMs * delta);
+        }
+
+        if (effect.remainingMs > 0) alive.push(effect);
+      }
+
+      if (team === 'A') this.activeEffectsA = alive;
+      else this.activeEffectsB = alive;
+    }
+  }
+
+  private getSpeedMultiplier(team: 'A' | 'B'): number {
+    const effects = team === 'A' ? this.activeEffectsA : this.activeEffectsB;
+    let mult = 1.0;
+    for (const e of effects) {
+      if (e.type === 'freeze') mult *= (1 - e.magnitude * e.stacks);
+      if (e.type === 'speedBoost') {
+        const bonus = e.magnitude * e.stacks + (e.stacks > 3 ? e.magnitude * (e.stacks - 3) : 0);
+        mult *= (1 + bonus);
+      }
+    }
+    return Math.max(0.1, mult);
+  }
+
+  private getOutgoingDamageMultiplier(team: 'A' | 'B'): number {
+    const effects = team === 'A' ? this.activeEffectsA : this.activeEffectsB;
+    let mult = 1.0;
+    for (const e of effects) {
+      if (e.type === 'rage') mult *= (1 + e.magnitude);
+      if (e.type === 'weaken') mult *= (1 - e.magnitude);
+    }
+    return Math.max(0.1, mult);
+  }
+
+  private getIncomingDamageMultiplier(team: 'A' | 'B'): number {
+    const effects = team === 'A' ? this.activeEffectsA : this.activeEffectsB;
+    let mult = 1.0;
+    for (const e of effects) {
+      if (e.type === 'harden') mult *= (1 - e.magnitude);
+    }
+    return Math.max(0.1, mult);
+  }
+
+  private consumeShield(team: 'A' | 'B', rawDamage: number): number {
+    const effects = team === 'A' ? this.activeEffectsA : this.activeEffectsB;
+    const shieldIdx = effects.findIndex((e) => e.type === 'shield');
+    if (shieldIdx === -1) return rawDamage;
+
+    const shield = effects[shieldIdx];
+    const absorbed = Math.min(shield.magnitude, rawDamage);
+    shield.magnitude -= absorbed;
+    if (shield.magnitude <= 0) effects.splice(shieldIdx, 1);
+    return rawDamage - absorbed;
+  }
+
+  private applyBallAbility(
+    ability: BallAbility | undefined,
+    team: 'A' | 'B',
+    trigger: BallAbilityType,
+    context: { delta?: number; x?: number; y?: number } = {},
+  ): void {
+    if (!ability || ability.trigger !== trigger) return;
+    const body = team === 'A' ? this.bodyA : this.bodyB;
+    const opponentBody = team === 'A' ? this.bodyB : this.bodyA;
+    const p = ability.params;
+
+    // Generic status-effect application — any ability can carry statusEffect params
+    if (p.statusEffect) {
+      const target = (p.statusTarget as string) === 'self' ? team : (team === 'A' ? 'B' : 'A');
+      this.applyStatusEffect(
+        target,
+        p.statusEffect as StatusEffectType,
+        Number(p.statusDuration ?? 2000),
+        Number(p.statusMagnitude ?? 0.3),
+        (p.stackBehavior as StatusEffect['stackBehavior']) ?? 'refresh',
+        Number(p.maxStacks ?? 1),
+        p.statusColor as string ?? '#FF8800',
+        p.statusIcon as string ?? '✨',
+      );
+    }
+
+    // Ability-triggered screen effects (set via params in ball ability definition)
+    if (p.hitFlash) {
+      const flashColor = p.hitFlashColor as string ?? '#FFFFFF';
+      const flashTeam = (p.hitFlashTarget as string) === 'enemy' ? (team === 'A' ? 'B' : 'A') : team;
+      if (flashTeam === 'A') this.hitFlashA = { alpha: 0.65, color: flashColor, ttl: 5 };
+      else this.hitFlashB = { alpha: 0.65, color: flashColor, ttl: 5 };
+    }
+    if (p.hitShakeMagnitude) {
+      this.screenShake = { magnitude: Number(p.hitShakeMagnitude), ttl: SCREEN_SHAKE_TTL };
+    }
+    if (p.hitSlowMo) {
+      this.slowMotion = SLOW_MOTION_FACTOR;
+    }
+    if (p.hitScreenFlash) {
+      this.screenFlash = {
+        alpha: Number(p.hitScreenFlashAlpha ?? 0.3),
+        color: p.hitScreenFlashColor as string ?? '#FFFFFF',
+        ttl: Math.round(Number(p.hitScreenFlashTtl ?? 5)),
+      };
+    }
+
+    switch (ability.id) {
+      // Each new ball's ability case will be added here by /create-ball
+      case 'marksman-target-lock': {
+        const delta = context.delta ?? 16;
+        if (team === 'A') this.chargeA += Number(p.chargeRate ?? 0.05) * delta;
+        else this.chargeB += Number(p.chargeRate ?? 0.05) * delta;
+        const charge = team === 'A' ? this.chargeA : this.chargeB;
+        if (charge >= 100) {
+          if (team === 'A') this.chargeA = 0;
+          else this.chargeB = 0;
+          // Burst toward opponent
+          const vel = body.velocity;
+          const speed = Math.hypot(vel.x, vel.y);
+          const dx = opponentBody.position.x - body.position.x;
+          const dy = opponentBody.position.y - body.position.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist > 0 && speed > 0.01) {
+            const burstSpeed = speed * (1 + Number(p.burstMagnitude ?? 0.8));
+            Body.setVelocity(body, {
+              x: -(dx / dist) * burstSpeed,
+              y: -(dy / dist) * burstSpeed,
+            });
+          }
+          // Speed boost status for visual ring
+          this.applyStatusEffect(
+            team, 'speedBoost',
+            Number(p.burstDuration ?? 1200),
+            Number(p.burstMagnitude ?? 0.8),
+            'refresh', 1,
+            p.burstColor as string ?? '#66AAFF',
+            p.burstIcon as string ?? '🎯',
+          );
+          // Trail orbs on burst
+          const ballRadius = (team === 'A' ? this.teamA : this.teamB).ball.radius;
+          for (let i = 0; i < 3; i++) {
+            const offsetX = (Math.random() - 0.5) * ballRadius * 0.5;
+            const offsetY = (Math.random() - 0.5) * ballRadius * 0.5;
+            this.trailSegments.push({
+              x: body.position.x + offsetX,
+              y: body.position.y + offsetY,
+              radius: ballRadius * 0.6,
+              color: p.burstColor as string ?? '#66AAFF',
+              alpha: 0.7,
+              ttl: 12,
+              maxTtl: 12,
+            });
+          }
+        }
+        break;
+      }
+      case 'quickstrike-momentum': {
+        // Spawn a green burst of trail orbs at the moment of each hit
+        const ballRadius = (team === 'A' ? this.teamA : this.teamB).ball.radius;
+        for (let i = 0; i < 3; i++) {
+          const offsetX = (Math.random() - 0.5) * ballRadius * 0.5;
+          const offsetY = (Math.random() - 0.5) * ballRadius * 0.5;
+          this.trailSegments.push({
+            x: body.position.x + offsetX,
+            y: body.position.y + offsetY,
+            radius: ballRadius * 0.6,
+            color: '#44FF44',
+            alpha: 0.6,
+            ttl: 10,
+            maxTtl: 10,
+          });
+        }
+        break;
+      }
+      case 'bloodrage-fury': {
+        this.applyStatusEffect(
+          team,
+          'speedBoost',
+          Number(p.speedBoostDuration ?? 3000),
+          Number(p.speedBoostMagnitude ?? 0.7),
+          'refresh',
+          1,
+          p.speedBoostColor as string ?? '#FF8800',
+          p.speedBoostIcon as string ?? '⚡',
+        );
+        // Fading orb trail behind the ball during berserk
+        if (Math.random() < 0.7) {
+          const ballRadius = (team === 'A' ? this.teamA : this.teamB).ball.radius;
+          this.trailSegments.push({
+            x: body.position.x,
+            y: body.position.y,
+            radius: ballRadius * 0.8,
+            color: '#FF2200',
+            alpha: 0.55,
+            ttl: 12,
+            maxTtl: 12,
+          });
+        }
+        break;
+      }
+      default:
+        break;
+    }
+    // Suppress unused-variable warnings until ability cases are added
+    void body; void opponentBody; void p; void context;
   }
 }

@@ -4,7 +4,7 @@ import { WEAPON_ORBIT_GAP } from '../constants/gameConstants';
 // ── Hitbox radius per weapon category ────────────────────────────────────────
 // These define both hit-detection radius AND the visual size of the drawn shape.
 const HITBOX_BY_CATEGORY: Record<string, number> = {
-  melee:      20,   // was 13 — wider swing, hits up to ~94px between centres
+  melee:      26,   // was 13 — wider swing, hits up to ~94px between centres
   shield:     24,   // was 17 — broad deflection coverage
   projectile: 17,   // was  9 — spinning blade feel
   aoe:        24,   // was 15 — large shockwave presence
@@ -132,8 +132,58 @@ function drawMeleeShape(
       ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
       ctx.stroke();
     }
+  } else if (weapon.name === 'Long Sword') {
+    // Handle
+    ctx.strokeStyle = '#7A5C2E';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-r * 1.1, 0);
+    ctx.lineTo(r * 0.05, 0);
+    ctx.stroke();
+    // Guard cross piece
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(r * 0.05, -r * 0.55);
+    ctx.lineTo(r * 0.05, r * 0.55);
+    ctx.stroke();
+    // Long thin blade
+    ctx.fillStyle = color;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(r * 0.05, r * 0.14);
+    ctx.lineTo(r * 0.05, -r * 0.14);
+    ctx.lineTo(r * 1.8, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#FFFFFF55';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  } else if (weapon.name === 'War Axe') {
+    // Wooden handle from -X to center
+    ctx.strokeStyle = '#7A5C2E';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-r * 1.0, 0);
+    ctx.lineTo(r * 0.2, 0);
+    ctx.stroke();
+    // Broad crescent blade at +X
+    ctx.fillStyle = color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.moveTo(r * 0.1, -r * 0.8);
+    ctx.lineTo(r * 0.85, -r * 1.1);
+    ctx.quadraticCurveTo(r * 1.5, 0, r * 0.85, r * 1.1);
+    ctx.lineTo(r * 0.1, r * 0.8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#FFFFFF44';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
   } else {
-    // Swift Sword — narrow blade, tip at +X
+    // Generic sword — narrow blade, tip at +X
     ctx.fillStyle = color;
     ctx.shadowBlur = 7;
     ctx.beginPath();
