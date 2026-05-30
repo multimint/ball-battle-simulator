@@ -6,6 +6,8 @@ interface WorkerInput {
   teamA: TeamConfig;
   teamB: TeamConfig;
   initialVelocities: InitialVelocities;
+  fps?: number;
+  bitrate?: number;
 }
 
 interface ProgressMessage  { type: 'progress'; pct: number }
@@ -19,8 +21,8 @@ const send = (msg: WorkerOutput, transfer?: Transferable[]) =>
   (self as unknown as { postMessage(m: unknown, t?: Transferable[]): void }).postMessage(msg, transfer);
 
 self.onmessage = async (e: MessageEvent<WorkerInput>) => {
-  const { teamA, teamB, initialVelocities } = e.data;
-  const sim = new GameSimulator({ teamA, teamB, initialVelocities, workerMode: true });
+  const { teamA, teamB, initialVelocities, fps, bitrate } = e.data;
+  const sim = new GameSimulator({ teamA, teamB, initialVelocities, fps, bitrate, workerMode: true });
 
   try {
     const { blob, vels, result } = await sim.run((pct) => {

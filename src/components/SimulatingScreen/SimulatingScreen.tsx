@@ -34,7 +34,7 @@ export default function SimulatingScreen() {
     };
 
     worker.onerror = (err) => console.error('Worker crashed:', err);
-    worker.postMessage({ teamA, teamB, initialVelocities });
+    worker.postMessage({ teamA, teamB, initialVelocities, fps: 30, bitrate: 4_000_000 });
 
     return () => worker.terminate();
   // eslint-disable-next-line react-hooks/exhaustive-deps

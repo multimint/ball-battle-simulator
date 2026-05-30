@@ -12,14 +12,16 @@ interface ControlPanelProps {
 }
 
 export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: ControlPanelProps) {
-  const teamA             = useGameStore((s) => s.teamA);
-  const teamB             = useGameStore((s) => s.teamB);
-  const preSimBlob        = useGameStore((s) => s.preSimBlob);
-  const simulationResult  = useGameStore((s) => s.simulationResult);
+  const teamA              = useGameStore((s) => s.teamA);
+  const teamB              = useGameStore((s) => s.teamB);
+  const preSimBlob         = useGameStore((s) => s.preSimBlob);
+  const simulationResult   = useGameStore((s) => s.simulationResult);
+  const initialVelocities  = useGameStore((s) => s.initialVelocities);
   const startNewSimulation = useGameStore((s) => s.startNewSimulation);
-  const resetToSetup      = useGameStore((s) => s.resetToSetup);
+  const resetToSetup       = useGameStore((s) => s.resetToSetup);
 
-  const [speed, setSpeed] = useState(1);
+  const [speed, setSpeed]           = useState(1);
+  const [isExporting, setExporting] = useState(false);
 
   function handleSpeed(val: number) {
     setSpeed(val);
@@ -35,15 +37,36 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
   }
 
   function handleExport() {
-    if (!preSimBlob) return;
-    const url = URL.createObjectURL(preSimBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ball-battle-${Date.now()}.mp4`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (!initialVelocities || isExporting) return;
+    setExporting(true);
+
+    const worker = new Worker(
+      new URL('../../simulation/simulator.worker.ts', import.meta.url),
+      { type: 'module' },
+    );
+
+    worker.onmessage = (e: MessageEvent) => {
+      if (e.data.type === 'complete') {
+        const blob = new Blob([e.data.buffer as ArrayBuffer], { type: 'video/mp4' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ball-battle-${Date.now()}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        worker.terminate();
+        setExporting(false);
+      } else if (e.data.type === 'error') {
+        console.error('HD export error:', e.data.message);
+        worker.terminate();
+        setExporting(false);
+      }
+    };
+
+    worker.onerror = () => { worker.terminate(); setExporting(false); };
+    worker.postMessage({ teamA, teamB, initialVelocities, fps: 60, bitrate: 20_000_000 });
   }
 
   const winner     = simulationResult?.winner;
@@ -120,10 +143,10 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
           <button onClick={handleReplay} style={mobileBtn('#01006B')}>▶ REPLAY</button>
           <button
             onClick={handleExport}
-            disabled={!preSimBlob}
-            style={{ ...mobileBtn('#1a7a1a'), opacity: preSimBlob ? 1 : 0.4, cursor: preSimBlob ? 'pointer' : 'not-allowed' }}
+            disabled={!initialVelocities || isExporting}
+            style={{ ...mobileBtn('#1a7a1a'), opacity: (initialVelocities && !isExporting) ? 1 : 0.4, cursor: (initialVelocities && !isExporting) ? 'pointer' : 'not-allowed' }}
           >
-            📤 SAVE
+            {isExporting ? '⏳ HD...' : '📤 SAVE'}
           </button>
           <button onClick={startNewSimulation} style={mobileBtn('#B91C1C')}>🎲 NEW</button>
           <button
@@ -254,12 +277,12 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
 
       <button
         onClick={handleExport}
-        disabled={!preSimBlob}
-        style={{ ...filledBtn('#1a7a1a'), marginBottom: 8, opacity: preSimBlob ? 1 : 0.4, cursor: preSimBlob ? 'pointer' : 'not-allowed' }}
-        onMouseEnter={(e) => { if (preSimBlob) (e.currentTarget as HTMLButtonElement).style.opacity = '0.85'; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = preSimBlob ? '1' : '0.4'; }}
+        disabled={!initialVelocities || isExporting}
+        style={{ ...filledBtn('#1a7a1a'), marginBottom: 8, opacity: (initialVelocities && !isExporting) ? 1 : 0.4, cursor: (initialVelocities && !isExporting) ? 'pointer' : 'not-allowed' }}
+        onMouseEnter={(e) => { if (initialVelocities && !isExporting) (e.currentTarget as HTMLButtonElement).style.opacity = '0.85'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = (initialVelocities && !isExporting) ? '1' : '0.4'; }}
       >
-        📤 EXPORT MP4
+        {isExporting ? '⏳ EXPORTING HD...' : '📤 EXPORT MP4'}
       </button>
 
       <button

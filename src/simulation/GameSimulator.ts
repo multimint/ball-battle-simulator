@@ -52,6 +52,7 @@ interface GameSimulatorConfig {
   teamB: TeamConfig;
   initialVelocities: InitialVelocities;
   fps?: number;
+  bitrate?: number;
   workerMode?: boolean;
 }
 
@@ -132,6 +133,7 @@ export class GameSimulator {
   private target: ArrayBufferTarget | null = null;
   private frameCount = 0;
   private fps: number;
+  private bitrate: number;
   private workerMode: boolean;
 
   private teamA: TeamConfig;
@@ -143,6 +145,7 @@ export class GameSimulator {
     this.teamB = config.teamB;
     this.initialVelocities = config.initialVelocities;
     this.fps = config.fps ?? 60;
+    this.bitrate = config.bitrate ?? 20_000_000;
     this.workerMode = config.workerMode ?? false;
 
     this.hp = { A: config.teamA.ball.durability, B: config.teamB.ball.durability };
@@ -245,7 +248,7 @@ export class GameSimulator {
         codec: 'avc1.640033',          // H.264 High Profile Level 5.1 — supports 1080p@60fps
         width: CAPTURE_CANVAS_WIDTH,
         height: CAPTURE_CANVAS_HEIGHT,
-        bitrate: 20_000_000,           // 20 Mbps for 1080p60 HD quality
+        bitrate: this.bitrate,
         framerate: this.fps,
         hardwareAcceleration: 'prefer-hardware',
       });
@@ -303,17 +306,24 @@ export class GameSimulator {
     this.captureCtx.drawImage(this.captureBg as unknown as HTMLCanvasElement, 0, 0);
 
     // ── Phase 2: Fight simulation ─────────────────────────────────────────
-    const STEP = 1000 / this.fps;
+    // Physics always steps at 60 Hz so fights are deterministic regardless of
+    // output fps. encodeEvery skips frames when outputting at < 60 fps.
+    const PHYSICS_STEP = 1000 / 60;
+    const encodeEvery = Math.round(60 / this.fps);
+    let physicsFrame = 0;
+    const yieldInterval = this.workerMode ? 120 : 60;
 
     while (!this.matchEnded) {
-      this.tick(STEP);
-      this.encodeFrame(frameIdx);
-      frameIdx++;
+      this.tick(PHYSICS_STEP);
+      physicsFrame++;
 
-      // Yield periodically to drain encoder output callbacks and (on main thread) keep UI responsive.
-      // In worker mode fewer yields are needed since the UI thread is never blocked.
-      const yieldInterval = this.workerMode ? 120 : 60;
-      if (frameIdx % yieldInterval === 0 || (this.encoder?.encodeQueueSize ?? 0) > 60) {
+      if (physicsFrame % encodeEvery === 0) {
+        this.encodeFrame(frameIdx);
+        frameIdx++;
+      }
+
+      // Yield periodically to drain encoder output callbacks and keep UI responsive.
+      if (physicsFrame % yieldInterval === 0 || (this.encoder?.encodeQueueSize ?? 0) > 60) {
         onProgress(0.05 + 0.88 * Math.min(this.simTime / 60_000, 0.99));
         await new Promise<void>((r) => setTimeout(r, 0));
       }
