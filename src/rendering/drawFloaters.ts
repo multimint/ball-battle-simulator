@@ -5,10 +5,10 @@ export function drawFloaters(ctx: CanvasRenderingContext2D, floaters: FloatingDa
   for (const f of floaters) {
     ctx.save();
     ctx.globalAlpha = f.alpha;
-    ctx.font = '10px "Press Start 2P", monospace';
+    ctx.font = '15px "Press Start 2P", monospace';
     ctx.fillStyle = f.color;
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 4;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.strokeText(f.text, f.x, f.y);

@@ -121,12 +121,12 @@ export function drawBall(
 
   // ── HP number inside ball ─────────────────────────────────────────────
   const displayHp = Math.max(0, Math.ceil(hp));
-  const fontSize  = Math.max(7, r * 0.42);   // scales with ball size
+  const fontSize  = Math.max(10, r * 0.62);  // scales with ball size
 
   // Faint dark circle behind text for legibility
   ctx.beginPath();
-  ctx.arc(0, 0, r * 0.52, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.arc(0, 0, r * 0.68, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
   ctx.fill();
 
   ctx.font         = `bold ${fontSize}px "Press Start 2P", monospace`;
