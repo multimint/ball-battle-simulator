@@ -81,17 +81,17 @@ export function drawCaptureTopPanel(
   ctx.textBaseline = 'middle';
   ctx.textAlign    = 'center';
 
-  ctx.font      = `48px ${RETRO}`;
+  ctx.font      = `bold 48px ${RETRO}`;
   ctx.fillStyle = darkenHex(teamA.ball.color);
-  ctx.fillText(truncate(ctx, teamA.name, maxNameW), quarterW, textY);
+  ctx.fillText(truncate(ctx, teamA.name.toUpperCase(), maxNameW), quarterW, textY);
 
-  ctx.font      = `28px ${RETRO}`;
+  ctx.font      = `bold 28px ${RETRO}`;
   ctx.fillStyle = DIM;
   ctx.fillText('VS', halfW, textY);
 
-  ctx.font      = `48px ${RETRO}`;
+  ctx.font      = `bold 48px ${RETRO}`;
   ctx.fillStyle = darkenHex(teamB.ball.color);
-  ctx.fillText(truncate(ctx, teamB.name, maxNameW), halfW + quarterW, textY);
+  ctx.fillText(truncate(ctx, teamB.name.toUpperCase(), maxNameW), halfW + quarterW, textY);
 }
 
 /** Bottom panel: always-visible ability status strip, tight below the arena. */
