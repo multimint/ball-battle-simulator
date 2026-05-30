@@ -12,7 +12,7 @@ const HITBOX_BY_CATEGORY: Record<string, number> = {
 };
 
 export function getWeaponHitboxRadius(weapon: WeaponStats): number {
-  return HITBOX_BY_CATEGORY[weapon.category] ?? 10;
+  return HITBOX_BY_CATEGORY[weapon.attacks[0].type] ?? 10;
 }
 
 /** Compute the weapon's world position from the ball center + orbit angle. */
@@ -54,7 +54,7 @@ export function drawOrbitWeapon(
   // Rotate so the weapon's local +X axis points radially outward
   ctx.rotate(angle);
 
-  switch (weapon.category) {
+  switch (weapon.attacks[0].type) {
     case 'melee':
       drawMeleeShape(ctx, weapon, color, hitboxR);
       break;

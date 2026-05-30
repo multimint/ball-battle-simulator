@@ -52,11 +52,12 @@ export function useWeaponSystem(): WeaponSystem {
     defender: Matter.Body,
     attackerTeam: 'A' | 'B'
   ): void {
+    const attack = weapon.attacks[0];
     const targetTeam = attackerTeam === 'A' ? 'B' : 'A';
     const dir = directionBetween(attacker, defender);
     const hitAngle = Math.atan2(dir.y, dir.x);
 
-    switch (weapon.category) {
+    switch (attack.type) {
       case 'melee': {
         let kbMult = 1.0;
         let dmgMult = 1.0;
@@ -65,12 +66,11 @@ export function useWeaponSystem(): WeaponSystem {
         if (weapon.name === 'Heavy Hammer') { kbMult = 1.6; dmgMult = 1.2; heavyShake = 6; }
         else if (weapon.name === 'Long Spear') { kbMult = 0.9; }
         else if (weapon.name === 'Chain Flail') { kbMult = 0.7; dmgMult = 0.8; }
-        // Swift Sword: defaults (fast orbit compensates)
 
-        applyKnockback(defender, dir.x, dir.y, weapon.knockback * kbMult);
+        applyKnockback(defender, dir.x, dir.y, attack.knockback * kbMult);
         gameBus.emit('damage', {
           team: targetTeam,
-          amount: weapon.damage * dmgMult,
+          amount: attack.damage * dmgMult,
           x: defender.position.x,
           y: defender.position.y,
         });
@@ -95,13 +95,11 @@ export function useWeaponSystem(): WeaponSystem {
       }
 
       case 'shield': {
-        // Shield deflects the opponent away from the attacker; no significant damage
-        applyKnockback(defender, dir.x, dir.y, weapon.knockback * 1.8);
-        // Tiny chip damage on shield contact
-        if (weapon.damage > 0) {
+        applyKnockback(defender, dir.x, dir.y, attack.knockback * 1.8);
+        if (attack.damage > 0) {
           gameBus.emit('damage', {
             team: targetTeam,
-            amount: Math.max(1, Math.round(weapon.damage * 0.2)),
+            amount: Math.max(1, Math.round(attack.damage * 0.2)),
             x: defender.position.x,
             y: defender.position.y,
           });
@@ -135,7 +133,6 @@ export function useWeaponSystem(): WeaponSystem {
           dmgMult = 1.1; kbMult = 1.5;
           gameBus.emit('heavyHit', { magnitude: 4 });
         } else if (weapon.name === 'Energy Laser') {
-          // Laser: create beam effect from attacker to defender
           weaponEffects.current.push(
             createWeaponEffect('laser', attacker.position.x, attacker.position.y,
               hitAngle, weapon.color ?? '#44AAFF', 10,
@@ -143,10 +140,10 @@ export function useWeaponSystem(): WeaponSystem {
           );
         }
 
-        applyKnockback(defender, dir.x, dir.y, weapon.knockback * kbMult);
+        applyKnockback(defender, dir.x, dir.y, attack.knockback * kbMult);
         gameBus.emit('damage', {
           team: targetTeam,
-          amount: weapon.damage * dmgMult,
+          amount: attack.damage * dmgMult,
           x: defender.position.x,
           y: defender.position.y,
         });
@@ -160,11 +157,10 @@ export function useWeaponSystem(): WeaponSystem {
       }
 
       case 'aoe': {
-        // Shockwave: big radial blast on contact
-        applyKnockback(defender, dir.x, dir.y, weapon.knockback * 1.5);
+        applyKnockback(defender, dir.x, dir.y, attack.knockback * 1.5);
         gameBus.emit('damage', {
           team: targetTeam,
-          amount: weapon.damage,
+          amount: attack.damage,
           x: defender.position.x,
           y: defender.position.y,
         });
@@ -184,13 +180,12 @@ export function useWeaponSystem(): WeaponSystem {
 
       case 'utility': {
         if (weapon.name === 'Magnet Beam') {
-          // Pull the defender toward the attacker
           const pullDir = directionBetween(defender, attacker);
           applyKnockback(defender, pullDir.x, pullDir.y, 80);
-          if (weapon.damage > 0) {
+          if (attack.damage > 0) {
             gameBus.emit('damage', {
               team: targetTeam,
-              amount: weapon.damage,
+              amount: attack.damage,
               x: defender.position.x,
               y: defender.position.y,
             });
@@ -202,12 +197,11 @@ export function useWeaponSystem(): WeaponSystem {
             count: 6,
           });
         } else if (weapon.name === 'Repulsor') {
-          // Push opponent away strongly; mild self-recoil
-          applyKnockback(defender, dir.x, dir.y, weapon.knockback * 1.3);
-          applyKnockback(attacker, -dir.x, -dir.y, weapon.knockback * 0.4);
+          applyKnockback(defender, dir.x, dir.y, attack.knockback * 1.3);
+          applyKnockback(attacker, -dir.x, -dir.y, attack.knockback * 0.4);
           gameBus.emit('damage', {
             team: targetTeam,
-            amount: weapon.damage,
+            amount: attack.damage,
             x: defender.position.x,
             y: defender.position.y,
           });
@@ -253,7 +247,7 @@ export function useWeaponSystem(): WeaponSystem {
       const distAtoB = Math.hypot(posA.x - bB.position.x, posA.y - bB.position.y);
       const hitThreshAB = hitboxA + ballB.radius;
       if (distAtoB < hitThreshAB) {
-        const cooldown = Math.max(WEAPON_HIT_COOLDOWN_MIN, weaponA.cooldown * 1000);
+        const cooldown = Math.max(WEAPON_HIT_COOLDOWN_MIN, weaponA.attacks[0].cooldown * 1000);
         if (now - lastHitA.current >= cooldown) {
           lastHitA.current = now;
           applyHitEffect(weaponA, bA, bB, 'A');
@@ -266,7 +260,7 @@ export function useWeaponSystem(): WeaponSystem {
       const distBtoA = Math.hypot(posB.x - bA.position.x, posB.y - bA.position.y);
       const hitThreshBA = hitboxB + ballA.radius;
       if (distBtoA < hitThreshBA) {
-        const cooldown = Math.max(WEAPON_HIT_COOLDOWN_MIN, weaponB.cooldown * 1000);
+        const cooldown = Math.max(WEAPON_HIT_COOLDOWN_MIN, weaponB.attacks[0].cooldown * 1000);
         if (now - lastHitB.current >= cooldown) {
           lastHitB.current = now;
           applyHitEffect(weaponB, bB, bA, 'B');

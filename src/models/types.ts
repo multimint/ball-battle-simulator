@@ -26,18 +26,28 @@ export type TriggerType =
   | 'onLowHP'
   | 'none';
 
-export interface WeaponStats {
-  name: string;
-  category: 'melee' | 'projectile' | 'aoe' | 'shield' | 'utility';
+/** A single attack mode — a weapon can have one or more of these. */
+export interface AttackConfig {
+  type: 'melee' | 'projectile' | 'aoe' | 'shield' | 'utility';
+  cooldown: number;     // seconds between uses
   damage: number;       // damage dealt on hit
   knockback: number;    // knockback force
-  range: number;        // effective distance (ball radii)
-  speed: number;        // swing or projectile speed (px/s)
-  cooldown: number;     // time between uses (s)
-  trigger: TriggerType;
+  aimAtEnemy?: boolean;   // fire projectile toward enemy instead of orbit melee
+  hitscan?: boolean;      // instant-hit (no bullet travel); applies damage directly
+  bulletCount?: number;   // bullets fired per use (default 1); spread evenly when > 1
+  bulletSpread?: number;  // radians between bullets (default 0.40)
+  bulletInterval?: number;// seconds between each bullet in a burst; omit = fire all at once
+  bulletSpeed?: number;   // travel speed multiplier (default 2.0; lower = slower)
+}
+
+export interface WeaponStats {
+  name: string;
   description: string;
   color?: string;
-  aimAtEnemy?: boolean;  // lock orbit to face enemy; fire traveling bullet on cooldown
+  range: number;        // orbit distance (ball radii)
+  speed: number;        // orbit angular speed
+  trigger: TriggerType;
+  attacks: AttackConfig[];
 }
 
 // ─── Fighter Preset (ball + weapon bundled) ───────────────────────────────────

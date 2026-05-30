@@ -52,11 +52,10 @@ export const FIGHTER_PRESETS: FighterPreset[] = [
     },
     weapon: {
       name: 'Long Sword',
-      category: 'melee', damage: 10, knockback: 40,
-      range: 1.5, speed: 6.75, cooldown: 0.7,
-      trigger: 'onCollision',
+      range: 1.5, speed: 6.75, trigger: 'onCollision',
       description: 'Long blade that orbits fast — land enough hits and momentum takes over.',
       color: '#33BB55',
+      attacks: [{ type: 'melee', cooldown: 0.7, damage: 10, knockback: 40 }],
     },
   },
   // ── Energy Laser → Marksman body ─────────────────────────────────────────
@@ -71,28 +70,16 @@ export const FIGHTER_PRESETS: FighterPreset[] = [
       friction: 0.12, restitution: 0.45, spinSpeed: 3.5,
       durability: 60, attackPower: 11, knockbackPower: 50,
       color: '#4488CC', icon: '🎯',
-      ability: {
-        id: 'marksman-target-lock',
-        name: 'Target Lock',
-        description: 'Charges over 10s, then bursts away from the opponent at +80% speed — creates distance for the rapid laser.',
-        trigger: 'passive',
-        params: {
-          chargeRate: 0.01,
-          burstMagnitude: 0.8,
-          burstDuration: 1200,
-          burstColor: '#66AAFF',
-          burstIcon: '🎯',
-        },
-      },
     },
     weapon: {
       name: 'Energy Laser',
-      category: 'projectile', damage: 6, knockback: 50,
-      range: 10.0, speed: 4.0, cooldown: 1.5,
-      trigger: 'onTimer',
-      description: 'Long-range energy beam that fires every 3 seconds with surgical precision.',
+      range: 10.0, speed: 4.0, trigger: 'onTimer',
+      description: 'Fires 3-way split bullets every 1.5s; charges a full-power laser beam every 10s.',
       color: '#4488CC',
-      aimAtEnemy: true,
+      attacks: [
+        { type: 'projectile', cooldown: 3,  damage: 3,  knockback: 20, aimAtEnemy: true, bulletCount: 3, bulletSpeed: 1.0 },
+        { type: 'projectile', cooldown: 10.0, damage: 15, knockback: 65, aimAtEnemy: true, hitscan: true },
+      ],
     },
   },
   // ── War Axe → Bloodrage body ──────────────────────────────────────────────
@@ -134,11 +121,10 @@ export const FIGHTER_PRESETS: FighterPreset[] = [
     },
     weapon: {
       name: 'War Axe',
-      category: 'melee', damage: 9, knockback: 55,
-      range: 1.0, speed: 4.0, cooldown: 0.8,
-      trigger: 'onCollision',
+      range: 1.0, speed: 4.0, trigger: 'onCollision',
       description: 'Slow, devastating swing. Each hit lands with crushing force.',
       color: '#884400',
+      attacks: [{ type: 'melee', cooldown: 0.8, damage: 9, knockback: 55 }],
     },
   },
 ];

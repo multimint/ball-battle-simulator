@@ -47,19 +47,6 @@ export const BALL_PRESETS: BallStats[] = [
     knockbackPower: 50,
     color: '#4488CC',
     icon: '🎯',
-    ability: {
-      id: 'marksman-target-lock',
-      name: 'Target Lock',
-      description: 'Charges over 10s, then bursts away from the opponent at +80% speed — creates distance for the rapid laser.',
-      trigger: 'passive',
-      params: {
-        chargeRate: 0.01,
-        burstMagnitude: 0.8,
-        burstDuration: 1200,
-        burstColor: '#66AAFF',
-        burstIcon: '🎯',
-      },
-    },
   },
   {
     name: 'Bloodrage',

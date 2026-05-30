@@ -98,16 +98,51 @@ function drawSpearEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void {
 function drawLaserEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void {
   if (e.x2 === undefined || e.y2 === undefined) return;
   const t = 1 - e.progress / e.maxProgress;
-  ctx.strokeStyle = e.color;
-  ctx.lineWidth = 3 * t;
+
+  ctx.save();
   ctx.lineCap = 'round';
+
+  // Outer soft glow
+  ctx.strokeStyle = e.color;
+  ctx.lineWidth = 28 * t;
+  ctx.globalAlpha = 0.12 * t;
   ctx.shadowColor = e.color;
-  ctx.shadowBlur = 10;
+  ctx.shadowBlur = 40;
   ctx.beginPath();
   ctx.moveTo(e.x, e.y);
   ctx.lineTo(e.x2, e.y2);
   ctx.stroke();
-  ctx.shadowBlur = 0;
+
+  // Mid beam
+  ctx.globalAlpha = 0.55 * t;
+  ctx.lineWidth = 10 * t;
+  ctx.shadowBlur = 24;
+  ctx.beginPath();
+  ctx.moveTo(e.x, e.y);
+  ctx.lineTo(e.x2, e.y2);
+  ctx.stroke();
+
+  // Bright core
+  ctx.globalAlpha = 1.0 * t;
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 3 * t;
+  ctx.shadowColor = e.color;
+  ctx.shadowBlur = 14;
+  ctx.beginPath();
+  ctx.moveTo(e.x, e.y);
+  ctx.lineTo(e.x2, e.y2);
+  ctx.stroke();
+
+  // Impact burst circle at hit end
+  const impactR = 18 * t;
+  ctx.globalAlpha = 0.7 * t;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.shadowBlur = 20;
+  ctx.beginPath();
+  ctx.arc(e.x2, e.y2, impactR, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
 }
 
 function drawCannonEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void {

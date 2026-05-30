@@ -1,6 +1,6 @@
 import Matter from 'matter-js';
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
-import type { TeamConfig, WeaponStats, WinnerType, BallAbility, BallAbilityType, StatusEffect, StatusEffectType } from '../models/types';
+import type { TeamConfig, WeaponStats, AttackConfig, WinnerType, BallAbility, BallAbilityType, StatusEffect, StatusEffectType } from '../models/types';
 import type { Particle, WeaponEffect, FloatingDamage, ScreenShake, ScreenFlash, HitFlash, TrailSegment, Bullet } from '../models/GameState';
 import { Renderer } from '../rendering/Renderer';
 import { drawBackground, drawArenaWalls } from '../rendering/drawBackground';
@@ -42,6 +42,9 @@ import {
 import type { InitialVelocities, SimulationResult } from '../store/useGameStore';
 
 const { Engine, World, Bodies, Composite, Body, Events } = Matter;
+
+// ms the "ready" display holds before a hitscan attack fires — shared by charge display and firing logic
+const HITSCAN_PREFIRE_MS = 150;
 
 // OffscreenCanvas contexts share the same API surface as CanvasRenderingContext2D
 // but TypeScript treats them as different types. This alias lets us cast safely.
@@ -94,8 +97,6 @@ export class GameSimulator {
 
   private orbitAngleA = Math.PI * 0.25;
   private orbitAngleB = Math.PI * 1.25;
-  private lastHitA = -99999;
-  private lastHitB = -99999;
 
   private particles: Particle[] = [];
   private floaters: FloatingDamage[] = [];
@@ -114,6 +115,14 @@ export class GameSimulator {
 
   private chargeA = 0;
   private chargeB = 0;
+
+  // Per-attack-index timers (length = weapon.attacks.length for each team)
+  private lastHitTimesA: number[] = [];
+  private lastHitTimesB: number[] = [];
+  private burstCountsA: number[] = [];
+  private burstCountsB: number[] = [];
+  private lastBulletTimesA: number[] = [];
+  private lastBulletTimesB: number[] = [];
 
   private bullets: Bullet[] = [];
 
@@ -150,6 +159,15 @@ export class GameSimulator {
 
     this.hp = { A: config.teamA.ball.durability, B: config.teamB.ball.durability };
     this.maxHp = { A: config.teamA.ball.durability, B: config.teamB.ball.durability };
+
+    const nA = config.teamA.weapon.attacks.length;
+    const nB = config.teamB.weapon.attacks.length;
+    this.lastHitTimesA  = new Array(nA).fill(0);
+    this.lastHitTimesB  = new Array(nB).fill(0);
+    this.burstCountsA   = new Array(nA).fill(0);
+    this.burstCountsB   = new Array(nB).fill(0);
+    this.lastBulletTimesA = new Array(nA).fill(0);
+    this.lastBulletTimesB = new Array(nB).fill(0);
 
     // ── Physics engine ──────────────────────────────────────────────────────
     this.engine = Engine.create({ gravity: { x: 0, y: 0 } });
@@ -329,6 +347,12 @@ export class GameSimulator {
       }
     }
 
+    // 1-second freeze on the KO moment — repeat the last rendered frame, no physics tick.
+    for (let v = 0; v < this.fps; v++) {
+      this.encodeFrame(frameIdx);
+      frameIdx++;
+    }
+
     Events.off(this.engine, 'collisionStart', handleCollision);
 
     // ── Fight → Result transition flash ──────────────────────────────────
@@ -471,12 +495,15 @@ export class GameSimulator {
     const { teamA, teamB, bodyA, bodyB } = this;
     const berserkMult = 2.5;
 
-    if (teamA.weapon.aimAtEnemy) {
+    const anyAimA = teamA.weapon.attacks.some(a => a.aimAtEnemy);
+    const anyAimB = teamB.weapon.attacks.some(a => a.aimAtEnemy);
+
+    if (anyAimA) {
       this.orbitAngleA = Math.atan2(bodyB.position.y - bodyA.position.y, bodyB.position.x - bodyA.position.x);
     } else {
       this.orbitAngleA += orbitSpeed(teamA.weapon) * (this.isBerserk('A') ? berserkMult : 1) * dt;
     }
-    if (teamB.weapon.aimAtEnemy) {
+    if (anyAimB) {
       this.orbitAngleB = Math.atan2(bodyA.position.y - bodyB.position.y, bodyA.position.x - bodyB.position.x);
     } else {
       this.orbitAngleB -= orbitSpeed(teamB.weapon) * (this.isBerserk('B') ? berserkMult : 1) * dt;
@@ -485,51 +512,104 @@ export class GameSimulator {
     const hitboxA = getWeaponHitboxRadius(teamA.weapon);
     const hitboxB = getWeaponHitboxRadius(teamB.weapon);
 
-    if (this.hp.A > 0 && this.hp.B > 0) {
-      if (teamA.weapon.aimAtEnemy) {
-        const cooldown = Math.max(WEAPON_HIT_COOLDOWN_MIN, teamA.weapon.cooldown * 1000);
-        if (this.simTime - this.lastHitA >= cooldown) {
-          this.lastHitA = this.simTime;
-          this.spawnBullet('A', teamA.weapon, hitboxA);
-        }
-      } else {
-        const posA = getOrbitPosition(bodyA.position.x, bodyA.position.y, teamA.ball.radius, this.orbitAngleA, hitboxA);
-        const distAtoB = Math.hypot(posA.x - bodyB.position.x, posA.y - bodyB.position.y);
-        if (distAtoB < hitboxA + teamB.ball.radius) {
-          const cooldown = Math.max(WEAPON_HIT_COOLDOWN_MIN, teamA.weapon.cooldown * 1000);
-          if (this.simTime - this.lastHitA >= cooldown) {
-            this.lastHitA = this.simTime;
-            this.applyHit(teamA.weapon, bodyA, bodyB, 'A');
-          }
-        }
-      }
+    // Charge display: use the same effective cooldown the firing condition uses,
+    // so 100% / "ready" appears on exactly the same frame the laser fires.
+    const laserA = teamA.weapon.attacks.filter(a => a.aimAtEnemy).sort((a, b) => b.cooldown - a.cooldown)[0];
+    if (laserA) {
+      const idx = teamA.weapon.attacks.indexOf(laserA);
+      const cd = Math.max(WEAPON_HIT_COOLDOWN_MIN, laserA.cooldown * 1000);
+      const effectiveCd = cd + (laserA.hitscan ? HITSCAN_PREFIRE_MS : 0);
+      this.chargeA = Math.min(100, ((this.simTime - this.lastHitTimesA[idx]) / effectiveCd) * 100);
+    }
+    const laserB = teamB.weapon.attacks.filter(a => a.aimAtEnemy).sort((a, b) => b.cooldown - a.cooldown)[0];
+    if (laserB) {
+      const idx = teamB.weapon.attacks.indexOf(laserB);
+      const cd = Math.max(WEAPON_HIT_COOLDOWN_MIN, laserB.cooldown * 1000);
+      const effectiveCd = cd + (laserB.hitscan ? HITSCAN_PREFIRE_MS : 0);
+      this.chargeB = Math.min(100, ((this.simTime - this.lastHitTimesB[idx]) / effectiveCd) * 100);
     }
 
-    if (this.hp.A > 0 && this.hp.B > 0) {
-      if (teamB.weapon.aimAtEnemy) {
-        const cooldown = Math.max(WEAPON_HIT_COOLDOWN_MIN, teamB.weapon.cooldown * 1000);
-        if (this.simTime - this.lastHitB >= cooldown) {
-          this.lastHitB = this.simTime;
-          this.spawnBullet('B', teamB.weapon, hitboxB);
-        }
-      } else {
-        const posB = getOrbitPosition(bodyB.position.x, bodyB.position.y, teamB.ball.radius, this.orbitAngleB, hitboxB);
-        const distBtoA = Math.hypot(posB.x - bodyA.position.x, posB.y - bodyA.position.y);
-        if (distBtoA < hitboxB + teamA.ball.radius) {
-          const cooldown = Math.max(WEAPON_HIT_COOLDOWN_MIN, teamB.weapon.cooldown * 1000);
-          if (this.simTime - this.lastHitB >= cooldown) {
-            this.lastHitB = this.simTime;
-            this.applyHit(teamB.weapon, bodyB, bodyA, 'B');
-          }
-        }
-      }
-    }
-
+    // Age existing effects BEFORE processAttacks so newly created effects
+    // are always drawn at progress=0 (full brightness) on their first frame.
     for (const e of this.weaponEffects) e.progress += 1;
     this.weaponEffects = this.weaponEffects.filter((e) => e.progress < e.maxProgress);
+
+    if (this.hp.A > 0 && this.hp.B > 0) {
+      this.processAttacks('A', teamA.weapon, bodyA, bodyB, teamB.ball.radius, hitboxA);
+    }
+    if (this.hp.A > 0 && this.hp.B > 0) {
+      this.processAttacks('B', teamB.weapon, bodyB, bodyA, teamA.ball.radius, hitboxB);
+    }
   }
 
-  private spawnBullet(team: 'A' | 'B', weapon: WeaponStats, hitboxR: number): void {
+  private processAttacks(
+    team: 'A' | 'B',
+    weapon: WeaponStats,
+    attacker: Matter.Body,
+    defender: Matter.Body,
+    defenderRadius: number,
+    hitboxR: number,
+  ): void {
+    const hitTimes    = team === 'A' ? this.lastHitTimesA    : this.lastHitTimesB;
+    const burstCounts = team === 'A' ? this.burstCountsA     : this.burstCountsB;
+    const bulletTimes = team === 'A' ? this.lastBulletTimesA : this.lastBulletTimesB;
+    const orbitAngle  = team === 'A' ? this.orbitAngleA      : this.orbitAngleB;
+
+    for (let i = 0; i < weapon.attacks.length; i++) {
+      const attack = weapon.attacks[i];
+      const cd = Math.max(WEAPON_HIT_COOLDOWN_MIN, attack.cooldown * 1000);
+
+      if (attack.aimAtEnemy) {
+        if (attack.hitscan) {
+          // Instant hitscan: charge reaches 100% at cd, then fires after a short hold so
+          // "ready" is visible for several frames before the beam appears.
+          if (this.simTime - hitTimes[i] >= cd + HITSCAN_PREFIRE_MS) {
+            hitTimes[i] = this.simTime - HITSCAN_PREFIRE_MS;
+            this.applyHit(weapon, attack, attacker, defender, team);
+          }
+        } else if (attack.bulletInterval) {
+          // Burst mode: trigger burst on cooldown, then fire one bullet per interval
+          if (burstCounts[i] === 0 && this.simTime - hitTimes[i] >= cd) {
+            hitTimes[i] = this.simTime;
+            burstCounts[i] = attack.bulletCount ?? 1;
+            bulletTimes[i] = this.simTime - cd;
+          }
+          if (burstCounts[i] > 0 && this.simTime - bulletTimes[i] >= attack.bulletInterval * 1000) {
+            bulletTimes[i] = this.simTime;
+            const bulletIdx = (attack.bulletCount ?? 1) - burstCounts[i];
+            this.spawnBullet(team, weapon, attack, hitboxR, bulletIdx);
+            burstCounts[i]--;
+          }
+        } else {
+          // Volley mode: fire all bullets at once when cooldown elapses
+          if (this.simTime - hitTimes[i] >= cd) {
+            hitTimes[i] = this.simTime;
+            const count = attack.bulletCount ?? 1;
+            for (let j = 0; j < count; j++) {
+              this.spawnBullet(team, weapon, attack, hitboxR, j);
+            }
+          }
+        }
+      } else {
+        // Orbit melee: check hitbox collision
+        const pos = getOrbitPosition(attacker.position.x, attacker.position.y,
+          (team === 'A' ? this.teamA : this.teamB).ball.radius, orbitAngle, hitboxR);
+        const dist = Math.hypot(pos.x - defender.position.x, pos.y - defender.position.y);
+        if (dist < hitboxR + defenderRadius && this.simTime - hitTimes[i] >= cd) {
+          hitTimes[i] = this.simTime;
+          this.applyHit(weapon, attack, attacker, defender, team);
+        }
+      }
+    }
+  }
+
+  private spawnBullet(
+    team: 'A' | 'B',
+    weapon: WeaponStats,
+    attack: AttackConfig,
+    hitboxR: number,
+    bulletIdx = 0,
+  ): void {
     const body = team === 'A' ? this.bodyA : this.bodyB;
     const opponent = team === 'A' ? this.bodyB : this.bodyA;
     const angle = team === 'A' ? this.orbitAngleA : this.orbitAngleB;
@@ -538,16 +618,24 @@ export class GameSimulator {
     const dx = opponent.position.x - start.x;
     const dy = opponent.position.y - start.y;
     const dist = Math.hypot(dx, dy);
-    const speed = 2.0; // px per ms
+    const baseAngle = dist > 0 ? Math.atan2(dy, dx) : 0;
+    const speed = (attack.bulletSpeed ?? 2.0) * (2 / 3); // px per ms
+
+    const count = attack.bulletCount ?? 1;
+    const spread = attack.bulletSpread ?? 0.40;
+    const halfSpread = ((count - 1) * spread) / 2;
+    const shotAngle = baseAngle - halfSpread + bulletIdx * spread;
+
     this.bullets.push({
       x: start.x,
       y: start.y,
-      vx: dist > 0 ? (dx / dist) * speed : speed,
-      vy: dist > 0 ? (dy / dist) * speed : 0,
+      vx: Math.cos(shotAngle) * speed,
+      vy: Math.sin(shotAngle) * speed,
       owner: team,
       radius: 5,
       color: weapon.color ?? '#4488CC',
       ttl: 2000,
+      attack,
     });
   }
 
@@ -569,20 +657,25 @@ export class GameSimulator {
       const dist = Math.hypot(dx, dy);
       if (dist < enemyBall.radius + b.radius && this.hp.A > 0 && this.hp.B > 0) {
         const weapon = b.owner === 'A' ? this.teamA.weapon : this.teamB.weapon;
-        this.applyHit(weapon, attacker, enemy, b.owner);
+        this.applyHit(weapon, b.attack, attacker, enemy, b.owner);
         this.bullets.splice(i, 1);
       }
     }
   }
 
-  private applyHit(weapon: WeaponStats, attacker: Matter.Body, defender: Matter.Body, attackerTeam: 'A' | 'B'): void {
+  private applyHit(
+    weapon: WeaponStats,
+    attack: AttackConfig,
+    attacker: Matter.Body,
+    defender: Matter.Body,
+    attackerTeam: 'A' | 'B',
+  ): void {
     const targetTeam: 'A' | 'B' = attackerTeam === 'A' ? 'B' : 'A';
     const dir = directionBetween(attacker, defender);
     const hitAngle = Math.atan2(dir.y, dir.x);
 
     let lastDmg = 0;
     const damage = (team: 'A' | 'B', amount: number): number => {
-      // Apply attacker buff and defender debuff multipliers
       const attackingTeam: 'A' | 'B' = team === 'A' ? 'B' : 'A';
       let modified = amount * this.getOutgoingDamageMultiplier(attackingTeam) * this.getIncomingDamageMultiplier(team);
       modified = this.consumeShield(team, modified);
@@ -599,7 +692,6 @@ export class GameSimulator {
           targetTeam === 'A' ? '#E47D79' : '#4A90E2',
         ),
       );
-      // Lifesteal: heal the attacker for a fraction of damage dealt
       const lifesteal = this.activeEffectsA.concat(this.activeEffectsB)
         .find((e) => e.type === 'lifesteal' && (team === 'B' ? attackerTeam === 'A' : attackerTeam === 'B'));
       if (lifesteal) {
@@ -617,49 +709,43 @@ export class GameSimulator {
       spawnParticleBurst(this.particles, x, y, color, count, MAX_PARTICLES);
     };
 
-    const applyTierEffects = (category: string, defTeam: 'A' | 'B', color: string, dmg: number) => {
-      // Damage-scaled screen shake — magnitude and duration both grow with damage
+    const applyTierEffects = (type: string, defTeam: 'A' | 'B', color: string, dmg: number) => {
       const shakeMag = Math.min(8, dmg / 2);
       const shakeTtl = Math.round(Math.min(SCREEN_SHAKE_TTL, dmg * 1.25));
-      if (shakeMag >= 0.5) {
-        this.screenShake = { magnitude: shakeMag, ttl: shakeTtl };
-      }
-      // Slow motion on heavy hits (≥12 damage) or any aoe
-      if (dmg >= 12 || category === 'aoe') {
-        this.slowMotion = SLOW_MOTION_FACTOR;
-      }
+      if (shakeMag >= 0.5) this.screenShake = { magnitude: shakeMag, ttl: shakeTtl };
+      if (dmg >= 12 || type === 'aoe') this.slowMotion = SLOW_MOTION_FACTOR;
       const c = color || '#FFFFFF';
-      if (category === 'melee') {
+      if (type === 'melee') {
         if (defTeam === 'A') this.hitFlashA = { alpha: 0.65, color: c, ttl: 5 };
         else this.hitFlashB = { alpha: 0.65, color: c, ttl: 5 };
-      } else if (category === 'projectile') {
+      } else if (type === 'projectile') {
         this.screenFlash = { alpha: 0.22, color: c, ttl: 5 };
-      } else if (category === 'aoe') {
+      } else if (type === 'aoe') {
         this.screenFlash = { alpha: 0.40, color: c, ttl: 7 };
         if (defTeam === 'A') this.hitFlashA = { alpha: 0.75, color: '#FFFFFF', ttl: 6 };
         else this.hitFlashB = { alpha: 0.75, color: '#FFFFFF', ttl: 6 };
-      } else if (category === 'shield') {
+      } else if (type === 'shield') {
         if (defTeam === 'A') this.hitFlashA = { alpha: 0.50, color: c, ttl: 4 };
         else this.hitFlashB = { alpha: 0.50, color: c, ttl: 4 };
       }
     };
 
-    switch (weapon.category) {
+    switch (attack.type) {
       case 'melee': {
         let kbMult = 1.0, dmgMult = 1.0;
         if (weapon.name === 'Heavy Hammer') { kbMult = 1.6; dmgMult = 1.2; }
         else if (weapon.name === 'Long Spear') { kbMult = 0.9; }
         else if (weapon.name === 'Chain Flail') { kbMult = 0.7; dmgMult = 0.8; }
-        applyKnockback(defender, dir.x, dir.y, weapon.knockback * kbMult);
-        damage(targetTeam, weapon.damage * dmgMult);
+        applyKnockback(defender, dir.x, dir.y, attack.knockback * kbMult);
+        damage(targetTeam, attack.damage * dmgMult);
         burst(defender.position.x, defender.position.y, weapon.color ?? '#CC6633', 8);
         const et = weapon.name === 'Heavy Hammer' ? 'hammer' : weapon.name === 'Long Spear' ? 'spear' : weapon.name === 'Chain Flail' ? 'flail' : 'sword';
         this.weaponEffects.push(createWeaponEffect(et, attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#CC6633', 12));
         break;
       }
       case 'shield': {
-        applyKnockback(defender, dir.x, dir.y, weapon.knockback * 1.8);
-        if (weapon.damage > 0) damage(targetTeam, Math.max(1, Math.round(weapon.damage * 0.2)));
+        applyKnockback(defender, dir.x, dir.y, attack.knockback * 1.8);
+        if (attack.damage > 0) damage(targetTeam, Math.max(1, Math.round(attack.damage * 0.2)));
         this.weaponEffects.push(createWeaponEffect('shield', attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#AAAAFF', 18, { radius: (attacker.circleRadius ?? 25) + 14 }));
         burst(attacker.position.x, attacker.position.y, weapon.color ?? '#AAAAFF', 6);
         break;
@@ -671,17 +757,25 @@ export class GameSimulator {
           this.weaponEffects.push(createWeaponEffect('explosion', defender.position.x, defender.position.y, 0, weapon.color ?? '#44AA44', 20, { radius: 70 }));
         } else if (weapon.name === 'Power Cannon') {
           dmgMult = 1.1; kbMult = 1.5;
-        } else if (weapon.name === 'Energy Laser') {
-          this.weaponEffects.push(createWeaponEffect('laser', attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#44AAFF', 10, { x2: defender.position.x, y2: defender.position.y }));
+        } else if (weapon.name === 'Energy Laser' && attack.hitscan) {
+          // Full laser beam — only for the hitscan laser attack, not split bullets
+          this.weaponEffects.push(createWeaponEffect('laser', attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#44AAFF', 22, { x2: defender.position.x, y2: defender.position.y }));
+          this.weaponEffects.push(createWeaponEffect('explosion', defender.position.x, defender.position.y, 0, weapon.color ?? '#44AAFF', 18, { radius: 55 }));
+          this.screenShake = { magnitude: 8, ttl: 14 };
+          this.screenFlash = { alpha: 0.45, color: weapon.color ?? '#4488FF', ttl: 8 };
+          if (targetTeam === 'A') this.hitFlashA = { alpha: 0.9, color: '#FFFFFF', ttl: 8 };
+          else this.hitFlashB = { alpha: 0.9, color: '#FFFFFF', ttl: 8 };
+          this.slowMotion = SLOW_MOTION_FACTOR;
         }
-        applyKnockback(defender, dir.x, dir.y, weapon.knockback * kbMult);
-        damage(targetTeam, weapon.damage * dmgMult);
-        burst(defender.position.x, defender.position.y, weapon.color ?? '#FFF', 10);
+        applyKnockback(defender, dir.x, dir.y, attack.knockback * kbMult);
+        damage(targetTeam, attack.damage * dmgMult);
+        const burstCount = attack.hitscan ? 22 : 8;
+        burst(defender.position.x, defender.position.y, weapon.color ?? '#FFF', burstCount);
         break;
       }
       case 'aoe': {
-        applyKnockback(defender, dir.x, dir.y, weapon.knockback * 1.5);
-        damage(targetTeam, weapon.damage);
+        applyKnockback(defender, dir.x, dir.y, attack.knockback * 1.5);
+        damage(targetTeam, attack.damage);
         this.weaponEffects.push(createWeaponEffect('shockwave', attacker.position.x, attacker.position.y, 0, weapon.color ?? '#FF44FF', 25, { radius: weapon.range * 30 }));
         burst(attacker.position.x, attacker.position.y, weapon.color ?? '#FF44FF', 15);
         break;
@@ -690,19 +784,19 @@ export class GameSimulator {
         if (weapon.name === 'Magnet Beam') {
           const pullDir = directionBetween(defender, attacker);
           applyKnockback(defender, pullDir.x, pullDir.y, 80);
-          if (weapon.damage > 0) damage(targetTeam, weapon.damage);
+          if (attack.damage > 0) damage(targetTeam, attack.damage);
           burst((attacker.position.x + defender.position.x) / 2, (attacker.position.y + defender.position.y) / 2, weapon.color ?? '#44FFAA', 6);
         } else if (weapon.name === 'Repulsor') {
-          applyKnockback(defender, dir.x, dir.y, weapon.knockback * 1.3);
-          applyKnockback(attacker, -dir.x, -dir.y, weapon.knockback * 0.4);
-          damage(targetTeam, weapon.damage);
+          applyKnockback(defender, dir.x, dir.y, attack.knockback * 1.3);
+          applyKnockback(attacker, -dir.x, -dir.y, attack.knockback * 0.4);
+          damage(targetTeam, attack.damage);
           this.weaponEffects.push(createWeaponEffect('explosion', attacker.position.x, attacker.position.y, 0, weapon.color ?? '#FFFF44', 18, { radius: 55 }));
         }
         break;
       }
     }
 
-    applyTierEffects(weapon.category, targetTeam, weapon.color ?? '#FFFFFF', lastDmg);
+    applyTierEffects(attack.type, targetTeam, weapon.color ?? '#FFFFFF', lastDmg);
 
     // Velocity burst in hit direction — amplified when attacker is in berserk
     if (lastDmg > 0) {
@@ -764,11 +858,21 @@ export class GameSimulator {
     });
 
     // 2. Blit current physics frame into the arena region of the capture canvas.
-    //    captureCanvas was pre-initialized with the static background (top panel,
-    //    arena bg, card shadow, bottom panel), so only the arena area needs updating.
     const cctx = this.captureCtx;
     (cctx as unknown as OffscreenCanvasRenderingContext2D).imageSmoothingEnabled = false;
     cctx.drawImage(this.physicsCanvas as unknown as HTMLCanvasElement, this.arenaX, this.arenaY, this.arenaDrawSize, this.arenaDrawSize);
+
+    // 3. Redraw bottom panel with live ability status.
+    drawCaptureBottomPanel(
+      cctx,
+      this.damageDealt.A, this.damageDealt.B, this.turns,
+      this.teamA.ball.color, this.teamB.ball.color,
+      this.activeEffectsA, this.activeEffectsB,
+      this.teamA.ball.ability, this.teamB.ball.ability,
+      this.hp.A / this.maxHp.A, this.hp.B / this.maxHp.B,
+      this.chargeA, this.chargeB,
+      this.teamA.weapon, this.teamB.weapon,
+    );
 
     this.commitFrame(frameIdx);
   }
@@ -904,7 +1008,10 @@ export class GameSimulator {
       const alive: StatusEffect[] = [];
 
       for (const effect of effects) {
-        effect.remainingMs -= delta;
+        // Stack-behavior effects are permanent — never decay their timer
+        if (effect.stackBehavior !== 'stack') {
+          effect.remainingMs -= delta;
+        }
 
         // Apply per-tick effects
         if (effect.type === 'burn') {
@@ -915,7 +1022,7 @@ export class GameSimulator {
           this.hp[team] = Math.max(0, this.hp[team] - dmgPerMs * delta);
         }
 
-        if (effect.remainingMs > 0) alive.push(effect);
+        if (effect.stackBehavior === 'stack' || effect.remainingMs > 0) alive.push(effect);
       }
 
       if (team === 'A') this.activeEffectsA = alive;
@@ -1016,54 +1123,6 @@ export class GameSimulator {
 
     switch (ability.id) {
       // Each new ball's ability case will be added here by /create-ball
-      case 'marksman-target-lock': {
-        const delta = context.delta ?? 16;
-        if (team === 'A') this.chargeA += Number(p.chargeRate ?? 0.05) * delta;
-        else this.chargeB += Number(p.chargeRate ?? 0.05) * delta;
-        const charge = team === 'A' ? this.chargeA : this.chargeB;
-        if (charge >= 100) {
-          if (team === 'A') this.chargeA = 0;
-          else this.chargeB = 0;
-          // Burst toward opponent
-          const vel = body.velocity;
-          const speed = Math.hypot(vel.x, vel.y);
-          const dx = opponentBody.position.x - body.position.x;
-          const dy = opponentBody.position.y - body.position.y;
-          const dist = Math.hypot(dx, dy);
-          if (dist > 0 && speed > 0.01) {
-            const burstSpeed = speed * (1 + Number(p.burstMagnitude ?? 0.8));
-            Body.setVelocity(body, {
-              x: -(dx / dist) * burstSpeed,
-              y: -(dy / dist) * burstSpeed,
-            });
-          }
-          // Speed boost status for visual ring
-          this.applyStatusEffect(
-            team, 'speedBoost',
-            Number(p.burstDuration ?? 1200),
-            Number(p.burstMagnitude ?? 0.8),
-            'refresh', 1,
-            p.burstColor as string ?? '#66AAFF',
-            p.burstIcon as string ?? '🎯',
-          );
-          // Trail orbs on burst
-          const ballRadius = (team === 'A' ? this.teamA : this.teamB).ball.radius;
-          for (let i = 0; i < 3; i++) {
-            const offsetX = (Math.random() - 0.5) * ballRadius * 0.5;
-            const offsetY = (Math.random() - 0.5) * ballRadius * 0.5;
-            this.trailSegments.push({
-              x: body.position.x + offsetX,
-              y: body.position.y + offsetY,
-              radius: ballRadius * 0.6,
-              color: p.burstColor as string ?? '#66AAFF',
-              alpha: 0.7,
-              ttl: 12,
-              maxTtl: 12,
-            });
-          }
-        }
-        break;
-      }
       case 'quickstrike-momentum': {
         // Spawn a green burst of trail orbs at the moment of each hit
         const ballRadius = (team === 'A' ? this.teamA : this.teamB).ball.radius;

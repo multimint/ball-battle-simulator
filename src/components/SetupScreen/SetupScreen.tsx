@@ -57,7 +57,7 @@ export default function SetupScreen() {
           {/* VS divider */}
           <div
             style={{
-              width: 14,
+              width: 20,
               flexShrink: 0,
               display: 'flex',
               flexDirection: 'column',
@@ -71,7 +71,7 @@ export default function SetupScreen() {
             <span
               style={{
                 fontFamily: RETRO,
-                fontSize: 6,
+                fontSize: 9,
                 color: 'rgba(1,0,107,0.22)',
                 writingMode: 'vertical-lr',
                 letterSpacing: '0.35em',
@@ -89,65 +89,65 @@ export default function SetupScreen() {
           style={{
             flexShrink: 0,
             borderTop: '1.5px solid rgba(1,0,107,0.10)',
-            padding: '12px 20px',
+            padding: '16px 24px',
             display: 'flex',
             alignItems: 'center',
-            gap: 16,
+            gap: 20,
             background: 'rgba(1,0,107,0.02)',
           }}
         >
           {/* Fighter A preview */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
             <div
               style={{
-                width: 34,
-                height: 34,
+                width: 46,
+                height: 46,
                 borderRadius: '50%',
                 background: teamA.ball.color,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 17,
+                fontSize: 23,
                 flexShrink: 0,
               }}
             >
               {fighterA?.icon ?? '⚽'}
             </div>
             <div style={{ minWidth: 0 }}>
-              <p style={{ fontFamily: RETRO, fontSize: 6, color: COLOR_A, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <p style={{ fontFamily: RETRO, fontSize: 10, color: COLOR_A, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {teamA.name}
               </p>
-              <p style={{ fontFamily: RETRO, fontSize: 5, color: 'rgba(1,0,107,0.35)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <p style={{ fontFamily: RETRO, fontSize: 8, color: 'rgba(1,0,107,0.35)', marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {teamA.weapon.name}
               </p>
             </div>
           </div>
 
           {/* VS badge */}
-          <span style={{ fontFamily: RETRO, fontSize: 8, color: 'rgba(1,0,107,0.30)', flexShrink: 0 }}>
+          <span style={{ fontFamily: RETRO, fontSize: 13, color: 'rgba(1,0,107,0.30)', flexShrink: 0 }}>
             VS
           </span>
 
           {/* Fighter B preview */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, justifyContent: 'flex-end' }}>
             <div style={{ minWidth: 0, textAlign: 'right' }}>
-              <p style={{ fontFamily: RETRO, fontSize: 6, color: COLOR_B, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <p style={{ fontFamily: RETRO, fontSize: 10, color: COLOR_B, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {teamB.name}
               </p>
-              <p style={{ fontFamily: RETRO, fontSize: 5, color: 'rgba(1,0,107,0.35)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <p style={{ fontFamily: RETRO, fontSize: 8, color: 'rgba(1,0,107,0.35)', marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {teamB.weapon.name}
               </p>
             </div>
             <div
               style={{
-                width: 34,
-                height: 34,
+                width: 46,
+                height: 46,
                 borderRadius: '50%',
                 background: teamB.ball.color,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 17,
+                fontSize: 23,
                 flexShrink: 0,
               }}
             >
@@ -160,9 +160,9 @@ export default function SetupScreen() {
             onClick={startNewSimulation}
             style={{
               fontFamily: RETRO,
-              fontSize: 7,
-              padding: '11px 18px',
-              borderRadius: 8,
+              fontSize: 11,
+              padding: '14px 24px',
+              borderRadius: 10,
               border: 'none',
               background: '#01006B',
               color: '#FFFADE',
@@ -190,16 +190,16 @@ function TeamColumn({ team, color }: { team: 'A' | 'B'; color: string }) {
       <div
         style={{
           flexShrink: 0,
-          padding: '10px 14px',
+          padding: '14px 18px',
           background: `${color}14`,
           borderBottom: `1px solid ${color}28`,
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
+          gap: 10,
         }}
       >
-        <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
-        <span style={{ fontFamily: RETRO, fontSize: 7, color }}>{label}</span>
+        <div style={{ width: 14, height: 14, borderRadius: '50%', background: color, flexShrink: 0 }} />
+        <span style={{ fontFamily: RETRO, fontSize: 11, color }}>{label}</span>
       </div>
 
       {/* Scrollable content */}
@@ -207,10 +207,10 @@ function TeamColumn({ team, color }: { team: 'A' | 'B'; color: string }) {
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '12px',
+          padding: '16px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 10,
+          gap: 12,
         }}
       >
         <FighterSelector team={team} />

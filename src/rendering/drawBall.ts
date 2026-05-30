@@ -29,17 +29,8 @@ export function drawBall(
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
 
-  // Tint body toward red as HP drops
   ctx.fillStyle = ball.color;
   ctx.fill();
-
-  // Low-HP red overlay
-  if (hpFraction < 0.35) {
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(220,30,30,${(0.35 - hpFraction) * 1.2})`;
-    ctx.fill();
-  }
 
   // onLowHP rage aura (drawn before sheen so aura glows behind the highlight)
   if (ability?.trigger === 'onLowHP' && hpFraction < Number(ability.params.threshold ?? 0.3)) {
@@ -121,11 +112,11 @@ export function drawBall(
 
   // ── HP number inside ball ─────────────────────────────────────────────
   const displayHp = Math.max(0, Math.ceil(hp));
-  const fontSize  = Math.max(10, r * 0.62);  // scales with ball size
+  const fontSize  = Math.max(12, r * 0.78);  // scales with ball size
 
   // Faint dark circle behind text for legibility
   ctx.beginPath();
-  ctx.arc(0, 0, r * 0.68, 0, Math.PI * 2);
+  ctx.arc(0, 0, r * 0.82, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(0,0,0,0.22)';
   ctx.fill();
 

@@ -11,14 +11,14 @@ interface StatsPanelProps {
 function StatRow({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
   const pct = Math.min(100, (value / max) * 100);
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 5, width: 20, flexShrink: 0, color: `${color}88` }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <span style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 8, width: 30, flexShrink: 0, color: `${color}88` }}>
         {label}
       </span>
-      <div style={{ flex: 1, height: 5, borderRadius: 3, overflow: 'hidden', background: `${color}18` }}>
-        <div style={{ width: `${pct}%`, height: '100%', borderRadius: 3, background: color, transition: 'width 0.4s ease' }} />
+      <div style={{ flex: 1, height: 8, borderRadius: 4, overflow: 'hidden', background: `${color}18` }}>
+        <div style={{ width: `${pct}%`, height: '100%', borderRadius: 4, background: color, transition: 'width 0.4s ease' }} />
       </div>
-      <span style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 5, width: 24, textAlign: 'right', flexShrink: 0, color }}>
+      <span style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 8, width: 32, textAlign: 'right', flexShrink: 0, color }}>
         {Math.round(value)}
       </span>
     </div>
@@ -52,31 +52,31 @@ export default function StatsPanel({ team }: StatsPanelProps) {
       >
         <div
           style={{
-            width: 22,
-            height: 22,
+            width: 38,
+            height: 38,
             borderRadius: '50%',
             background: ball.color,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 11,
+            fontSize: 19,
             flexShrink: 0,
           }}
         >
           {fighter?.icon ?? '⚽'}
         </div>
         <div style={{ minWidth: 0 }}>
-          <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 6, color: teamColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 10, color: teamColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {fighter?.name ?? ball.name}
           </p>
-          <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 5, color: `${teamColor}70`, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 8, color: `${teamColor}70`, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {weapon.name}
           </p>
         </div>
       </div>
 
       {/* Stat bars */}
-      <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <StatRow label="HP"  value={ball.durability}    max={80}  color={teamColor} />
         <StatRow label="ATK" value={ball.attackPower}    max={20}  color={teamColor} />
         <StatRow label="SPD" value={ball.maxSpeed * 10}  max={80}  color={teamColor} />
