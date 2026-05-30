@@ -82,62 +82,13 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
           width: '100%',
           background: '#FFFADE',
           borderTop: '1.5px solid rgba(1,0,107,0.10)',
-          padding: '10px 14px 12px',
+          padding: '10px 14px',
           display: 'flex',
           flexDirection: 'column',
           gap: 8,
           flexShrink: 0,
         }}
       >
-        {/* Result banner */}
-        {simulationResult && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              padding: '6px 10px',
-              borderRadius: 8,
-              border: `1.5px solid ${winnerColor}44`,
-              background: `${winnerColor}0d`,
-            }}
-          >
-            <span style={{ fontSize: 16, lineHeight: 1 }}>{isDraw ? '🤝' : '🏆'}</span>
-            <span style={{ fontFamily: RETRO, fontSize: 7, color: winnerColor }}>
-              {isDraw ? 'DRAW' : winnerName}
-            </span>
-            {!isDraw && (
-              <span style={{ fontFamily: RETRO, fontSize: 5, color: 'rgba(1,0,107,0.30)', marginLeft: 4 }}>
-                {simulationResult.damageDealt.A} · {simulationResult.damageDealt.B} DMG
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Speed — 6 buttons in one row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4 }}>
-          {SPEED_STEPS.map((s) => (
-            <button
-              key={s}
-              onClick={() => handleSpeed(s)}
-              style={{
-                fontFamily: RETRO,
-                fontSize: 6,
-                padding: '5px 0',
-                textAlign: 'center' as const,
-                borderRadius: 6,
-                border: speed === s ? '1.5px solid #01006B' : '1.5px solid rgba(1,0,107,0.15)',
-                background: speed === s ? '#01006B' : 'transparent',
-                color: speed === s ? '#FFFADE' : 'rgba(1,0,107,0.55)',
-                cursor: 'pointer',
-              }}
-            >
-              {s}×
-            </button>
-          ))}
-        </div>
-
         {/* Actions — 4 buttons in one row */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 4 }}>
           <button onClick={handleReplay} style={mobileBtn('#01006B')}>▶ REPLAY</button>
@@ -153,8 +104,8 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
             onClick={resetToSetup}
             style={{
               fontFamily: RETRO,
-              fontSize: 6,
-              padding: '8px 0',
+              fontSize: 9,
+              padding: '10px 0',
               textAlign: 'center' as const,
               borderRadius: 6,
               border: '1.5px solid rgba(1,0,107,0.15)',
@@ -173,7 +124,7 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
   // ── Desktop: vertical sidebar ─────────────────────────────────────────
   const sectionLabel: React.CSSProperties = {
     fontFamily: RETRO,
-    fontSize: 7,
+    fontSize: 9,
     color: 'rgba(1,0,107,0.40)',
     letterSpacing: '0.08em',
     marginBottom: 8,
@@ -199,7 +150,7 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
         overflowY: 'auto',
       }}
     >
-      <p style={{ ...sectionLabel, marginBottom: 16, fontSize: 8, color: 'rgba(1,0,107,0.55)' }}>
+      <p style={{ ...sectionLabel, marginBottom: 16, fontSize: 10, color: 'rgba(1,0,107,0.55)' }}>
         CONTROLS
       </p>
 
@@ -216,23 +167,23 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
           >
             <div style={{ fontSize: 28, marginBottom: 4 }}>{isDraw ? '🤝' : '🏆'}</div>
             {isDraw ? (
-              <p style={{ fontFamily: RETRO, fontSize: 7, color: '#888', marginBottom: 2 }}>IT'S A DRAW</p>
+              <p style={{ fontFamily: RETRO, fontSize: 9, color: '#888', marginBottom: 2 }}>IT'S A DRAW</p>
             ) : (
               <>
-                <p style={{ fontFamily: RETRO, fontSize: 7, color: 'rgba(1,0,107,0.4)', marginBottom: 4 }}>WINNER</p>
-                <p style={{ fontFamily: RETRO, fontSize: 9, color: winnerColor, marginBottom: 2 }}>{winnerName}</p>
+                <p style={{ fontFamily: RETRO, fontSize: 9, color: 'rgba(1,0,107,0.4)', marginBottom: 4 }}>WINNER</p>
+                <p style={{ fontFamily: RETRO, fontSize: 11, color: winnerColor, marginBottom: 2 }}>{winnerName}</p>
               </>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 8 }}>
               <div style={{ textAlign: 'center' }}>
-                <p style={{ fontFamily: RETRO, fontSize: 5, color: 'rgba(1,0,107,0.35)', marginBottom: 2 }}>{teamA.name}</p>
-                <p style={{ fontFamily: RETRO, fontSize: 8, color: '#E47D79' }}>{simulationResult.damageDealt.A}</p>
-                <p style={{ fontFamily: RETRO, fontSize: 5, color: 'rgba(1,0,107,0.3)' }}>DMG</p>
+                <p style={{ fontFamily: RETRO, fontSize: 8, color: 'rgba(1,0,107,0.35)', marginBottom: 2 }}>{teamA.name}</p>
+                <p style={{ fontFamily: RETRO, fontSize: 10, color: '#E47D79' }}>{simulationResult.damageDealt.A}</p>
+                <p style={{ fontFamily: RETRO, fontSize: 8, color: 'rgba(1,0,107,0.3)' }}>DMG</p>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <p style={{ fontFamily: RETRO, fontSize: 5, color: 'rgba(1,0,107,0.35)', marginBottom: 2 }}>{teamB.name}</p>
-                <p style={{ fontFamily: RETRO, fontSize: 8, color: '#4A90E2' }}>{simulationResult.damageDealt.B}</p>
-                <p style={{ fontFamily: RETRO, fontSize: 5, color: 'rgba(1,0,107,0.3)' }}>DMG</p>
+                <p style={{ fontFamily: RETRO, fontSize: 8, color: 'rgba(1,0,107,0.35)', marginBottom: 2 }}>{teamB.name}</p>
+                <p style={{ fontFamily: RETRO, fontSize: 10, color: '#4A90E2' }}>{simulationResult.damageDealt.B}</p>
+                <p style={{ fontFamily: RETRO, fontSize: 8, color: 'rgba(1,0,107,0.3)' }}>DMG</p>
               </div>
             </div>
           </div>
@@ -248,8 +199,8 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
             onClick={() => handleSpeed(s)}
             style={{
               fontFamily: RETRO,
-              fontSize: 7,
-              padding: '5px 0',
+              fontSize: 9,
+              padding: '7px 0',
               textAlign: 'center' as const,
               borderRadius: 6,
               border: speed === s ? '1.5px solid #01006B' : '1.5px solid rgba(1,0,107,0.15)',
@@ -300,8 +251,8 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
         onClick={resetToSetup}
         style={{
           fontFamily: RETRO,
-          fontSize: 7,
-          padding: '8px 12px',
+          fontSize: 9,
+          padding: '10px 12px',
           borderRadius: 8,
           border: '1.5px solid rgba(1,0,107,0.15)',
           background: 'transparent',
@@ -322,8 +273,8 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
 function mobileBtn(bg: string): React.CSSProperties {
   return {
     fontFamily: RETRO,
-    fontSize: 6,
-    padding: '8px 0',
+    fontSize: 9,
+    padding: '10px 0',
     textAlign: 'center' as const,
     borderRadius: 6,
     border: 'none',
@@ -336,8 +287,8 @@ function mobileBtn(bg: string): React.CSSProperties {
 function filledBtn(bg: string): React.CSSProperties {
   return {
     fontFamily: RETRO,
-    fontSize: 7,
-    padding: '9px 12px',
+    fontSize: 9,
+    padding: '10px 12px',
     borderRadius: 8,
     border: 'none',
     background: bg,
