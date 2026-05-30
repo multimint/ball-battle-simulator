@@ -70,12 +70,12 @@ export default function SimulatingScreen() {
         >
           <div className="text-center">
             <span style={{ fontSize: 36 }}>{teamA.ball.icon ?? '⚽'}</span>
-            <p className="font-retro text-[7px] mt-1" style={{ color: '#E47D79' }}>{teamA.name}</p>
+            <p className="font-retro text-[10px] mt-1" style={{ color: '#E47D79' }}>{teamA.name}</p>
           </div>
-          <p className="font-retro text-[10px]" style={{ color: '#01006B44' }}>VS</p>
+          <p className="font-retro text-[12px]" style={{ color: '#01006B44' }}>VS</p>
           <div className="text-center">
             <span style={{ fontSize: 36 }}>{teamB.ball.icon ?? '⚽'}</span>
-            <p className="font-retro text-[7px] mt-1" style={{ color: '#4A90E2' }}>{teamB.name}</p>
+            <p className="font-retro text-[10px] mt-1" style={{ color: '#4A90E2' }}>{teamB.name}</p>
           </div>
         </div>
 
@@ -101,7 +101,7 @@ export default function SimulatingScreen() {
             />
           </div>
           <p
-            className="font-retro text-[7px] text-center mt-2"
+            className="font-retro text-[10px] text-center mt-2"
             style={{ color: 'rgba(1,0,107,0.35)' }}
           >
             {pct}%
