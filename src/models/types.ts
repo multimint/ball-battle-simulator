@@ -48,6 +48,8 @@ export interface WeaponStats {
   speed: number;        // orbit angular speed
   trigger: TriggerType;
   attacks: AttackConfig[];
+  kbMult?: number;      // knockback multiplier override (default 1.0)
+  dmgMult?: number;     // damage multiplier override (default 1.0)
 }
 
 // ─── Fighter Preset (ball + weapon bundled) ───────────────────────────────────

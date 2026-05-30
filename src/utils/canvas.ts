@@ -72,6 +72,17 @@ export function drawText(
   ctx.fillText(text, x, y);
 }
 
+/** Measures `text` and truncates with '…' if it exceeds `maxWidth` at `font`. */
+export function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, font?: string): string {
+  if (font) ctx.font = font;
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let t = text;
+  while (t.length > 1 && ctx.measureText(t + '…').width > maxWidth) {
+    t = t.slice(0, -1);
+  }
+  return t + '…';
+}
+
 export function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
   x: number,

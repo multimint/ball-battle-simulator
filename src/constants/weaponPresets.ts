@@ -6,6 +6,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     range: 1.0, speed: 3.0, trigger: 'onCollision',
     description: 'Slow swing; very high knockback on collision.',
     color: '#CC6633',
+    kbMult: 1.6, dmgMult: 1.2,
     attacks: [{ type: 'melee', cooldown: 2.0, damage: 16, knockback: 100 }],
   },
   {
@@ -20,6 +21,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     range: 2.0, speed: 4.0, trigger: 'onCollision',
     description: 'Stab with extended reach.',
     color: '#996633',
+    kbMult: 0.9,
     attacks: [{ type: 'melee', cooldown: 1.5, damage: 12, knockback: 30 }],
   },
   {
@@ -27,6 +29,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     range: 2.0, speed: 5.0, trigger: 'onTimer',
     description: 'Spins unpredictably; spawns orbital hitbox every 0.5s.',
     color: '#888888',
+    kbMult: 0.7, dmgMult: 0.8,
     attacks: [{ type: 'melee', cooldown: 0.5, damage: 8, knockback: 40 }],
   },
   {
@@ -48,6 +51,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     range: 8.0, speed: 5.0, trigger: 'onTimer',
     description: 'Launches a heavy orb; high damage and knockback.',
     color: '#FF8833',
+    kbMult: 1.5, dmgMult: 1.1,
     attacks: [{ type: 'projectile', cooldown: 3.0, damage: 16, knockback: 80, aimAtEnemy: true }],
   },
   {
@@ -83,6 +87,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     range: 5.0, speed: 6.0, trigger: 'onTimer',
     description: 'Lobs a bomb that explodes on contact or after 2s.',
     color: '#44AA44',
+    kbMult: 1.2, dmgMult: 1.3,
     attacks: [{ type: 'projectile', cooldown: 4.0, damage: 20, knockback: 100, aimAtEnemy: true }],
   },
 ];

@@ -1,33 +1,21 @@
 import type { TeamConfig, WinnerType } from '../models/types';
 import { CAPTURE_CANVAS_WIDTH, CAPTURE_CANVAS_HEIGHT } from '../constants/gameConstants';
+import { COLORS } from '../constants/colors';
+import { FONTS } from '../constants/typography';
+import { fitText } from '../utils/canvas';
 
 type Ctx2D = CanvasRenderingContext2D;
 
-const RETRO = '"Press Start 2P", monospace';
-
-// Smooth acceleration + deceleration — used for all panel slides
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-// Smooth deceleration, no bounce — used for badge pop-in
 function easeOutQuart(t: number): number {
   return 1 - Math.pow(1 - t, 4);
 }
 
-// Smooth in + out — used for the winner expansion
 function easeInOutQuart(t: number): number {
   return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
-}
-
-function fitText(ctx: Ctx2D, text: string, maxWidth: number, font: string): string {
-  ctx.font = font;
-  if (ctx.measureText(text).width <= maxWidth) return text;
-  let t = text;
-  while (t.length > 1 && ctx.measureText(t + '…').width > maxWidth) {
-    t = t.slice(0, -1);
-  }
-  return t + '…';
 }
 
 function drawTeamPanel(
@@ -61,14 +49,14 @@ function drawTeamPanel(
   ctx.fillStyle = '#ffffff';
   ctx.fillText(team.ball.icon ?? '⚽', cx, cy - 160);
 
-  const nameFont = `bold 72px ${RETRO}`;
+  const nameFont = `bold 72px ${FONTS.RETRO}`;
   ctx.font = nameFont;
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(fitText(ctx, team.name.toUpperCase(), textW, nameFont), cx, cy + 50);
 
-  const weapFont = `32px ${RETRO}`;
+  const weapFont = `32px ${FONTS.RETRO}`;
   ctx.font = weapFont;
   ctx.fillStyle = 'rgba(255, 255, 255, 0.68)';
   ctx.textAlign = 'center';
@@ -77,7 +65,7 @@ function drawTeamPanel(
   if (winnerLabelAlpha > 0) {
     ctx.save();
     ctx.globalAlpha = winnerLabelAlpha;
-    ctx.font = `bold 52px ${RETRO}`;
+    ctx.font = `bold 52px ${FONTS.RETRO}`;
     ctx.fillStyle = '#ffd700';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -117,7 +105,7 @@ function drawCentreBadge(
   ctx.fillText(label, 0, subLabel ? -14 : 0);
 
   if (subLabel) {
-    ctx.font = `bold 24px ${RETRO}`;
+    ctx.font = `bold 24px ${FONTS.RETRO}`;
     ctx.fillStyle = subColor;
     ctx.fillText(subLabel, 0, 72);
   }

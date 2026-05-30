@@ -4,19 +4,12 @@ import {
   CAPTURE_TOP_HEIGHT,
   CAPTURE_CANVAS_HEIGHT,
 } from '../constants/gameConstants';
+import { COLORS } from '../constants/colors';
+import { FONTS, TEXT_STYLES } from '../constants/typography';
+import { fitText } from '../utils/canvas';
 
-const BG    = '#FFFADE';
-const DIM   = 'rgba(1, 0, 107, 0.70)';
-const RETRO = '"Press Start 2P", monospace';
-
-function truncate(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
-  if (ctx.measureText(text).width <= maxWidth) return text;
-  let t = text;
-  while (t.length > 0 && ctx.measureText(t + '…').width > maxWidth) {
-    t = t.slice(0, -1);
-  }
-  return t + '…';
-}
+const BG  = COLORS.captureBackground;
+const DIM = COLORS.panelTextDark;
 
 function darkenHex(hex: string, factor = 0.75): string {
   const r = Math.round(parseInt(hex.slice(1, 3), 16) * factor);
@@ -34,7 +27,6 @@ function getAbilityStatus(
   charge: number,
 ): { label: string; value: string } {
   if (!ability) {
-    // No ball ability — show weapon cooldown if it's an aimed laser
     if (weapon?.attacks.some(a => a.aimAtEnemy)) {
       if (charge >= 100) return { label: 'laser', value: 'ready' };
       return { label: 'laser', value: `${Math.floor(charge)}%` };
@@ -44,14 +36,12 @@ function getAbilityStatus(
 
   switch (ability.trigger) {
     case 'onHitDealt': {
-      // Quickstrike momentum: speed multiplier grows with speedBoost stacks
       const boost  = effects.find(e => e.type === 'speedBoost');
       const stacks = boost?.stacks ?? 0;
       const mult   = 1 + stacks * Number(ability.params?.statusMagnitude ?? 0.3);
       return { label: 'faster', value: `×${mult.toFixed(1)}` };
     }
     case 'onLowHP': {
-      // Bloodrage: berserk below threshold
       const threshold = Number(ability.params?.threshold ?? 0.3);
       const active    = hpFrac < threshold;
       return { label: 'berserk', value: active ? 'on' : 'off' };
@@ -67,13 +57,13 @@ export function drawCaptureTopPanel(
   teamA: TeamConfig,
   teamB: TeamConfig,
 ): void {
-  const W       = CAPTURE_CANVAS_WIDTH;
-  const H       = CAPTURE_TOP_HEIGHT;
-  const halfW   = W / 2;
+  const W        = CAPTURE_CANVAS_WIDTH;
+  const H        = CAPTURE_TOP_HEIGHT;
+  const halfW    = W / 2;
   const quarterW = W / 4;
-  const pad     = 56;
+  const pad      = 56;
   const maxNameW = halfW - pad * 2;
-  const textY   = H - 38;
+  const textY    = H - 38;
 
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
@@ -81,17 +71,17 @@ export function drawCaptureTopPanel(
   ctx.textBaseline = 'middle';
   ctx.textAlign    = 'center';
 
-  ctx.font      = `bold 48px ${RETRO}`;
+  ctx.font      = TEXT_STYLES.teamNameLarge;
   ctx.fillStyle = darkenHex(teamA.ball.color);
-  ctx.fillText(truncate(ctx, teamA.name.toUpperCase(), maxNameW), quarterW, textY);
+  ctx.fillText(fitText(ctx, teamA.name.toUpperCase(), maxNameW, TEXT_STYLES.teamNameLarge), quarterW, textY);
 
-  ctx.font      = `bold 28px ${RETRO}`;
+  ctx.font      = TEXT_STYLES.vsLabel;
   ctx.fillStyle = DIM;
   ctx.fillText('VS', halfW, textY);
 
-  ctx.font      = `bold 48px ${RETRO}`;
+  ctx.font      = TEXT_STYLES.teamNameLarge;
   ctx.fillStyle = darkenHex(teamB.ball.color);
-  ctx.fillText(truncate(ctx, teamB.name.toUpperCase(), maxNameW), halfW + quarterW, textY);
+  ctx.fillText(fitText(ctx, teamB.name.toUpperCase(), maxNameW, TEXT_STYLES.teamNameLarge), halfW + quarterW, textY);
 }
 
 /** Bottom panel: always-visible ability status strip, tight below the arena. */
@@ -127,8 +117,8 @@ export function drawCaptureBottomPanel(
   const statusA = getAbilityStatus(abilityA, weaponA, effectsA, hpFracA, chargeA);
   const statusB = getAbilityStatus(abilityB, weaponB, effectsB, hpFracB, chargeB);
 
-  drawTeamStrip(ctx, statusA, colorA, 0,     halfW, stripY, stripH, 'left');
-  drawTeamStrip(ctx, statusB, colorB, halfW, halfW, stripY, stripH, 'right');
+  drawTeamStrip(ctx, statusA, colorA, 0,     halfW, stripY, stripH);
+  drawTeamStrip(ctx, statusB, colorB, halfW, halfW, stripY, stripH);
 }
 
 function drawTeamStrip(
@@ -139,7 +129,6 @@ function drawTeamStrip(
   w: number,
   y: number,
   h: number,
-  side: 'left' | 'right',
 ): void {
   ctx.save();
 
@@ -147,39 +136,37 @@ function drawTeamStrip(
   const dotR    = 16;
   const gap     = 20;
 
-  // Measure all pieces first so we can center the whole row within the half
-  ctx.font = `34px ${RETRO}`;
+  ctx.font = TEXT_STYLES.abilityLabel;
   const labelW = ctx.measureText(`${status.label}:`).width;
-  ctx.font = `bold 52px ${RETRO}`;
+  ctx.font = TEXT_STYLES.abilityValue;
   const valueW = ctx.measureText(status.value).width;
 
-  // Total row width: dot diameter + gap + label + gap + value
-  const totalW     = dotR * 2 + gap + labelW + gap + valueW;
-  const contentX   = x + (w - totalW) / 2;   // centered within the half
+  const totalW   = dotR * 2 + gap + labelW + gap + valueW;
+  const contentX = x + (w - totalW) / 2;
 
-  // Colored dot
   const dotX = contentX + dotR;
   ctx.beginPath();
   ctx.arc(dotX, centerY, dotR, 0, Math.PI * 2);
   ctx.fillStyle   = color;
   ctx.fill();
-  ctx.strokeStyle = 'rgba(1,0,107,0.22)';
+  ctx.strokeStyle = COLORS.panelDotBorder;
   ctx.lineWidth   = 2;
   ctx.stroke();
 
-  // Label: "faster:" — dimmed
   const labelX = dotX + dotR + gap;
-  ctx.font         = `34px ${RETRO}`;
-  ctx.fillStyle    = 'rgba(1,0,107,0.60)';
+  ctx.font         = TEXT_STYLES.abilityLabel;
+  ctx.fillStyle    = COLORS.panelTextDim;
   ctx.textBaseline = 'middle';
   ctx.textAlign    = 'left';
   ctx.fillText(`${status.label}:`, labelX, centerY - 2);
 
-  // Value: "×1.9" / "off" — bold, team color
   const valueX = labelX + labelW + gap;
-  ctx.font      = `bold 52px ${RETRO}`;
+  ctx.font      = TEXT_STYLES.abilityValue;
   ctx.fillStyle = darkenHex(color, 0.60);
   ctx.fillText(status.value, valueX, centerY - 2);
 
   ctx.restore();
 }
+
+// Re-export FONTS so callers that previously used the local RETRO constant don't need a separate import
+export { FONTS };

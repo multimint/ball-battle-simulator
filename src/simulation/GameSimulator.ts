@@ -1,6 +1,8 @@
 import Matter from 'matter-js';
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 import type { TeamConfig, WeaponStats, AttackConfig, WinnerType, BallAbility, BallAbilityType, StatusEffect, StatusEffectType } from '../models/types';
+import { StatusEffectManager } from './StatusEffectManager';
+import { getHitMultipliers, getMeleeEffectLabel } from './WeaponHitProcessor';
 import type { Particle, WeaponEffect, FloatingDamage, ScreenShake, ScreenFlash, HitFlash, TrailSegment, Bullet } from '../models/GameState';
 import { Renderer } from '../rendering/Renderer';
 import { drawBackground, drawArenaWalls } from '../rendering/drawBackground';
@@ -101,8 +103,6 @@ export class GameSimulator {
   private particles: Particle[] = [];
   private floaters: FloatingDamage[] = [];
   private trailSegments: TrailSegment[] = [];
-  private activeEffectsA: StatusEffect[] = [];
-  private activeEffectsB: StatusEffect[] = [];
   private weaponEffects: WeaponEffect[] = [];
   private screenShake: ScreenShake = { magnitude: 0, ttl: 0 };
   private screenFlash: ScreenFlash = { alpha: 0, color: '#FFFFFF', ttl: 0 };
@@ -125,6 +125,8 @@ export class GameSimulator {
   private lastBulletTimesB: number[] = [];
 
   private bullets: Bullet[] = [];
+
+  private statusMgr = new StatusEffectManager();
 
   private physicsCanvas: OffscreenCanvas;
   private captureCanvas: OffscreenCanvas;
@@ -424,8 +426,7 @@ export class GameSimulator {
     for (const team of ['A', 'B'] as const) {
       const teamData = team === 'A' ? this.teamA : this.teamB;
       if (teamData.ball.ability?.id === 'quickstrike-momentum') {
-        const effects = team === 'A' ? this.activeEffectsA : this.activeEffectsB;
-        const boost = effects.find(e => e.type === 'speedBoost');
+        const boost = this.statusMgr.getEffects(team).find(e => e.type === 'speedBoost');
         if (boost && boost.stacks >= 2 && Math.random() < 0.75) {
           const body = team === 'A' ? this.bodyA : this.bodyB;
           const orbitAngle = team === 'A' ? this.orbitAngleA : this.orbitAngleB;
@@ -692,7 +693,7 @@ export class GameSimulator {
           targetTeam === 'A' ? '#E47D79' : '#4A90E2',
         ),
       );
-      const lifesteal = this.activeEffectsA.concat(this.activeEffectsB)
+      const lifesteal = [...this.statusMgr.getEffects('A'), ...this.statusMgr.getEffects('B')]
         .find((e) => e.type === 'lifesteal' && (team === 'B' ? attackerTeam === 'A' : attackerTeam === 'B'));
       if (lifesteal) {
         const heal = Math.round(actual * lifesteal.magnitude);
@@ -732,15 +733,11 @@ export class GameSimulator {
 
     switch (attack.type) {
       case 'melee': {
-        let kbMult = 1.0, dmgMult = 1.0;
-        if (weapon.name === 'Heavy Hammer') { kbMult = 1.6; dmgMult = 1.2; }
-        else if (weapon.name === 'Long Spear') { kbMult = 0.9; }
-        else if (weapon.name === 'Chain Flail') { kbMult = 0.7; dmgMult = 0.8; }
+        const { kbMult, dmgMult } = getHitMultipliers(weapon, attack);
         applyKnockback(defender, dir.x, dir.y, attack.knockback * kbMult);
         damage(targetTeam, attack.damage * dmgMult);
         burst(defender.position.x, defender.position.y, weapon.color ?? '#CC6633', 8);
-        const et = weapon.name === 'Heavy Hammer' ? 'hammer' : weapon.name === 'Long Spear' ? 'spear' : weapon.name === 'Chain Flail' ? 'flail' : 'sword';
-        this.weaponEffects.push(createWeaponEffect(et, attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#CC6633', 12));
+        this.weaponEffects.push(createWeaponEffect(getMeleeEffectLabel(weapon.name), attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#CC6633', 12));
         break;
       }
       case 'shield': {
@@ -751,12 +748,9 @@ export class GameSimulator {
         break;
       }
       case 'projectile': {
-        let dmgMult = 1.0, kbMult = 1.0;
+        const { kbMult, dmgMult } = getHitMultipliers(weapon, attack);
         if (weapon.name === 'Grenade Bomb') {
-          dmgMult = 1.3; kbMult = 1.2;
           this.weaponEffects.push(createWeaponEffect('explosion', defender.position.x, defender.position.y, 0, weapon.color ?? '#44AA44', 20, { radius: 70 }));
-        } else if (weapon.name === 'Power Cannon') {
-          dmgMult = 1.1; kbMult = 1.5;
         } else if (weapon.name === 'Energy Laser' && attack.hitscan) {
           // Full laser beam — only for the hitscan laser attack, not split bullets
           this.weaponEffects.push(createWeaponEffect('laser', attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#44AAFF', 22, { x2: defender.position.x, y2: defender.position.y }));
@@ -853,8 +847,8 @@ export class GameSimulator {
       bullets: this.bullets,
       abilityA: this.teamA.ball.ability,
       abilityB: this.teamB.ball.ability,
-      effectsA: this.activeEffectsA,
-      effectsB: this.activeEffectsB,
+      effectsA: this.statusMgr.getEffects('A'),
+      effectsB: this.statusMgr.getEffects('B'),
     });
 
     // 2. Blit current physics frame into the arena region of the capture canvas.
@@ -867,7 +861,7 @@ export class GameSimulator {
       cctx,
       this.damageDealt.A, this.damageDealt.B, this.turns,
       this.teamA.ball.color, this.teamB.ball.color,
-      this.activeEffectsA, this.activeEffectsB,
+      this.statusMgr.getEffects('A'), this.statusMgr.getEffects('B'),
       this.teamA.ball.ability, this.teamB.ball.ability,
       this.hp.A / this.maxHp.A, this.hp.B / this.maxHp.B,
       this.chargeA, this.chargeB,
@@ -975,103 +969,27 @@ export class GameSimulator {
     color: string,
     icon: string,
   ): void {
-    const effects = team === 'A' ? this.activeEffectsA : this.activeEffectsB;
-    const existing = effects.find((e) => e.type === type);
-
-    if (existing) {
-      if (stackBehavior === 'refresh') {
-        existing.remainingMs = durationMs;
-      } else if (stackBehavior === 'stack' && existing.stacks < existing.maxStacks) {
-        existing.stacks++;
-        existing.remainingMs = durationMs;
-      }
-      // 'ignore' — do nothing
-      return;
-    }
-
-    effects.push({
-      id: `${type}-${team}-${this.simTime}`,
-      type,
-      remainingMs: durationMs,
-      magnitude,
-      stackBehavior,
-      stacks: 1,
-      maxStacks,
-      color,
-      icon,
-    });
+    this.statusMgr.apply(team, type, durationMs, magnitude, stackBehavior, maxStacks, color, icon, this.simTime);
   }
 
   private tickStatusEffects(delta: number): void {
-    for (const team of ['A', 'B'] as const) {
-      const effects = team === 'A' ? this.activeEffectsA : this.activeEffectsB;
-      const alive: StatusEffect[] = [];
-
-      for (const effect of effects) {
-        // Stack-behavior effects are permanent — never decay their timer
-        if (effect.stackBehavior !== 'stack') {
-          effect.remainingMs -= delta;
-        }
-
-        // Apply per-tick effects
-        if (effect.type === 'burn') {
-          const dmgPerMs = (effect.magnitude * effect.stacks) / 1000;
-          this.hp[team] = Math.max(0, this.hp[team] - dmgPerMs * delta);
-        } else if (effect.type === 'poison') {
-          const dmgPerMs = effect.magnitude / 1000;
-          this.hp[team] = Math.max(0, this.hp[team] - dmgPerMs * delta);
-        }
-
-        if (effect.stackBehavior === 'stack' || effect.remainingMs > 0) alive.push(effect);
-      }
-
-      if (team === 'A') this.activeEffectsA = alive;
-      else this.activeEffectsB = alive;
-    }
+    this.statusMgr.tick(delta, this.hp);
   }
 
   private getSpeedMultiplier(team: 'A' | 'B'): number {
-    const effects = team === 'A' ? this.activeEffectsA : this.activeEffectsB;
-    let mult = 1.0;
-    for (const e of effects) {
-      if (e.type === 'freeze') mult *= (1 - e.magnitude * e.stacks);
-      if (e.type === 'speedBoost') {
-        const bonus = e.magnitude * e.stacks + (e.stacks > 3 ? e.magnitude * (e.stacks - 3) : 0);
-        mult *= (1 + bonus);
-      }
-    }
-    return Math.max(0.1, mult);
+    return this.statusMgr.getSpeedMultiplier(team);
   }
 
   private getOutgoingDamageMultiplier(team: 'A' | 'B'): number {
-    const effects = team === 'A' ? this.activeEffectsA : this.activeEffectsB;
-    let mult = 1.0;
-    for (const e of effects) {
-      if (e.type === 'rage') mult *= (1 + e.magnitude);
-      if (e.type === 'weaken') mult *= (1 - e.magnitude);
-    }
-    return Math.max(0.1, mult);
+    return this.statusMgr.getOutgoingDamageMultiplier(team);
   }
 
   private getIncomingDamageMultiplier(team: 'A' | 'B'): number {
-    const effects = team === 'A' ? this.activeEffectsA : this.activeEffectsB;
-    let mult = 1.0;
-    for (const e of effects) {
-      if (e.type === 'harden') mult *= (1 - e.magnitude);
-    }
-    return Math.max(0.1, mult);
+    return this.statusMgr.getIncomingDamageMultiplier(team);
   }
 
   private consumeShield(team: 'A' | 'B', rawDamage: number): number {
-    const effects = team === 'A' ? this.activeEffectsA : this.activeEffectsB;
-    const shieldIdx = effects.findIndex((e) => e.type === 'shield');
-    if (shieldIdx === -1) return rawDamage;
-
-    const shield = effects[shieldIdx];
-    const absorbed = Math.min(shield.magnitude, rawDamage);
-    shield.magnitude -= absorbed;
-    if (shield.magnitude <= 0) effects.splice(shieldIdx, 1);
-    return rawDamage - absorbed;
+    return this.statusMgr.consumeShield(team, rawDamage);
   }
 
   private applyBallAbility(
