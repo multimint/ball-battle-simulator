@@ -619,13 +619,13 @@ export class GameSimulator {
 
     const applyTierEffects = (category: string, defTeam: 'A' | 'B', color: string, dmg: number) => {
       // Damage-scaled screen shake — magnitude and duration both grow with damage
-      const shakeMag = Math.min(8, dmg / 10);
-      const shakeTtl = Math.round(Math.min(SCREEN_SHAKE_TTL, dmg / 4));
+      const shakeMag = Math.min(8, dmg / 2);
+      const shakeTtl = Math.round(Math.min(SCREEN_SHAKE_TTL, dmg * 1.25));
       if (shakeMag >= 0.5) {
         this.screenShake = { magnitude: shakeMag, ttl: shakeTtl };
       }
-      // Slow motion on heavy hits (≥60 damage) or any aoe
-      if (dmg >= 60 || category === 'aoe') {
+      // Slow motion on heavy hits (≥12 damage) or any aoe
+      if (dmg >= 12 || category === 'aoe') {
         this.slowMotion = SLOW_MOTION_FACTOR;
       }
       const c = color || '#FFFFFF';

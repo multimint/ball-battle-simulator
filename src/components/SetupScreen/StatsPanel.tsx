@@ -77,8 +77,8 @@ export default function StatsPanel({ team }: StatsPanelProps) {
 
       {/* Stat bars */}
       <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <StatRow label="HP"  value={ball.durability}    max={150} color={teamColor} />
-        <StatRow label="ATK" value={ball.attackPower}    max={100} color={teamColor} />
+        <StatRow label="HP"  value={ball.durability}    max={80}  color={teamColor} />
+        <StatRow label="ATK" value={ball.attackPower}    max={20}  color={teamColor} />
         <StatRow label="SPD" value={ball.maxSpeed * 10}  max={80}  color={teamColor} />
       </div>
     </div>

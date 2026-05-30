@@ -4,7 +4,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
   {
     name: 'Heavy Hammer',
     category: 'melee',
-    damage: 80,
+    damage: 16,
     knockback: 100,
     range: 1.0,
     speed: 3.0,
@@ -16,7 +16,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
   {
     name: 'Swift Sword',
     category: 'melee',
-    damage: 50,
+    damage: 10,
     knockback: 40,
     range: 1.0,
     speed: 6.0,
@@ -28,7 +28,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
   {
     name: 'Long Spear',
     category: 'melee',
-    damage: 60,
+    damage: 12,
     knockback: 30,
     range: 2.0,
     speed: 4.0,
@@ -40,7 +40,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
   {
     name: 'Chain Flail',
     category: 'melee',
-    damage: 40,
+    damage: 8,
     knockback: 40,
     range: 2.0,
     speed: 5.0,
@@ -64,7 +64,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
   {
     name: 'Energy Laser',
     category: 'projectile',
-    damage: 60,
+    damage: 12,
     knockback: 50,
     range: 10.0,
     speed: 10.0,
@@ -76,7 +76,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
   {
     name: 'Power Cannon',
     category: 'projectile',
-    damage: 80,
+    damage: 16,
     knockback: 80,
     range: 8.0,
     speed: 5.0,
@@ -88,7 +88,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
   {
     name: 'Boomerang',
     category: 'projectile',
-    damage: 50,
+    damage: 10,
     knockback: 30,
     range: 6.0,
     speed: 8.0,
@@ -100,7 +100,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
   {
     name: 'Shockwave',
     category: 'aoe',
-    damage: 30,
+    damage: 6,
     knockback: 100,
     range: 3.0,
     speed: 0,
@@ -124,7 +124,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
   {
     name: 'Repulsor',
     category: 'utility',
-    damage: 20,
+    damage: 4,
     knockback: 120,
     range: 3.0,
     speed: 0,
@@ -136,7 +136,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
   {
     name: 'Grenade Bomb',
     category: 'projectile',
-    damage: 100,
+    damage: 20,
     knockback: 100,
     range: 5.0,
     speed: 6.0,

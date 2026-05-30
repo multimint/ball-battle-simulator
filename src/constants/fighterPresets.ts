@@ -28,7 +28,7 @@ export const FIGHTER_PRESETS: FighterPreset[] = [
       name: 'Quickstrike',
       radius: BALL_RADIUS, mass: 2.8, maxSpeed: 5.5,
       friction: 0.1, restitution: 0.5, spinSpeed: 4.5,
-      durability: 250, attackPower: 10, knockbackPower: 35,
+      durability: 50, attackPower: 2, knockbackPower: 35,
       color: '#44CC22', icon: '⚡',
       ability: {
         id: 'quickstrike-momentum',
@@ -52,7 +52,7 @@ export const FIGHTER_PRESETS: FighterPreset[] = [
     },
     weapon: {
       name: 'Long Sword',
-      category: 'melee', damage: 50, knockback: 40,
+      category: 'melee', damage: 10, knockback: 40,
       range: 1.5, speed: 6.75, cooldown: 0.7,
       trigger: 'onCollision',
       description: 'Long blade that orbits fast — land enough hits and momentum takes over.',
@@ -69,7 +69,7 @@ export const FIGHTER_PRESETS: FighterPreset[] = [
       name: 'Marksman',
       radius: BALL_RADIUS, mass: 3.0, maxSpeed: 5.0,
       friction: 0.12, restitution: 0.45, spinSpeed: 3.5,
-      durability: 300, attackPower: 55, knockbackPower: 50,
+      durability: 60, attackPower: 11, knockbackPower: 50,
       color: '#4488CC', icon: '🎯',
       ability: {
         id: 'marksman-target-lock',
@@ -87,7 +87,7 @@ export const FIGHTER_PRESETS: FighterPreset[] = [
     },
     weapon: {
       name: 'Energy Laser',
-      category: 'projectile', damage: 30, knockback: 50,
+      category: 'projectile', damage: 6, knockback: 50,
       range: 10.0, speed: 4.0, cooldown: 1.5,
       trigger: 'onTimer',
       description: 'Long-range energy beam that fires every 3 seconds with surgical precision.',
@@ -105,7 +105,7 @@ export const FIGHTER_PRESETS: FighterPreset[] = [
       name: 'Bloodrage',
       radius: BALL_RADIUS, mass: 3.0, maxSpeed: BALL_SPEED,
       friction: 0.15, restitution: 0.4, spinSpeed: 2.5,
-      durability: 350, attackPower: 65, knockbackPower: 60,
+      durability: 70, attackPower: 13, knockbackPower: 60,
       color: '#CC2200', icon: '🔥',
       ability: {
         id: 'bloodrage-fury',
@@ -134,7 +134,7 @@ export const FIGHTER_PRESETS: FighterPreset[] = [
     },
     weapon: {
       name: 'War Axe',
-      category: 'melee', damage: 45, knockback: 55,
+      category: 'melee', damage: 9, knockback: 55,
       range: 1.0, speed: 4.0, cooldown: 0.8,
       trigger: 'onCollision',
       description: 'Slow, devastating swing. Each hit lands with crushing force.',
