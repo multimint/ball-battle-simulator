@@ -7,6 +7,7 @@ import {
 import { COLORS } from '../constants/colors';
 import { FONTS, TEXT_STYLES } from '../constants/typography';
 import { fitText } from '../utils/canvas';
+import { isAbilityBerserk } from '../utils/ability';
 
 const BG  = COLORS.captureBackground;
 const DIM = COLORS.panelTextDark;
@@ -36,17 +37,20 @@ function getAbilityStatus(
 
   switch (ability.trigger) {
     case 'onHitDealt': {
-      const boost  = effects.find(e => e.type === 'speedBoost');
+      const label  = String(ability.params.hudLabel ?? 'faster');
+      const boost  = effects.find(e => e.type === (ability.params.statusEffect ?? 'speedBoost'));
       const stacks = boost?.stacks ?? 0;
       const mult   = 1 + stacks * Number(ability.params?.statusMagnitude ?? 0.3);
-      return { label: 'faster', value: `×${mult.toFixed(1)}` };
+      return { label, value: `×${mult.toFixed(1)}` };
     }
     case 'onLowHP': {
-      const threshold = Number(ability.params?.threshold ?? 0.3);
-      const active    = hpFrac < threshold;
-      return { label: 'berserk', value: active ? 'on' : 'off' };
+      const label = String(ability.params.hudLabel ?? 'berserk');
+      return { label, value: isAbilityBerserk(ability, hpFrac) ? 'on' : 'off' };
     }
     default:
+      if (ability.params.hudLabel) {
+        return { label: String(ability.params.hudLabel), value: String(ability.params.hudValue ?? '') };
+      }
       return { label: '—', value: '' };
   }
 }

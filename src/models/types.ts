@@ -50,6 +50,11 @@ export interface WeaponStats {
   attacks: AttackConfig[];
   kbMult?: number;      // knockback multiplier override (default 1.0)
   dmgMult?: number;     // damage multiplier override (default 1.0)
+  effectLabel?: string; // melee hit animation: 'hammer'|'sword'|'spear'|'flail'
+  hitEffect?: 'explosion' | 'laser'; // projectile visual on impact
+  hitEffectRadius?: number;          // radius for explosion effects (px)
+  utilityBehavior?: 'pull' | 'push-both'; // utility weapon mode
+  selfKnockbackFrac?: number;        // recoil fraction for push-both (default 0.4)
 }
 
 // ─── Fighter Preset (ball + weapon bundled) ───────────────────────────────────

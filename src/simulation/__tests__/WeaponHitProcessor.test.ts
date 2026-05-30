@@ -51,10 +51,9 @@ describe('getHitMultipliers()', () => {
 });
 
 describe('getMeleeEffectLabel()', () => {
-  it('Heavy Hammer → hammer', () => expect(getMeleeEffectLabel('Heavy Hammer')).toBe('hammer'));
-  it('Long Spear → spear', () => expect(getMeleeEffectLabel('Long Spear')).toBe('spear'));
-  it('Long Sword → spear', () => expect(getMeleeEffectLabel('Long Sword')).toBe('spear'));
-  it('Chain Flail → flail', () => expect(getMeleeEffectLabel('Chain Flail')).toBe('flail'));
-  it('Swift Sword → sword', () => expect(getMeleeEffectLabel('Swift Sword')).toBe('sword'));
-  it('War Axe → sword (default)', () => expect(getMeleeEffectLabel('War Axe')).toBe('sword'));
+  it('Heavy Hammer → hammer', () => expect(getMeleeEffectLabel(preset('Heavy Hammer'))).toBe('hammer'));
+  it('Long Spear → spear', () => expect(getMeleeEffectLabel(preset('Long Spear'))).toBe('spear'));
+  it('Chain Flail → flail', () => expect(getMeleeEffectLabel(preset('Chain Flail'))).toBe('flail'));
+  it('Swift Sword → sword (default, no effectLabel)', () => expect(getMeleeEffectLabel(preset('Swift Sword'))).toBe('sword'));
+  it('Boomerang → sword (default, no effectLabel)', () => expect(getMeleeEffectLabel(preset('Boomerang'))).toBe('sword'));
 });

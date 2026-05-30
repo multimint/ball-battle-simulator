@@ -6,7 +6,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     range: 1.0, speed: 3.0, trigger: 'onCollision',
     description: 'Slow swing; very high knockback on collision.',
     color: '#CC6633',
-    kbMult: 1.6, dmgMult: 1.2,
+    kbMult: 1.6, dmgMult: 1.2, effectLabel: 'hammer',
     attacks: [{ type: 'melee', cooldown: 2.0, damage: 16, knockback: 100 }],
   },
   {
@@ -21,7 +21,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     range: 2.0, speed: 4.0, trigger: 'onCollision',
     description: 'Stab with extended reach.',
     color: '#996633',
-    kbMult: 0.9,
+    kbMult: 0.9, effectLabel: 'spear',
     attacks: [{ type: 'melee', cooldown: 1.5, damage: 12, knockback: 30 }],
   },
   {
@@ -29,7 +29,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     range: 2.0, speed: 5.0, trigger: 'onTimer',
     description: 'Spins unpredictably; spawns orbital hitbox every 0.5s.',
     color: '#888888',
-    kbMult: 0.7, dmgMult: 0.8,
+    kbMult: 0.7, dmgMult: 0.8, effectLabel: 'flail',
     attacks: [{ type: 'melee', cooldown: 0.5, damage: 8, knockback: 40 }],
   },
   {
@@ -44,6 +44,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     range: 10.0, speed: 10.0, trigger: 'onTimer',
     description: 'Fires a fast beam toward the opponent every 3s.',
     color: '#FF4444',
+    hitEffect: 'laser',
     attacks: [{ type: 'projectile', cooldown: 3.0, damage: 12, knockback: 50, aimAtEnemy: true }],
   },
   {
@@ -73,6 +74,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     range: 5.0, speed: 0, trigger: 'onCollision',
     description: 'Pulls the opponent closer on hit (no damage).',
     color: '#44FFAA',
+    utilityBehavior: 'pull',
     attacks: [{ type: 'utility', cooldown: 1.0, damage: 0, knockback: 0 }],
   },
   {
@@ -80,6 +82,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     range: 3.0, speed: 0, trigger: 'onCollision',
     description: 'Shock-push on impact: strong outward force.',
     color: '#FFFF44',
+    utilityBehavior: 'push-both', selfKnockbackFrac: 0.4,
     attacks: [{ type: 'utility', cooldown: 4.0, damage: 4, knockback: 120 }],
   },
   {
@@ -87,7 +90,7 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     range: 5.0, speed: 6.0, trigger: 'onTimer',
     description: 'Lobs a bomb that explodes on contact or after 2s.',
     color: '#44AA44',
-    kbMult: 1.2, dmgMult: 1.3,
+    kbMult: 1.2, dmgMult: 1.3, hitEffect: 'explosion', hitEffectRadius: 70,
     attacks: [{ type: 'projectile', cooldown: 4.0, damage: 20, knockback: 100, aimAtEnemy: true }],
   },
 ];

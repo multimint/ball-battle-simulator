@@ -3,6 +3,7 @@ import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 import type { TeamConfig, WeaponStats, AttackConfig, WinnerType, BallAbility, BallAbilityType, StatusEffect, StatusEffectType } from '../models/types';
 import { StatusEffectManager } from './StatusEffectManager';
 import { getHitMultipliers, getMeleeEffectLabel } from './WeaponHitProcessor';
+import { isAbilityBerserk } from '../utils/ability';
 import type { Particle, WeaponEffect, FloatingDamage, ScreenShake, ScreenFlash, HitFlash, TrailSegment, Bullet } from '../models/GameState';
 import { Renderer } from '../rendering/Renderer';
 import { drawBackground, drawArenaWalls } from '../rendering/drawBackground';
@@ -402,10 +403,10 @@ export class GameSimulator {
     enforceMinSpeed(this.bodyA, this.teamA.ball.maxSpeed * speedMultA);
     enforceMinSpeed(this.bodyB, this.teamB.ball.maxSpeed * speedMultB);
 
-    const berserkSpinA = this.teamA.ball.ability?.trigger === 'onLowHP' && this.hp.A / this.maxHp.A < Number(this.teamA.ball.ability?.params?.threshold ?? 0.3) ? 3.5 : 1.0;
-    const berserkSpinB = this.teamB.ball.ability?.trigger === 'onLowHP' && this.hp.B / this.maxHp.B < Number(this.teamB.ball.ability?.params?.threshold ?? 0.3) ? 3.5 : 1.0;
+    const berserkSpinA = isAbilityBerserk(this.teamA.ball.ability, this.hp.A / this.maxHp.A) ? 3.5 : 1.0;
+    const berserkSpinB = isAbilityBerserk(this.teamB.ball.ability, this.hp.B / this.maxHp.B) ? 3.5 : 1.0;
     Body.setAngularVelocity(this.bodyA, this.teamA.ball.spinSpeed * 0.05 * berserkSpinA * Math.sign(this.bodyA.velocity.x || 1));
-    Body.setAngularVelocity(this.bodyB, this.teamB.ball.spinSpeed * 0.05 * berserkSpinB * Math.sign(this.bodyB.velocity.x || -1));
+    Body.setAngularVelocity(this.bodyB, this.teamB.ball.spinSpeed * 0.05 * berserkSpinB * Math.sign(this.bodyB.velocity.x || 1));
 
     this.updateStuck(this.stuckA, this.bodyA);
     this.updateStuck(this.stuckB, this.bodyB);
@@ -422,35 +423,44 @@ export class GameSimulator {
     this.applyBallAbility(this.teamA.ball.ability, 'A', 'passive', { delta: scaledDelta });
     this.applyBallAbility(this.teamB.ball.ability, 'B', 'passive', { delta: scaledDelta });
 
-    // Quickstrike orbit trail — spawns at weapon position when speedBoost stacks >= 2
+    // Generic tick trail — any ability with tickTrailEnabled emits trail each frame
     for (const team of ['A', 'B'] as const) {
       const teamData = team === 'A' ? this.teamA : this.teamB;
-      if (teamData.ball.ability?.id === 'quickstrike-momentum') {
-        const boost = this.statusMgr.getEffects(team).find(e => e.type === 'speedBoost');
-        if (boost && boost.stacks >= 2 && Math.random() < 0.75) {
-          const body = team === 'A' ? this.bodyA : this.bodyB;
-          const orbitAngle = team === 'A' ? this.orbitAngleA : this.orbitAngleB;
-          const hitboxR = getWeaponHitboxRadius(teamData.weapon);
-          const pos = getOrbitPosition(body.position.x, body.position.y, teamData.ball.radius, orbitAngle, hitboxR);
-          this.trailSegments.push({
-            x: pos.x,
-            y: pos.y,
-            radius: hitboxR * 0.45,
-            color: '#44FF44',
-            alpha: 0.55,
-            ttl: 8,
-            maxTtl: 8,
-          });
-        }
+      const p = teamData.ball.ability?.params;
+      if (!p?.tickTrailEnabled) continue;
+      const condEffect = p.tickTrailConditionEffect as string | undefined;
+      if (condEffect) {
+        const effect = this.statusMgr.getEffects(team).find(e => e.type === condEffect);
+        if (!effect || effect.stacks < Number(p.tickTrailConditionMinStacks ?? 1)) continue;
       }
+      if (Math.random() >= Number(p.tickTrailSpawnChance ?? 1)) continue;
+      const body = team === 'A' ? this.bodyA : this.bodyB;
+      let tx: number, ty: number, tr: number;
+      if (p.tickTrailAtWeapon) {
+        const angle = team === 'A' ? this.orbitAngleA : this.orbitAngleB;
+        const hitboxR = getWeaponHitboxRadius(teamData.weapon);
+        const pos = getOrbitPosition(body.position.x, body.position.y, teamData.ball.radius, angle, hitboxR);
+        tx = pos.x; ty = pos.y;
+        tr = hitboxR * Number(p.tickTrailRadiusFrac ?? 0.45);
+      } else {
+        tx = body.position.x; ty = body.position.y;
+        tr = teamData.ball.radius * Number(p.tickTrailRadiusFrac ?? 0.5);
+      }
+      this.trailSegments.push({
+        x: tx, y: ty, radius: tr,
+        color: p.tickTrailColor as string ?? '#FFFFFF',
+        alpha: Number(p.tickTrailAlpha ?? 0.5),
+        ttl: Number(p.tickTrailTtl ?? 8),
+        maxTtl: Number(p.tickTrailTtl ?? 8),
+      });
     }
 
     const hpFracA = this.hp.A / this.maxHp.A;
     const hpFracB = this.hp.B / this.maxHp.B;
-    if (hpFracA < Number(this.teamA.ball.ability?.params?.threshold ?? 0.3)) {
+    if (isAbilityBerserk(this.teamA.ball.ability, hpFracA)) {
       this.applyBallAbility(this.teamA.ball.ability, 'A', 'onLowHP', { delta: scaledDelta });
     }
-    if (hpFracB < Number(this.teamB.ball.ability?.params?.threshold ?? 0.3)) {
+    if (isAbilityBerserk(this.teamB.ball.ability, hpFracB)) {
       this.applyBallAbility(this.teamB.ball.ability, 'B', 'onLowHP', { delta: scaledDelta });
     }
 
@@ -468,10 +478,13 @@ export class GameSimulator {
       Body.applyForce(this.bodyB, this.bodyB.position, { x: -fx, y: -fy });
     }
 
-    // Step trail segments
-    this.trailSegments = this.trailSegments
-      .map((s) => ({ ...s, ttl: s.ttl - 1, alpha: s.alpha * (s.ttl / s.maxTtl) }))
-      .filter((s) => s.ttl > 0);
+    // Step trail segments in-place (avoids 2 array allocations per frame)
+    for (let i = this.trailSegments.length - 1; i >= 0; i--) {
+      const s = this.trailSegments[i];
+      s.ttl -= 1;
+      s.alpha *= s.ttl / s.maxTtl;
+      if (s.ttl <= 0) this.trailSegments.splice(i, 1);
+    }
 
     this.particles = stepParticles(this.particles);
     this.floaters = stepFloaters(this.floaters);
@@ -487,8 +500,7 @@ export class GameSimulator {
 
   private isBerserk(team: 'A' | 'B'): boolean {
     const t = team === 'A' ? this.teamA : this.teamB;
-    const threshold = Number(t.ball.ability?.params?.threshold ?? 0.3);
-    return t.ball.ability?.trigger === 'onLowHP' && this.hp[team] / this.maxHp[team] < threshold;
+    return isAbilityBerserk(t.ball.ability, this.hp[team] / this.maxHp[team]);
   }
 
   private updateWeaponOrbit(delta: number): void {
@@ -693,8 +705,7 @@ export class GameSimulator {
           targetTeam === 'A' ? '#E47D79' : '#4A90E2',
         ),
       );
-      const lifesteal = [...this.statusMgr.getEffects('A'), ...this.statusMgr.getEffects('B')]
-        .find((e) => e.type === 'lifesteal' && (team === 'B' ? attackerTeam === 'A' : attackerTeam === 'B'));
+      const lifesteal = this.statusMgr.getEffects(attackingTeam).find((e) => e.type === 'lifesteal');
       if (lifesteal) {
         const heal = Math.round(actual * lifesteal.magnitude);
         if (heal > 0) {
@@ -737,7 +748,7 @@ export class GameSimulator {
         applyKnockback(defender, dir.x, dir.y, attack.knockback * kbMult);
         damage(targetTeam, attack.damage * dmgMult);
         burst(defender.position.x, defender.position.y, weapon.color ?? '#CC6633', 8);
-        this.weaponEffects.push(createWeaponEffect(getMeleeEffectLabel(weapon.name), attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#CC6633', 12));
+        this.weaponEffects.push(createWeaponEffect(getMeleeEffectLabel(weapon), attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#CC6633', 12));
         break;
       }
       case 'shield': {
@@ -749,9 +760,9 @@ export class GameSimulator {
       }
       case 'projectile': {
         const { kbMult, dmgMult } = getHitMultipliers(weapon, attack);
-        if (weapon.name === 'Grenade Bomb') {
-          this.weaponEffects.push(createWeaponEffect('explosion', defender.position.x, defender.position.y, 0, weapon.color ?? '#44AA44', 20, { radius: 70 }));
-        } else if (weapon.name === 'Energy Laser' && attack.hitscan) {
+        if (weapon.hitEffect === 'explosion') {
+          this.weaponEffects.push(createWeaponEffect('explosion', defender.position.x, defender.position.y, 0, weapon.color ?? '#44AA44', 20, { radius: weapon.hitEffectRadius ?? 70 }));
+        } else if (weapon.hitEffect === 'laser' && attack.hitscan) {
           // Full laser beam — only for the hitscan laser attack, not split bullets
           this.weaponEffects.push(createWeaponEffect('laser', attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#44AAFF', 22, { x2: defender.position.x, y2: defender.position.y }));
           this.weaponEffects.push(createWeaponEffect('explosion', defender.position.x, defender.position.y, 0, weapon.color ?? '#44AAFF', 18, { radius: 55 }));
@@ -775,14 +786,14 @@ export class GameSimulator {
         break;
       }
       case 'utility': {
-        if (weapon.name === 'Magnet Beam') {
+        if (weapon.utilityBehavior === 'pull') {
           const pullDir = directionBetween(defender, attacker);
           applyKnockback(defender, pullDir.x, pullDir.y, 80);
           if (attack.damage > 0) damage(targetTeam, attack.damage);
           burst((attacker.position.x + defender.position.x) / 2, (attacker.position.y + defender.position.y) / 2, weapon.color ?? '#44FFAA', 6);
-        } else if (weapon.name === 'Repulsor') {
+        } else if (weapon.utilityBehavior === 'push-both') {
           applyKnockback(defender, dir.x, dir.y, attack.knockback * 1.3);
-          applyKnockback(attacker, -dir.x, -dir.y, attack.knockback * 0.4);
+          applyKnockback(attacker, -dir.x, -dir.y, attack.knockback * (weapon.selfKnockbackFrac ?? 0.4));
           damage(targetTeam, attack.damage);
           this.weaponEffects.push(createWeaponEffect('explosion', attacker.position.x, attacker.position.y, 0, weapon.color ?? '#FFFF44', 18, { radius: 55 }));
         }
@@ -1039,56 +1050,43 @@ export class GameSimulator {
       };
     }
 
-    switch (ability.id) {
-      // Each new ball's ability case will be added here by /create-ball
-      case 'quickstrike-momentum': {
-        // Spawn a green burst of trail orbs at the moment of each hit
-        const ballRadius = (team === 'A' ? this.teamA : this.teamB).ball.radius;
-        for (let i = 0; i < 3; i++) {
-          const offsetX = (Math.random() - 0.5) * ballRadius * 0.5;
-          const offsetY = (Math.random() - 0.5) * ballRadius * 0.5;
-          this.trailSegments.push({
-            x: body.position.x + offsetX,
-            y: body.position.y + offsetY,
-            radius: ballRadius * 0.6,
-            color: '#44FF44',
-            alpha: 0.6,
-            ttl: 10,
-            maxTtl: 10,
-          });
-        }
-        break;
-      }
-      case 'bloodrage-fury': {
-        this.applyStatusEffect(
-          team,
-          'speedBoost',
-          Number(p.speedBoostDuration ?? 3000),
-          Number(p.speedBoostMagnitude ?? 0.7),
-          'refresh',
-          1,
-          p.speedBoostColor as string ?? '#FF8800',
-          p.speedBoostIcon as string ?? '⚡',
-        );
-        // Fading orb trail behind the ball during berserk
-        if (Math.random() < 0.7) {
-          const ballRadius = (team === 'A' ? this.teamA : this.teamB).ball.radius;
-          this.trailSegments.push({
-            x: body.position.x,
-            y: body.position.y,
-            radius: ballRadius * 0.8,
-            color: '#FF2200',
-            alpha: 0.55,
-            ttl: 12,
-            maxTtl: 12,
-          });
-        }
-        break;
-      }
-      default:
-        break;
+    // Second status effect — allows dual-status abilities without a switch case
+    if (p.secondStatusEffect) {
+      const target2 = (p.secondStatusTarget as string) === 'enemy'
+        ? (team === 'A' ? 'B' : 'A') : team;
+      this.applyStatusEffect(
+        target2,
+        p.secondStatusEffect as StatusEffectType,
+        Number(p.secondStatusDuration ?? 2000),
+        Number(p.secondStatusMagnitude ?? 0.3),
+        (p.secondStatusBehavior as StatusEffect['stackBehavior']) ?? 'refresh',
+        Number(p.secondStatusMaxStacks ?? 1),
+        p.secondStatusColor as string ?? '#FF8800',
+        p.secondStatusIcon as string ?? '✨',
+      );
     }
-    // Suppress unused-variable warnings until ability cases are added
-    void body; void opponentBody; void p; void context;
+
+    // Trail on trigger — spawned at ball position when ability fires
+    if (p.trailOnTrigger) {
+      const ballRadius = (team === 'A' ? this.teamA : this.teamB).ball.radius;
+      const count = Number(p.trailCount ?? 1);
+      const spawnChance = Number(p.trailSpawnChance ?? 1);
+      if (Math.random() < spawnChance) {
+        for (let i = 0; i < count; i++) {
+          const scatter = Number(p.trailScatterFrac ?? 0) * ballRadius;
+          this.trailSegments.push({
+            x: body.position.x + (scatter > 0 ? (Math.random() - 0.5) * scatter : 0),
+            y: body.position.y + (scatter > 0 ? (Math.random() - 0.5) * scatter : 0),
+            radius: ballRadius * Number(p.trailRadiusFrac ?? 0.5),
+            color: p.trailColor as string ?? '#FFFFFF',
+            alpha: Number(p.trailAlpha ?? 0.5),
+            ttl: Number(p.trailTtl ?? 8),
+            maxTtl: Number(p.trailTtl ?? 8),
+          });
+        }
+      }
+    }
+
+    void opponentBody; void context;
   }
 }

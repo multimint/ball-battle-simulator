@@ -1,5 +1,6 @@
 import type { HitFlash } from '../models/GameState';
 import type { BallAbility, BallStats, StatusEffect } from '../models/types';
+import { isAbilityBerserk } from '../utils/ability';
 
 export function drawBall(
   ctx: CanvasRenderingContext2D,
@@ -33,11 +34,12 @@ export function drawBall(
   ctx.fill();
 
   // onLowHP rage aura (drawn before sheen so aura glows behind the highlight)
-  if (ability?.trigger === 'onLowHP' && hpFraction < Number(ability.params.threshold ?? 0.3)) {
+  if (isAbilityBerserk(ability, hpFraction)) {
     ctx.save();
-    ctx.shadowColor = ability.params.statusColor as string ?? '#FF4400';
+    const auraColor = ability?.params.statusColor as string ?? '#FF4400';
+    ctx.shadowColor = auraColor;
     ctx.shadowBlur = 20;
-    ctx.strokeStyle = ability.params.statusColor as string ?? '#FF4400';
+    ctx.strokeStyle = auraColor;
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(0, 0, r + 4, 0, Math.PI * 2);

@@ -38,6 +38,7 @@ export const FIGHTER_PRESETS: FighterPreset[] = [
       range: 1.5, speed: 6.75, trigger: 'onCollision',
       description: 'Long blade that orbits fast — land enough hits and momentum takes over.',
       color: '#33BB55',
+      effectLabel: 'spear',
       attacks: [{ type: 'melee', cooldown: 0.7, damage: 10, knockback: 40 }],
     },
   },
@@ -59,6 +60,7 @@ export const FIGHTER_PRESETS: FighterPreset[] = [
       range: 10.0, speed: 4.0, trigger: 'onTimer',
       description: 'Fires 3-way split bullets every 1.5s; charges a full-power laser beam every 10s.',
       color: '#4488CC',
+      hitEffect: 'laser',
       attacks: [
         { type: 'projectile', cooldown: 3,  damage: 3,  knockback: 20, aimAtEnemy: true, bulletCount: 3, bulletSpeed: 1.0 },
         { type: 'projectile', cooldown: 10.0, damage: 15, knockback: 65, aimAtEnemy: true, hitscan: true },

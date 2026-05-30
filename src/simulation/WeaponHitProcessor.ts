@@ -12,15 +12,12 @@ export interface HitMultipliers {
  */
 export function getHitMultipliers(weapon: WeaponStats, _attack: AttackConfig): HitMultipliers {
   return {
-    kbMult: (weapon as WeaponStats & { kbMult?: number }).kbMult ?? 1.0,
-    dmgMult: (weapon as WeaponStats & { dmgMult?: number }).dmgMult ?? 1.0,
+    kbMult: weapon.kbMult ?? 1.0,
+    dmgMult: weapon.dmgMult ?? 1.0,
   };
 }
 
-/** Melee weapon effect label used to pick the correct animation. */
-export function getMeleeEffectLabel(weaponName: string): string {
-  if (weaponName === 'Heavy Hammer') return 'hammer';
-  if (weaponName === 'Long Spear' || weaponName === 'Long Sword') return 'spear';
-  if (weaponName === 'Chain Flail') return 'flail';
-  return 'sword';
+/** Melee weapon effect label — reads effectLabel from preset, falls back to 'sword'. */
+export function getMeleeEffectLabel(weapon: WeaponStats): string {
+  return weapon.effectLabel ?? 'sword';
 }
