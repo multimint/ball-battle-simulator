@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 
 export default function SimulatingScreen() {
@@ -33,7 +33,7 @@ export default function SimulatingScreen() {
       }
     };
 
-    worker.onerror = (err) => console.error('Worker crashed:', err);
+    worker.onerror = (err) => { console.error('Worker crashed:', err); worker.terminate(); };
     worker.postMessage({ teamA, teamB, initialVelocities, fps: 30, bitrate: 4_000_000 });
 
     return () => worker.terminate();

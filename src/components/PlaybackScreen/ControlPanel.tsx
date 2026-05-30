@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 
 const SPEED_STEPS = [0.25, 0.5, 1, 1.5, 2, 4];
@@ -22,6 +22,9 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
 
   const [speed, setSpeed]           = useState(1);
   const [isExporting, setExporting] = useState(false);
+  const exportWorkerRef             = useRef<Worker | null>(null);
+
+  useEffect(() => () => { exportWorkerRef.current?.terminate(); }, []);
 
   function handleSpeed(val: number) {
     setSpeed(val);
@@ -32,6 +35,7 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
     onReplay();
     if (videoRef.current) {
       videoRef.current.currentTime = 0;
+      videoRef.current.playbackRate = 1;
       videoRef.current.play();
     }
   }
@@ -44,6 +48,9 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
       new URL('../../simulation/simulator.worker.ts', import.meta.url),
       { type: 'module' },
     );
+    exportWorkerRef.current = worker;
+
+    const cleanup = () => { exportWorkerRef.current = null; worker.terminate(); };
 
     worker.onmessage = (e: MessageEvent) => {
       if (e.data.type === 'complete') {
@@ -56,16 +63,16 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        worker.terminate();
+        cleanup();
         setExporting(false);
       } else if (e.data.type === 'error') {
         console.error('HD export error:', e.data.message);
-        worker.terminate();
+        cleanup();
         setExporting(false);
       }
     };
 
-    worker.onerror = () => { worker.terminate(); setExporting(false); };
+    worker.onerror = () => { cleanup(); setExporting(false); };
     worker.postMessage({ teamA, teamB, initialVelocities, fps: 60, bitrate: 20_000_000 });
   }
 

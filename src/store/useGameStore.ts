@@ -38,12 +38,14 @@ interface GameStore {
 }
 
 const defaultTeamA: TeamConfig = {
+  fighterId: FIGHTER_PRESETS[0].id,
   name: FIGHTER_PRESETS[0].name,
   ball: FIGHTER_PRESETS[0].ball,
   weapon: FIGHTER_PRESETS[0].weapon,
 };
 
 const defaultTeamB: TeamConfig = {
+  fighterId: FIGHTER_PRESETS[0].id,
   name: FIGHTER_PRESETS[0].name,
   ball: FIGHTER_PRESETS[0].ball,
   weapon: FIGHTER_PRESETS[0].weapon,
@@ -73,10 +75,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setFighterConfig: (team, fighter) =>
     set((s) => ({
       teamA: team === 'A'
-        ? { ...s.teamA, name: fighter.name, ball: fighter.ball, weapon: fighter.weapon }
+        ? { ...s.teamA, fighterId: fighter.id, name: fighter.name, ball: fighter.ball, weapon: fighter.weapon }
         : s.teamA,
       teamB: team === 'B'
-        ? { ...s.teamB, name: fighter.name, ball: fighter.ball, weapon: fighter.weapon }
+        ? { ...s.teamB, fighterId: fighter.id, name: fighter.name, ball: fighter.ball, weapon: fighter.weapon }
         : s.teamB,
     })),
 

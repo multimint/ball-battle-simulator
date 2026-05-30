@@ -1,17 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import ControlPanel from './ControlPanel';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { CAPTURE_CANVAS_WIDTH, CAPTURE_CANVAS_HEIGHT } from '../../constants/gameConstants';
-
-function useIsMobile(breakpoint = 640) {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < breakpoint);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, [breakpoint]);
-  return isMobile;
-}
 
 export default function PlaybackScreen() {
   const preSimBlob = useGameStore((s) => s.preSimBlob);

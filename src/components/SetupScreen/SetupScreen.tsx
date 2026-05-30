@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import FighterSelector from './FighterSelector';
 import StatsPanel from './StatsPanel';
 import { FIGHTER_PRESETS } from '../../constants/fighterPresets';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import {
   CAPTURE_CANVAS_WIDTH,
   CAPTURE_CANVAS_HEIGHT,
@@ -14,24 +15,14 @@ const PANEL_W = 220;
 const RATIO   = CAPTURE_CANVAS_WIDTH / CAPTURE_CANVAS_HEIGHT;
 const RETRO   = '"Press Start 2P", monospace';
 
-function useIsMobile(breakpoint = 640) {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < breakpoint);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, [breakpoint]);
-  return isMobile;
-}
-
 export default function SetupScreen() {
   const startNewSimulation = useGameStore((s) => s.startNewSimulation);
   const teamA = useGameStore((s) => s.teamA);
   const teamB = useGameStore((s) => s.teamB);
   const isMobile = useIsMobile();
 
-  const fighterA = FIGHTER_PRESETS.find((f) => f.weapon.name === teamA.weapon.name);
-  const fighterB = FIGHTER_PRESETS.find((f) => f.weapon.name === teamB.weapon.name);
+  const fighterA = FIGHTER_PRESETS.find((f) => f.id === teamA.fighterId);
+  const fighterB = FIGHTER_PRESETS.find((f) => f.id === teamB.fighterId);
 
   const bottomBar = (compact: boolean) => (
     <div

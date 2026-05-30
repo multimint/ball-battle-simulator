@@ -73,6 +73,7 @@ export interface FighterPreset {
 export type TeamId = 'A' | 'B';
 
 export interface TeamConfig {
+  fighterId: string;
   name: string;
   ball: BallStats;
   weapon: WeaponStats;
