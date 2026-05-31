@@ -816,12 +816,12 @@ export class GameSimulator {
       let modified = amount * this.getOutgoingDamageMultiplier(attackingTeam) * this.getIncomingDamageMultiplier(team);
       modified = this.consumeShield(team, modified);
       const rounded = Math.round(modified);
-      const actual = Math.min(rounded, this.hp[team]);
-      this.hp[team] = Math.max(0, this.hp[team] - rounded);
-      if (rounded > 0) {
+      const actual  = Math.min(rounded, this.hp[team]);
+      this.hp[team] = Math.max(0, this.hp[team] - actual);
+      if (actual > 0) {
         const fx = defender.position.x + (Math.random() - 0.5) * 20;
         const fy = defender.position.y - (defender.circleRadius ?? 25) - 8;
-        this.floaters.push(createFloater(String(rounded), fx, fy, weapon.color ?? '#FFFFFF'));
+        this.floaters.push(createFloater(String(actual), fx, fy, weapon.color ?? '#FFFFFF'));
       }
       const opponent: 'A' | 'B' = team === 'A' ? 'B' : 'A';
       this.damageDealt[opponent] += actual;

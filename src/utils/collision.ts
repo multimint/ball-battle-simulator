@@ -12,16 +12,6 @@ export function getCollisionImpulse(pair: MatterPair): number {
   return total;
 }
 
-/** Check if a Matter.Body is one of the two ball bodies (by label). */
-export function isBallBody(body: Matter.Body): boolean {
-  return body.label === 'ball' || body.label === 'ballA' || body.label === 'ballB';
-}
-
-/** Check if a body matches a specific team label ('ballA' | 'ballB'). */
-export function isTeamBody(body: Matter.Body, team: 'A' | 'B'): boolean {
-  return body.label === `ball${team}`;
-}
-
 /** Get the collision contact point midpoint. */
 export function getCollisionPoint(pair: MatterPair): { x: number; y: number } {
   const contacts = pair.activeContacts as Array<{ vertex: { x: number; y: number } }>;
