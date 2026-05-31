@@ -41,7 +41,7 @@ export const bloodAxe: BallDefinition = {
     ability: {
       id: 'bloodrage-fury',
       name: 'Bloodrage',
-      description: 'Goes berserk below 30% HP — +50% damage and +40% speed.',
+      description: 'Goes berserk below 30% HP — +50% damage and +70% speed for 3s.',
       trigger: 'onLowHP',
       params: {
         threshold: 0.3,

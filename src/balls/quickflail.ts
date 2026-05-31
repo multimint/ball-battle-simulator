@@ -29,7 +29,7 @@ export const quickFlail: BallDefinition = {
     ability: {
       id: 'quickstrike-momentum',
       name: 'Momentum',
-      description: 'Each landed hit boosts speed by 50% for 0.8s — keep hitting to maintain the rush.',
+      description: 'Each landed hit stacks +30% speed (up to 5×) — stacks persist as long as you keep landing hits.',
       trigger: 'onHitDealt',
       params: {
         statusEffect: 'speedBoost',
@@ -38,7 +38,6 @@ export const quickFlail: BallDefinition = {
         statusMagnitude: 0.3,
         stackBehavior: 'stack',
         maxStacks: 5,
-        statusColor: '#44FF44',
         statusIcon: 'lightning',
         hitFlash: true,
         hitFlashColor: '#44FF22',

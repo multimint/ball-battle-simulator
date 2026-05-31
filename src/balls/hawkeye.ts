@@ -30,7 +30,7 @@ export const hawkeye: BallDefinition = {
   weapon: {
     name: 'Energy Laser',
     range: 10.0, speed: 4.0, trigger: 'onTimer',
-    description: 'Fires 3-way split bullets every 1.5s; charges a full-power laser beam every 10s.',
+    description: 'Fires 3-way split bullets every 3s; charges a full-power laser beam every 10s.',
     color: '#4488CC', icon: 'weapon-energy-laser', projectileIcon: 'proj-orb',
     hitEffect: 'laser',
     attacks: [

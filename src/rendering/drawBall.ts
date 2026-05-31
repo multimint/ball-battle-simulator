@@ -80,25 +80,8 @@ export function drawBall(
   ctx.lineWidth   = 1.5;
   ctx.stroke();
 
-  // ── Status effect rings ───────────────────────────────────────────────
+  // ── Status effect icons ───────────────────────────────────────────────
   if (effects && effects.length > 0) {
-    const segAngle = (Math.PI * 2) / effects.length;
-    effects.forEach((effect, i) => {
-      const startAngle = i * segAngle - Math.PI / 2;
-      const alpha = Math.min(1, effect.remainingMs / 500); // fade out last 500ms
-      ctx.save();
-      ctx.shadowColor = effect.color;
-      ctx.shadowBlur = 8;
-      ctx.strokeStyle = effect.color;
-      ctx.globalAlpha = alpha;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(0, 0, r + 5, startAngle, startAngle + segAngle - 0.1);
-      ctx.stroke();
-      ctx.restore();
-    });
-
-    // Draw sprite icons above the ball (one per effect, spaced horizontally)
     const sz = Math.max(8, r * 0.9);
     const iconSpacing = Math.max(12, r * 0.6);
     const iconY = -(r + 10) - sz;

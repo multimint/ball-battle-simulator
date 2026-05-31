@@ -81,6 +81,30 @@ export default function StatsPanel({ team }: StatsPanelProps) {
         <StatRow label="ATK" value={ball.attackPower}    max={20}  color={teamColor} />
         <StatRow label="SPD" value={ball.maxSpeed * 10}  max={80}  color={teamColor} />
       </div>
+
+      {/* Ability & weapon descriptions */}
+      <div style={{ borderTop: `1px solid ${teamColor}18`, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {ball.ability && (
+          <div>
+            <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: `${teamColor}99`, marginBottom: 4, letterSpacing: 1 }}>
+              ABILITY · {ball.ability.name}
+            </p>
+            <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: `${teamColor}cc`, lineHeight: 1.7 }}>
+              {ball.ability.description}
+            </p>
+          </div>
+        )}
+        {fighter?.weapon.description && (
+          <div style={ball.ability ? { borderTop: `1px solid ${teamColor}10`, paddingTop: 8 } : undefined}>
+            <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: `${teamColor}99`, marginBottom: 4, letterSpacing: 1 }}>
+              WEAPON · {weapon.name}
+            </p>
+            <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: `${teamColor}cc`, lineHeight: 1.7 }}>
+              {fighter.weapon.description}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
