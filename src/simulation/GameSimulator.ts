@@ -13,7 +13,7 @@ import { drawCaptureTopPanel, drawCaptureBottomPanel } from '../rendering/drawCa
 import { drawIntroCard, drawResultCard } from '../rendering/drawBattleCard';
 import { loadAllSprites } from '../sprites/SpriteRegistry';
 import { spawnParticleBurst, stepParticles } from '../rendering/drawParticles';
-import { stepFloaters } from '../rendering/drawFloaters';
+import { stepFloaters, createFloater } from '../rendering/drawFloaters';
 import { createWeaponEffect } from '../rendering/drawWeaponEffect';
 import { getWeaponHitboxRadius, getOrbitPosition } from '../rendering/drawOrbitWeapon';
 import { applyKnockback, clampVelocity, nudgeBody, directionBetween, bodyOptionsFromBall } from '../utils/physics';
@@ -760,6 +760,11 @@ export class GameSimulator {
       const rounded = Math.round(modified);
       const actual = Math.min(rounded, this.hp[team]);
       this.hp[team] = Math.max(0, this.hp[team] - rounded);
+      if (rounded > 0) {
+        const fx = defender.position.x + (Math.random() - 0.5) * 20;
+        const fy = defender.position.y - (defender.circleRadius ?? 25) - 8;
+        this.floaters.push(createFloater(String(rounded), fx, fy, weapon.color ?? '#FFFFFF'));
+      }
       const opponent: 'A' | 'B' = team === 'A' ? 'B' : 'A';
       this.damageDealt[opponent] += actual;
       const lifesteal = this.statusMgr.getEffects(attackingTeam).find((e) => e.type === 'lifesteal');

@@ -101,7 +101,7 @@ export default function SetupScreen() {
               <p style={{ fontFamily: RETRO, fontSize: 10, color: COLOR_A, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {teamA.name}
               </p>
-              <p style={{ fontFamily: RETRO, fontSize: 8, color: 'rgba(1,0,107,0.35)', marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <p style={{ fontFamily: RETRO, fontSize: 8, color: 'rgba(1,0,107,0.65)', marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {teamA.weapon.name}
               </p>
             </div>
@@ -114,7 +114,7 @@ export default function SetupScreen() {
               <p style={{ fontFamily: RETRO, fontSize: 10, color: COLOR_B, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {teamB.name}
               </p>
-              <p style={{ fontFamily: RETRO, fontSize: 8, color: 'rgba(1,0,107,0.35)', marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <p style={{ fontFamily: RETRO, fontSize: 8, color: 'rgba(1,0,107,0.65)', marginTop: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {teamB.weapon.name}
               </p>
             </div>
@@ -207,7 +207,7 @@ export default function SetupScreen() {
             }}
           >
             <div style={{ flex: 1, height: 1, background: 'rgba(1,0,107,0.10)' }} />
-            <span style={{ fontFamily: RETRO, fontSize: 9, color: 'rgba(1,0,107,0.22)', letterSpacing: '0.35em' }}>VS</span>
+            <span style={{ fontFamily: RETRO, fontSize: 9, color: 'rgba(1,0,107,0.45)', letterSpacing: '0.35em' }}>VS</span>
             <div style={{ flex: 1, height: 1, background: 'rgba(1,0,107,0.10)' }} />
           </div>
 
@@ -295,7 +295,7 @@ export default function SetupScreen() {
               style={{
                 fontFamily: RETRO,
                 fontSize: 9,
-                color: 'rgba(1,0,107,0.22)',
+                color: 'rgba(1,0,107,0.45)',
                 writingMode: 'vertical-lr',
                 letterSpacing: '0.35em',
               }}

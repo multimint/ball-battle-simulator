@@ -13,7 +13,7 @@ function StatRow({ label, value, max, color }: { label: string; value: number; m
   const pct = Math.min(100, (value / max) * 100);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 8, width: 30, flexShrink: 0, color: `${color}88` }}>
+      <span style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 8, width: 30, flexShrink: 0, color: `${color}CC` }}>
         {label}
       </span>
       <div style={{ flex: 1, height: 8, borderRadius: 4, overflow: 'hidden', background: `${color}18` }}>
@@ -69,7 +69,7 @@ export default function StatsPanel({ team }: StatsPanelProps) {
           <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 10, color: teamColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {fighter?.name ?? ball.name}
           </p>
-          <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 8, color: `${teamColor}70`, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 8, color: `${teamColor}BB`, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {weapon.name}
           </p>
         </div>
@@ -86,20 +86,20 @@ export default function StatsPanel({ team }: StatsPanelProps) {
       <div style={{ borderTop: `1px solid ${teamColor}18`, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {ball.ability && (
           <div>
-            <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: `${teamColor}99`, marginBottom: 4, letterSpacing: 1 }}>
+            <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: `${teamColor}FF`, marginBottom: 4, letterSpacing: 1 }}>
               ABILITY · {ball.ability.name}
             </p>
-            <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: `${teamColor}cc`, lineHeight: 1.7 }}>
+            <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: `${teamColor}BB`, lineHeight: 1.7 }}>
               {ball.ability.description}
             </p>
           </div>
         )}
         {fighter?.weapon.description && (
           <div style={ball.ability ? { borderTop: `1px solid ${teamColor}10`, paddingTop: 8 } : undefined}>
-            <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: `${teamColor}99`, marginBottom: 4, letterSpacing: 1 }}>
+            <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: `${teamColor}FF`, marginBottom: 4, letterSpacing: 1 }}>
               WEAPON · {weapon.name}
             </p>
-            <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: `${teamColor}cc`, lineHeight: 1.7 }}>
+            <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: `${teamColor}BB`, lineHeight: 1.7 }}>
               {fighter.weapon.description}
             </p>
           </div>

@@ -57,7 +57,7 @@ export default function FighterSelector({ team }: FighterSelectorProps) {
               style={{
                 fontFamily: '"Press Start 2P", monospace',
                 fontSize: 8,
-                color: isSelected ? teamColor : '#01006B99',
+                color: isSelected ? teamColor : '#01006BCC',
                 textAlign: 'center',
                 lineHeight: 1.5,
                 wordBreak: 'break-word',
