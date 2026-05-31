@@ -115,8 +115,6 @@ export interface StatusRow {
   value: string;
 }
 
-// ─── Ball Ability ─────────────────────────────────────────────────────────────
-
 export interface BallAbility {
   id: string;
   name: string;

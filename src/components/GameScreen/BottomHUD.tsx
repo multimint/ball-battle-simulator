@@ -11,7 +11,6 @@ export default function BottomHUD() {
 
   return (
     <div className="w-full flex gap-2 px-2 py-2" style={{ background: 'var(--color-bg)' }}>
-      {/* HP Team A */}
       <div
         className="flex-1 rounded-lg px-2 py-1.5 flex flex-col"
         style={{ background: 'var(--color-teamA)' }}
@@ -28,7 +27,6 @@ export default function BottomHUD() {
         </div>
       </div>
 
-      {/* Center: Turns + Damage */}
       <div className="flex gap-2">
         <div
           className="rounded-lg px-3 py-1.5 flex flex-col items-center justify-center"
@@ -46,7 +44,6 @@ export default function BottomHUD() {
         </div>
       </div>
 
-      {/* HP Team B */}
       <div
         className="flex-1 rounded-lg px-2 py-1.5 flex flex-col items-end"
         style={{ background: 'var(--color-teamB)' }}

@@ -18,7 +18,7 @@ export const BALL_SPRITE_PAINTERS = {
   flame:     bloodAxe.painter,
 } satisfies Record<string, SpritePainter>;
 
-/** Drop-in replacement for the old FIGHTER_PRESETS array. */
+/** Flat fighter preset objects derived from ball definitions — used by UI and store. */
 export const FIGHTER_PRESETS = BALL_DEFINITIONS.map((b) => ({
   id:           b.id,
   name:         b.name,

@@ -161,7 +161,7 @@ export class Renderer {
     // 7. Remaining weapon effects (explosions, lasers, sword flashes, etc.)
     drawWeaponEffects(ctx, state.weaponEffects.filter((e) => e.type !== 'shield'));
 
-    // 7. Particles
+    // 8. Particles
     drawParticles(ctx, state.particles);
 
     ctx.restore(); // end shake transform
