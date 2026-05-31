@@ -21,11 +21,41 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
   const startNewSimulation = useGameStore((s) => s.startNewSimulation);
   const resetToSetup       = useGameStore((s) => s.resetToSetup);
 
-  const [speed, setSpeed]           = useState(1);
-  const [isExporting, setExporting] = useState(false);
-  const exportWorkerRef             = useRef<Worker | null>(null);
+  const [speed, setSpeed]       = useState(1);
+  const [isEncoding, setEncoding] = useState(false);
+  const [hdBlob, setHdBlob]     = useState<Blob | null>(null);
+  const exportWorkerRef         = useRef<Worker | null>(null);
 
-  useEffect(() => () => { exportWorkerRef.current?.terminate(); }, []);
+  function startHdEncode() {
+    if (!initialVelocities) return;
+    setHdBlob(null);
+    setEncoding(true);
+
+    const worker = new Worker(
+      new URL('../../simulation/simulator.worker.ts', import.meta.url),
+      { type: 'module' },
+    );
+    exportWorkerRef.current = worker;
+
+    worker.onmessage = (e: MessageEvent) => {
+      if (e.data.type === 'complete') {
+        setHdBlob(new Blob([e.data.buffer as ArrayBuffer], { type: 'video/mp4' }));
+        exportWorkerRef.current = null;
+        setEncoding(false);
+      } else if (e.data.type === 'error') {
+        console.error('HD export error:', e.data.message);
+        exportWorkerRef.current = null;
+        setEncoding(false);
+      }
+    };
+
+    worker.onerror = () => { exportWorkerRef.current = null; setEncoding(false); };
+    worker.postMessage({ teamA, teamB, initialVelocities, fps: 60, bitrate: 20_000_000 });
+  }
+
+  // Start HD encode immediately on mount; kill worker on unmount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { startHdEncode(); return () => { exportWorkerRef.current?.terminate(); }; }, []);
 
   function handleSpeed(val: number) {
     setSpeed(val);
@@ -42,39 +72,19 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
   }
 
   function handleExport() {
-    if (!initialVelocities || isExporting) return;
-    setExporting(true);
-
-    const worker = new Worker(
-      new URL('../../simulation/simulator.worker.ts', import.meta.url),
-      { type: 'module' },
-    );
-    exportWorkerRef.current = worker;
-
-    const cleanup = () => { exportWorkerRef.current = null; worker.terminate(); };
-
-    worker.onmessage = (e: MessageEvent) => {
-      if (e.data.type === 'complete') {
-        const blob = new Blob([e.data.buffer as ArrayBuffer], { type: 'video/mp4' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `ball-battle-${Date.now()}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        cleanup();
-        setExporting(false);
-      } else if (e.data.type === 'error') {
-        console.error('HD export error:', e.data.message);
-        cleanup();
-        setExporting(false);
-      }
-    };
-
-    worker.onerror = () => { cleanup(); setExporting(false); };
-    worker.postMessage({ teamA, teamB, initialVelocities, fps: 60, bitrate: 20_000_000 });
+    if (isEncoding) return;
+    if (hdBlob) {
+      const url = URL.createObjectURL(hdBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ball-battle-${Date.now()}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return;
+    }
+    startHdEncode(); // retry after error
   }
 
   const winner     = simulationResult?.winner;
@@ -102,10 +112,10 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
           <button onClick={handleReplay} style={mobileBtn('#01006B')}>▶ REPLAY</button>
           <button
             onClick={handleExport}
-            disabled={!initialVelocities || isExporting}
-            style={{ ...mobileBtn('#1a7a1a'), opacity: (initialVelocities && !isExporting) ? 1 : 0.4, cursor: (initialVelocities && !isExporting) ? 'pointer' : 'not-allowed' }}
+            disabled={isEncoding || (!hdBlob && !initialVelocities)}
+            style={{ ...mobileBtn('#1a7a1a'), opacity: (!isEncoding && (hdBlob || initialVelocities)) ? 1 : 0.4, cursor: (!isEncoding && (hdBlob || initialVelocities)) ? 'pointer' : 'not-allowed' }}
           >
-            {isExporting ? '⏳ HD...' : '📤 SAVE'}
+            {isEncoding ? '⏳ HD...' : '📤 SAVE'}
           </button>
           <button onClick={startNewSimulation} style={mobileBtn('#B91C1C')}>🎲 NEW</button>
           <button
@@ -236,12 +246,12 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
 
       <button
         onClick={handleExport}
-        disabled={!initialVelocities || isExporting}
-        style={{ ...filledBtn('#1a7a1a'), marginBottom: 8, opacity: (initialVelocities && !isExporting) ? 1 : 0.4, cursor: (initialVelocities && !isExporting) ? 'pointer' : 'not-allowed' }}
-        onMouseEnter={(e) => { if (initialVelocities && !isExporting) (e.currentTarget as HTMLButtonElement).style.opacity = '0.85'; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = (initialVelocities && !isExporting) ? '1' : '0.4'; }}
+        disabled={isEncoding || (!hdBlob && !initialVelocities)}
+        style={{ ...filledBtn('#1a7a1a'), marginBottom: 8, opacity: (!isEncoding && (hdBlob || initialVelocities)) ? 1 : 0.4, cursor: (!isEncoding && (hdBlob || initialVelocities)) ? 'pointer' : 'not-allowed' }}
+        onMouseEnter={(e) => { if (!isEncoding && (hdBlob || initialVelocities)) (e.currentTarget as HTMLButtonElement).style.opacity = '0.85'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = (!isEncoding && (hdBlob || initialVelocities)) ? '1' : '0.4'; }}
       >
-        {isExporting ? '⏳ EXPORTING HD...' : '📤 EXPORT MP4'}
+        {isEncoding ? '⏳ ENCODING...' : '📤 EXPORT MP4'}
       </button>
 
       <button
