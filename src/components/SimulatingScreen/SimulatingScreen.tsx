@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import { Sprite } from '../../sprites';
+import { serializeTeam } from '../../utils/serializeTeam';
 
 export default function SimulatingScreen() {
   const teamA = useGameStore((s) => s.teamA);
@@ -35,7 +36,7 @@ export default function SimulatingScreen() {
     };
 
     worker.onerror = (err) => { console.error('Worker crashed:', err); worker.terminate(); };
-    worker.postMessage({ teamA, teamB, initialVelocities, fps: 30, bitrate: 4_000_000 });
+    worker.postMessage({ teamA: serializeTeam(teamA), teamB: serializeTeam(teamB), initialVelocities, fps: 30, bitrate: 4_000_000 });
 
     return () => worker.terminate();
   // eslint-disable-next-line react-hooks/exhaustive-deps

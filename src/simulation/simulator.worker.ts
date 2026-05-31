@@ -1,6 +1,15 @@
 import { GameSimulator } from './GameSimulator';
+import { BALL_DEFINITIONS } from '../balls';
 import type { TeamConfig } from '../models/types';
 import type { InitialVelocities, SimulationResult } from '../store/useGameStore';
+
+// Restore getHudRows (stripped before postMessage because functions can't be cloned).
+function rehydrateTeam(team: TeamConfig): TeamConfig {
+  const def = BALL_DEFINITIONS.find(b => b.id === team.fighterId);
+  const fn = def?.ball.ability?.getHudRows;
+  if (!fn || !team.ball.ability) return team;
+  return { ...team, ball: { ...team.ball, ability: { ...team.ball.ability, getHudRows: fn } } };
+}
 
 interface WorkerInput {
   teamA: TeamConfig;
@@ -22,7 +31,7 @@ const send = (msg: WorkerOutput, transfer?: Transferable[]) =>
 
 self.onmessage = async (e: MessageEvent<WorkerInput>) => {
   const { teamA, teamB, initialVelocities, fps, bitrate } = e.data;
-  const sim = new GameSimulator({ teamA, teamB, initialVelocities, fps, bitrate, workerMode: true });
+  const sim = new GameSimulator({ teamA: rehydrateTeam(teamA), teamB: rehydrateTeam(teamB), initialVelocities, fps, bitrate, workerMode: true });
 
   try {
     const { blob, vels, result } = await sim.run((pct) => {

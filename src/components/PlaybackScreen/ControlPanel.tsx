@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import { Sprite } from '../../sprites';
+import { serializeTeam } from '../../utils/serializeTeam';
 
 const SPEED_STEPS = [0.25, 0.5, 1, 1.5, 2, 4];
 const RETRO = '"Press Start 2P", monospace';
@@ -50,7 +51,7 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
     };
 
     worker.onerror = () => { exportWorkerRef.current = null; setEncoding(false); };
-    worker.postMessage({ teamA, teamB, initialVelocities, fps: 60, bitrate: 20_000_000 });
+    worker.postMessage({ teamA: serializeTeam(teamA), teamB: serializeTeam(teamB), initialVelocities, fps: 60, bitrate: 20_000_000 });
   }
 
   // Start HD encode immediately on mount; kill worker on unmount.
