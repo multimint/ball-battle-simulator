@@ -3,6 +3,8 @@ import { CAPTURE_CANVAS_WIDTH, CAPTURE_CANVAS_HEIGHT } from '../constants/gameCo
 import { COLORS } from '../constants/colors';
 import { FONTS } from '../constants/typography';
 import { fitText } from '../utils/canvas';
+import { spriteRegistry } from '../sprites/SpriteRegistry';
+import type { SpriteKey } from '../sprites/SpriteKey';
 
 type Ctx2D = CanvasRenderingContext2D;
 
@@ -43,11 +45,12 @@ function drawTeamPanel(
 
   const textW = panelW - 120;
 
-  ctx.font = '200px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText(team.ball.icon ?? '⚽', cx, cy - 160);
+  const ballIconKey: SpriteKey = team.ball.icon ?? 'ball';
+  const ballImg = spriteRegistry()[ballIconKey];
+  if (ballImg) {
+    const iconSize = 160;
+    ctx.drawImage(ballImg, cx - iconSize / 2, cy - 160 - iconSize / 2, iconSize, iconSize);
+  }
 
   const nameFont = `bold 72px ${FONTS.RETRO}`;
   ctx.font = nameFont;
@@ -67,9 +70,18 @@ function drawTeamPanel(
     ctx.globalAlpha = winnerLabelAlpha;
     ctx.font = `bold 52px ${FONTS.RETRO}`;
     ctx.fillStyle = '#ffd700';
-    ctx.textAlign = 'center';
+    const labelW = ctx.measureText('WINNER!').width;
+    const iconSz = 56;
+    const gap = 10;
+    const groupX = cx - (iconSz + gap + labelW) / 2;
+    const groupY = cy + 310;
+    const trophyImg = spriteRegistry()['trophy'];
+    if (trophyImg) {
+      ctx.drawImage(trophyImg, groupX, groupY - iconSz / 2, iconSz, iconSz);
+    }
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText('🏆  WINNER!', cx, cy + 310);
+    ctx.fillText('WINNER!', groupX + iconSz + gap, groupY);
     ctx.restore();
   }
 }
@@ -81,7 +93,7 @@ function drawTeamPanel(
 function drawCentreBadge(
   ctx: Ctx2D,
   scale: number,
-  label: string,
+  iconKey: SpriteKey | 'VS',
   subLabel: string,
   subColor: string,
   cy: number,
@@ -98,15 +110,26 @@ function drawCentreBadge(
   ctx.lineWidth = 6;
   ctx.stroke();
 
-  ctx.font = '80px sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(label, 0, subLabel ? -14 : 0);
+  if (iconKey === 'VS') {
+    ctx.font = '80px sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('VS', 0, subLabel ? -14 : 0);
+  } else {
+    const img = spriteRegistry()[iconKey];
+    if (img) {
+      const sz = 80;
+      const offsetY = subLabel ? -14 : 0;
+      ctx.drawImage(img, -sz / 2, offsetY - sz / 2, sz, sz);
+    }
+  }
 
   if (subLabel) {
     ctx.font = `bold 24px ${FONTS.RETRO}`;
     ctx.fillStyle = subColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     ctx.fillText(subLabel, 0, 72);
   }
 
@@ -181,7 +204,7 @@ export function drawResultCard(
     ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
     ctx.fillRect(0, halfH - 2, W, 4);
     if (badgeScale > 0.01) {
-      drawCentreBadge(ctx, badgeScale, '🤝', 'DRAW', '#cccccc', halfH);
+      drawCentreBadge(ctx, badgeScale, 'scales', 'DRAW', '#cccccc', halfH);
     }
     return;
   }
@@ -237,6 +260,6 @@ export function drawResultCard(
 
   // Badge rides the divider — no fade needed, it simply exits with the loser
   if (badgeScale > 0.01) {
-    drawCentreBadge(ctx, badgeScale, '🏆', 'WINNER', '#ffd700', dividerY);
+    drawCentreBadge(ctx, badgeScale, 'trophy', 'WINNER', '#ffd700', dividerY);
   }
 }

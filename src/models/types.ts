@@ -1,3 +1,5 @@
+import type { SpriteKey } from '../sprites/SpriteKey';
+
 // ─── Ball Configuration ───────────────────────────────────────────────────────
 
 export interface BallStats {
@@ -12,7 +14,7 @@ export interface BallStats {
   attackPower: number;   // base damage multiplier
   knockbackPower: number;// base knockback multiplier
   color: string;         // CSS color
-  icon?: string;         // optional icon name/id
+  icon?: SpriteKey;      // optional sprite icon
   ability?: BallAbility; // optional passive ability
 }
 
@@ -63,7 +65,7 @@ export interface FighterPreset {
   id: string;
   name: string;
   lore: string;
-  icon: string;
+  icon: SpriteKey;
   ball: BallStats;
   weapon: WeaponStats;
 }
@@ -125,5 +127,5 @@ export interface StatusEffect {
   stacks: number;
   maxStacks: number;
   color: string;             // ring color for visual indicator
-  icon: string;              // emoji shown above ball
+  icon: SpriteKey;           // sprite shown above ball
 }

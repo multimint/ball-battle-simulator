@@ -1,4 +1,5 @@
 import type { BallStats } from '../models/types';
+import type { SpriteKey } from '../sprites/SpriteKey';
 
 /** Composite power score (higher = stronger). Roughly 0–150 range. */
 export function calculatePowerScore(ball: BallStats): number {
@@ -24,10 +25,10 @@ export function matchupLabel(
   scoreB: number,
   nameA: string,
   nameB: string
-): { label: string; emoji: string } {
+): { label: string; icon: SpriteKey } {
   const delta = Math.abs(scoreA - scoreB);
-  if (delta <= 5) return { label: 'Even Match', emoji: '🟢' };
+  if (delta <= 5) return { label: 'Even Match', icon: 'dot-green' };
   const leading = scoreA > scoreB ? nameA : nameB;
-  if (delta <= 15) return { label: `Slight Adv: ${leading}`, emoji: '🟡' };
-  return { label: `Strong Adv: ${leading}`, emoji: '🔴' };
+  if (delta <= 15) return { label: `Slight Adv: ${leading}`, icon: 'dot-yellow' };
+  return { label: `Strong Adv: ${leading}`, icon: 'dot-red' };
 }

@@ -2,8 +2,9 @@ import React from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import FighterSelector from './FighterSelector';
 import StatsPanel from './StatsPanel';
-import { FIGHTER_PRESETS } from '../../constants/fighterPresets';
+import { FIGHTER_PRESETS } from '../../balls';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { Sprite } from '../../sprites';
 import {
   CAPTURE_CANVAS_WIDTH,
   CAPTURE_CANVAS_HEIGHT,
@@ -44,9 +45,9 @@ export default function SetupScreen() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
               <div style={{
                 width: 28, height: 28, borderRadius: '50%', background: teamA.ball.color,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}>
-                {fighterA?.icon ?? '⚽'}
+                <Sprite id={fighterA?.icon ?? 'ball'} size={14} />
               </div>
               <p style={{ fontFamily: RETRO, fontSize: 7, color: COLOR_A, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
                 {fighterA?.name ?? teamA.name}
@@ -59,9 +60,9 @@ export default function SetupScreen() {
               </p>
               <div style={{
                 width: 28, height: 28, borderRadius: '50%', background: teamB.ball.color,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}>
-                {fighterB?.icon ?? '⚽'}
+                <Sprite id={fighterB?.icon ?? 'ball'} size={14} />
               </div>
             </div>
           </div>
@@ -92,9 +93,9 @@ export default function SetupScreen() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
             <div style={{
               width: 46, height: 46, borderRadius: '50%', background: teamA.ball.color,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 23, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             }}>
-              {fighterA?.icon ?? '⚽'}
+              <Sprite id={fighterA?.icon ?? 'ball'} size={23} />
             </div>
             <div style={{ minWidth: 0 }}>
               <p style={{ fontFamily: RETRO, fontSize: 10, color: COLOR_A, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -119,9 +120,9 @@ export default function SetupScreen() {
             </div>
             <div style={{
               width: 46, height: 46, borderRadius: '50%', background: teamB.ball.color,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 23, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             }}>
-              {fighterB?.icon ?? '⚽'}
+              <Sprite id={fighterB?.icon ?? 'ball'} size={23} />
             </div>
           </div>
         </>

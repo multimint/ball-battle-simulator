@@ -1,7 +1,8 @@
 import React from 'react';
 import { useGameStore } from '../../store/useGameStore';
-import { FIGHTER_PRESETS } from '../../constants/fighterPresets';
+import { FIGHTER_PRESETS } from '../../balls';
 import type { TeamId } from '../../models/types';
+import { Sprite } from '../../sprites';
 
 interface StatsPanelProps {
   team: TeamId;
@@ -59,11 +60,10 @@ export default function StatsPanel({ team }: StatsPanelProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 19,
             flexShrink: 0,
           }}
         >
-          {fighter?.icon ?? '⚽'}
+          <Sprite id={fighter?.icon ?? 'ball'} size={19} />
         </div>
         <div style={{ minWidth: 0 }}>
           <p style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 10, color: teamColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

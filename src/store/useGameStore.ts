@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { GamePhase, WinnerType, TeamConfig, TeamId, FighterPreset } from '../models/types';
-import { FIGHTER_PRESETS } from '../constants/fighterPresets';
+import { FIGHTER_PRESETS } from '../balls';
 import {
   PHYSICS_SPEED_SCALE,
   INITIAL_SPEED_MIN_FRAC,

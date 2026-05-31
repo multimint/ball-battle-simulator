@@ -1,5 +1,6 @@
 // @ts-nocheck — file retained for reference; no longer mounted by App.tsx
 import React, { useEffect, useState } from 'react';
+import { Sprite } from '../../sprites';
 import { useGameStore } from '../../store/useGameStore';
 import { useMatchStore } from '../../store/useMatchStore';
 import { Button } from '../ui/Button';
@@ -62,7 +63,7 @@ export default function ResultOverlay({ videoExport }: ResultOverlayProps) {
     >
       <div className="text-center px-6">
         {/* Trophy / icon */}
-        <div className="text-5xl mb-4">{isDraw ? '🤝' : '🏆'}</div>
+        <div className="mb-4"><Sprite id={isDraw ? 'scales' : 'trophy'} size={48} /></div>
 
         {/* Result text */}
         {isDraw ? (
@@ -79,8 +80,8 @@ export default function ResultOverlay({ videoExport }: ResultOverlayProps) {
             >
               {winnerName}
             </p>
-            <p className="font-retro text-[8px] mb-4" style={{ color: winnerColor }}>
-              {winner === 'A' ? teamA.ball.icon : teamB.ball.icon}{' '}
+            <p className="font-retro text-[8px] mb-4" style={{ color: winnerColor, display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+              <Sprite id={(winner === 'A' ? teamA.ball.icon : teamB.ball.icon) ?? 'ball'} size={16} />
               {winner === 'A' ? teamA.ball.name : teamB.ball.name}
             </p>
           </>

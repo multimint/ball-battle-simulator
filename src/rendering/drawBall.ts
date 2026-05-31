@@ -1,6 +1,7 @@
 import type { HitFlash } from '../models/GameState';
 import type { BallAbility, BallStats, StatusEffect } from '../models/types';
 import { isAbilityBerserk } from '../utils/ability';
+import { spriteRegistry } from '../sprites/SpriteRegistry';
 
 export function drawBall(
   ctx: CanvasRenderingContext2D,
@@ -97,19 +98,18 @@ export function drawBall(
       ctx.restore();
     });
 
-    // Draw icons above the ball (one per effect, spaced horizontally)
-    ctx.save();
-    ctx.globalAlpha = 1;
-    ctx.font = `${Math.max(8, r * 0.45)}px serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    const iconY = -(r + 10);
+    // Draw sprite icons above the ball (one per effect, spaced horizontally)
+    const sz = Math.max(8, r * 0.9);
     const iconSpacing = Math.max(12, r * 0.6);
+    const iconY = -(r + 10) - sz;
     const startX = -((effects.length - 1) * iconSpacing) / 2;
+    const sprites = spriteRegistry();
     effects.forEach((effect, i) => {
-      ctx.fillText(effect.icon, startX + i * iconSpacing, iconY);
+      const img = sprites[effect.icon];
+      if (img) {
+        ctx.drawImage(img, startX + i * iconSpacing - sz / 2, iconY, sz, sz);
+      }
     });
-    ctx.restore();
   }
 
   // ── HP number inside ball ─────────────────────────────────────────────

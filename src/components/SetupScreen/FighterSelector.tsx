@@ -1,7 +1,8 @@
 import React from 'react';
-import { FIGHTER_PRESETS } from '../../constants/fighterPresets';
+import { FIGHTER_PRESETS } from '../../balls';
 import { useGameStore } from '../../store/useGameStore';
 import type { TeamId } from '../../models/types';
+import { Sprite } from '../../sprites';
 
 interface FighterSelectorProps {
   team: TeamId;
@@ -45,11 +46,10 @@ export default function FighterSelector({ team }: FighterSelectorProps) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 26,
                 flexShrink: 0,
               }}
             >
-              {fighter.icon}
+              <Sprite id={fighter.icon} size={26} />
             </div>
 
             {/* Fighter name */}

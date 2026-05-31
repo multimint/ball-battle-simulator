@@ -1,4 +1,5 @@
 import type { StatusEffect, StatusEffectType } from '../models/types';
+import type { SpriteKey } from '../sprites/SpriteKey';
 
 export class StatusEffectManager {
   private effectsA: StatusEffect[] = [];
@@ -12,7 +13,7 @@ export class StatusEffectManager {
     stackBehavior: StatusEffect['stackBehavior'],
     maxStacks: number,
     color: string,
-    icon: string,
+    icon: SpriteKey,
     simTime = 0,
   ): void {
     const effects = team === 'A' ? this.effectsA : this.effectsB;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import { useMatchStore } from '../../store/useMatchStore';
+import { Sprite } from '../../sprites';
 
 export default function TopBar() {
   const teamA = useGameStore((s) => s.teamA);
@@ -17,7 +18,7 @@ export default function TopBar() {
     >
       {/* ── Team A ── */}
       <div className="flex items-center gap-1.5 flex-1 min-w-0">
-        <span className="text-xl flex-shrink-0">{teamA.ball.icon ?? '⚽'}</span>
+        <span className="flex-shrink-0"><Sprite id={teamA.ball.icon ?? 'ball'} size={20} /></span>
         <div className="flex-1 min-w-0">
           <p className="font-retro text-[6px] truncate" style={{ color: 'var(--color-teamA)' }}>
             {teamA.weapon.name}
@@ -41,7 +42,7 @@ export default function TopBar() {
           </p>
           <HpBar value={hpB} max={maxB} color="var(--color-teamB)" reverse />
         </div>
-        <span className="text-xl flex-shrink-0">{teamB.ball.icon ?? '⚽'}</span>
+        <span className="flex-shrink-0"><Sprite id={teamB.ball.icon ?? 'ball'} size={20} /></span>
       </div>
     </div>
   );

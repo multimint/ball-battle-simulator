@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
+import { Sprite } from '../../sprites';
 
 export default function SimulatingScreen() {
   const teamA = useGameStore((s) => s.teamA);
@@ -69,12 +70,12 @@ export default function SimulatingScreen() {
           className="flex items-center gap-4 w-full justify-center"
         >
           <div className="text-center">
-            <span style={{ fontSize: 36 }}>{teamA.ball.icon ?? '⚽'}</span>
+            <Sprite id={teamA.ball.icon ?? 'ball'} size={36} />
             <p className="font-retro text-[10px] mt-1" style={{ color: '#E47D79' }}>{teamA.name}</p>
           </div>
           <p className="font-retro text-[12px]" style={{ color: '#01006B44' }}>VS</p>
           <div className="text-center">
-            <span style={{ fontSize: 36 }}>{teamB.ball.icon ?? '⚽'}</span>
+            <Sprite id={teamB.ball.icon ?? 'ball'} size={36} />
             <p className="font-retro text-[10px] mt-1" style={{ color: '#4A90E2' }}>{teamB.name}</p>
           </div>
         </div>

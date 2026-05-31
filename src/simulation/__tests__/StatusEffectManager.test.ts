@@ -11,7 +11,7 @@ const BASE = {
   stackBehavior: 'refresh' as const,
   maxStacks: 1,
   color: '#FF0000',
-  icon: '🔥',
+  icon: 'flame' as const,
 };
 
 describe('StatusEffectManager', () => {
@@ -25,32 +25,32 @@ describe('StatusEffectManager', () => {
 
     it('does not add duplicate effect types', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'burn', BASE.durationMs, BASE.magnitude, 'refresh', 1, '#F00', '🔥');
-      mgr.apply('A', 'burn', BASE.durationMs, BASE.magnitude, 'refresh', 1, '#F00', '🔥');
+      mgr.apply('A', 'burn', BASE.durationMs, BASE.magnitude, 'refresh', 1, '#F00', 'flame');
+      mgr.apply('A', 'burn', BASE.durationMs, BASE.magnitude, 'refresh', 1, '#F00', 'flame');
       expect(mgr.getEffects('A').length).toBe(1);
     });
 
     it('refreshes duration on stack-behavior=refresh', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'speedBoost', 1000, 0.3, 'refresh', 3, '#0F0', '⚡');
+      mgr.apply('A', 'speedBoost', 1000, 0.3, 'refresh', 3, '#0F0', 'lightning');
       const effect = mgr.getEffects('A')[0];
       effect.remainingMs = 100;
-      mgr.apply('A', 'speedBoost', 1000, 0.3, 'refresh', 3, '#0F0', '⚡');
+      mgr.apply('A', 'speedBoost', 1000, 0.3, 'refresh', 3, '#0F0', 'lightning');
       expect(mgr.getEffects('A')[0].remainingMs).toBe(1000);
     });
 
     it('increments stacks on stack-behavior=stack up to maxStacks', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'speedBoost', 999_999, 0.3, 'stack', 5, '#0F0', '⚡');
-      mgr.apply('A', 'speedBoost', 999_999, 0.3, 'stack', 5, '#0F0', '⚡');
-      mgr.apply('A', 'speedBoost', 999_999, 0.3, 'stack', 5, '#0F0', '⚡');
+      mgr.apply('A', 'speedBoost', 999_999, 0.3, 'stack', 5, '#0F0', 'lightning');
+      mgr.apply('A', 'speedBoost', 999_999, 0.3, 'stack', 5, '#0F0', 'lightning');
+      mgr.apply('A', 'speedBoost', 999_999, 0.3, 'stack', 5, '#0F0', 'lightning');
       expect(mgr.getEffects('A')[0].stacks).toBe(3);
     });
 
     it('does not exceed maxStacks', () => {
       const mgr = makeManager();
       for (let i = 0; i < 10; i++) {
-        mgr.apply('A', 'speedBoost', 999_999, 0.3, 'stack', 5, '#0F0', '⚡');
+        mgr.apply('A', 'speedBoost', 999_999, 0.3, 'stack', 5, '#0F0', 'lightning');
       }
       expect(mgr.getEffects('A')[0].stacks).toBe(5);
     });
@@ -83,7 +83,7 @@ describe('StatusEffectManager', () => {
 
     it('never expires stack-behavior=stack effects', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'speedBoost', 999_999, 0.3, 'stack', 5, '#0F0', '⚡');
+      mgr.apply('A', 'speedBoost', 999_999, 0.3, 'stack', 5, '#0F0', 'lightning');
       const hp = { A: 100, B: 100 };
       mgr.tick(1_000_000, hp);
       expect(mgr.hasEffect('A', 'speedBoost')).toBe(true);
@@ -92,7 +92,7 @@ describe('StatusEffectManager', () => {
     it('applies burn DoT per tick', () => {
       const mgr = makeManager();
       // burn: magnitude per second per stack
-      mgr.apply('A', 'burn', 5000, 10, 'refresh', 1, '#F00', '🔥');
+      mgr.apply('A', 'burn', 5000, 10, 'refresh', 1, '#F00', 'flame');
       const hp = { A: 100, B: 100 };
       mgr.tick(1000, hp); // 1 second → 10 damage
       expect(hp.A).toBeCloseTo(90, 1);
@@ -108,7 +108,7 @@ describe('StatusEffectManager', () => {
 
     it('does not reduce HP below 0 from DoT', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'burn', 5000, 1000, 'refresh', 1, '#F00', '🔥');
+      mgr.apply('A', 'burn', 5000, 1000, 'refresh', 1, '#F00', 'flame');
       const hp = { A: 10, B: 100 };
       mgr.tick(1000, hp);
       expect(hp.A).toBe(0);
@@ -129,8 +129,8 @@ describe('StatusEffectManager', () => {
 
     it('speedBoost increases speed proportionally to stacks', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'speedBoost', 999_999, 0.3, 'stack', 5, '#0F0', '⚡');
-      mgr.apply('A', 'speedBoost', 999_999, 0.3, 'stack', 5, '#0F0', '⚡'); // stacks=2
+      mgr.apply('A', 'speedBoost', 999_999, 0.3, 'stack', 5, '#0F0', 'lightning');
+      mgr.apply('A', 'speedBoost', 999_999, 0.3, 'stack', 5, '#0F0', 'lightning'); // stacks=2
       // bonus = 0.3 * 2 = 0.6 → mult = 1.6
       expect(mgr.getSpeedMultiplier('A')).toBeCloseTo(1.6);
     });
@@ -145,7 +145,7 @@ describe('StatusEffectManager', () => {
   describe('getOutgoingDamageMultiplier()', () => {
     it('rage increases outgoing damage', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'rage', 5000, 0.5, 'refresh', 1, '#F00', '💢');
+      mgr.apply('A', 'rage', 5000, 0.5, 'refresh', 1, '#F00', 'burst');
       expect(mgr.getOutgoingDamageMultiplier('A')).toBeCloseTo(1.5);
     });
 

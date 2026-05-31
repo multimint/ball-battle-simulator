@@ -8,6 +8,7 @@ import { COLORS } from '../constants/colors';
 import { FONTS, TEXT_STYLES } from '../constants/typography';
 import { fitText } from '../utils/canvas';
 import { isAbilityBerserk } from '../utils/ability';
+import { spriteRegistry } from '../sprites/SpriteRegistry';
 
 const BG  = COLORS.captureBackground;
 const DIM = COLORS.panelTextDark;
@@ -55,37 +56,54 @@ function getAbilityStatus(
   }
 }
 
-/** Top panel: cream background, team names + VS only. */
+/** Top panel: cream background, team sprite + name + VS. */
 export function drawCaptureTopPanel(
   ctx: CanvasRenderingContext2D,
   teamA: TeamConfig,
   teamB: TeamConfig,
 ): void {
-  const W        = CAPTURE_CANVAS_WIDTH;
-  const H        = CAPTURE_TOP_HEIGHT;
-  const halfW    = W / 2;
-  const quarterW = W / 4;
-  const pad      = 56;
-  const maxNameW = halfW - pad * 2;
-  const textY    = H - 38;
+  const W          = CAPTURE_CANVAS_WIDTH;
+  const H          = CAPTURE_TOP_HEIGHT;
+  const halfW      = W / 2;
+  const quarterW   = W / 4;
+  const pad        = 56;
+  const spriteSize = 48;
+  const spriteGap  = 16;
+  const maxNameW   = halfW - pad * 2 - spriteSize - spriteGap;
+  const textY      = H - 38;
 
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
 
   ctx.textBaseline = 'middle';
-  ctx.textAlign    = 'center';
 
-  ctx.font      = TEXT_STYLES.teamNameLarge;
-  ctx.fillStyle = darkenHex(teamA.ball.color);
-  ctx.fillText(fitText(ctx, teamA.name.toUpperCase(), maxNameW, TEXT_STYLES.teamNameLarge), quarterW, textY);
+  function drawTeamLabel(team: TeamConfig, cx: number): void {
+    ctx.font = TEXT_STYLES.teamNameLarge;
+    const label = fitText(ctx, team.name.toUpperCase(), maxNameW, TEXT_STYLES.teamNameLarge);
+    const nameW  = ctx.measureText(label).width;
+    const groupW = spriteSize + spriteGap + nameW;
+    const startX = cx - groupW / 2;
+
+    const img = spriteRegistry()[team.ball.icon ?? 'ball'];
+    if (img) {
+      ctx.drawImage(img, startX, textY - spriteSize / 2, spriteSize, spriteSize);
+    } else {
+      console.warn(`[drawCaptureTopPanel] sprite not loaded: ${team.ball.icon ?? 'ball'}`);
+    }
+
+    ctx.fillStyle = darkenHex(team.ball.color);
+    ctx.textAlign = 'left';
+    ctx.fillText(label, startX + spriteSize + spriteGap, textY);
+  }
+
+  drawTeamLabel(teamA, quarterW);
 
   ctx.font      = TEXT_STYLES.vsLabel;
   ctx.fillStyle = DIM;
+  ctx.textAlign = 'center';
   ctx.fillText('VS', halfW, textY);
 
-  ctx.font      = TEXT_STYLES.teamNameLarge;
-  ctx.fillStyle = darkenHex(teamB.ball.color);
-  ctx.fillText(fitText(ctx, teamB.name.toUpperCase(), maxNameW, TEXT_STYLES.teamNameLarge), halfW + quarterW, textY);
+  drawTeamLabel(teamB, halfW + quarterW);
 }
 
 /** Bottom panel: always-visible ability status strip, tight below the arena. */

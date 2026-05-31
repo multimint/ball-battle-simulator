@@ -9,6 +9,7 @@ import { Renderer } from '../rendering/Renderer';
 import { drawBackground, drawArenaWalls } from '../rendering/drawBackground';
 import { drawCaptureTopPanel, drawCaptureBottomPanel } from '../rendering/drawCaptureOverlay';
 import { drawIntroCard, drawResultCard } from '../rendering/drawBattleCard';
+import { loadAllSprites } from '../sprites/SpriteRegistry';
 import { spawnParticleBurst, stepParticles } from '../rendering/drawParticles';
 import { stepFloaters, createFloater } from '../rendering/drawFloaters';
 import { createWeaponEffect } from '../rendering/drawWeaponEffect';
@@ -213,6 +214,9 @@ export class GameSimulator {
     const physicsStaticBg = this.buildPhysicsStaticBg();
     const physicsCtx = this.physicsCanvas.getContext('2d') as unknown as Ctx2D;
     this.renderer = new Renderer(physicsCtx, physicsStaticBg);
+
+    // Sprites must be loaded before buildCaptureBg() draws the top panel.
+    loadAllSprites();
 
     // Pre-render the capture canvas static parts (top panel + arena bg + card shadow + bottom panel)
     // and stamp them onto captureCanvas ONCE. Per-frame rendering only overwrites the arena region.

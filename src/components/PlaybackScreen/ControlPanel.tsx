@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
+import { Sprite } from '../../sprites';
 
 const SPEED_STEPS = [0.25, 0.5, 1, 1.5, 2, 4];
 const RETRO = '"Press Start 2P", monospace';
@@ -172,7 +173,7 @@ export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: 
               marginBottom: 14,
             }}
           >
-            <div style={{ fontSize: 28, marginBottom: 4 }}>{isDraw ? '🤝' : '🏆'}</div>
+            <div style={{ marginBottom: 4 }}><Sprite id={isDraw ? 'scales' : 'trophy'} size={28} /></div>
             {isDraw ? (
               <p style={{ fontFamily: RETRO, fontSize: 9, color: '#888', marginBottom: 2 }}>IT'S A DRAW</p>
             ) : (
