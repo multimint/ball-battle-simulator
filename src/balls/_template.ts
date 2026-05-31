@@ -55,19 +55,24 @@ export const templateBall: BallDefinition = {
       id: 'template-ability',
       name: 'Template Ability',
       description: 'What the ability does in plain language.',
-      trigger: 'onHitDealt',             // onHitDealt | onHitReceived | onLowHP | onBounce | passive
+      // trigger discriminates params type — TypeScript checks field names automatically:
+      //   'onHitDealt'    → OnHitDealtParams    (adds rangePerStack)
+      //   'onLowHP'       → OnLowHPParams        (adds required threshold)
+      //   'passive'       → PassiveParams        (empty {})
+      //   others          → CommonAbilityParams
+      trigger: 'onHitDealt',
       params: {
-        // ── Status effect applied on trigger ─────────────────────────────────
-        statusEffect: 'speedBoost',      // burn | poison | freeze | rage | harden | speedBoost | weaken | lifesteal | shield
+        // ── Primary status effect applied on trigger ──────────────────────────
+        statusEffect: 'speedBoost',      // StatusEffectType
         statusTarget: 'self',            // 'self' | 'enemy'
         statusDuration: 2000,            // ms
-        statusMagnitude: 0.3,            // multiplier; meaning depends on effect type
+        statusMagnitude: 0.3,            // multiplier (0–2)
         stackBehavior: 'refresh',        // 'refresh' | 'stack' | 'ignore'
         maxStacks: 1,
         statusColor: '#F7C430',          // ring color shown around the ball
-        statusIcon: 'lightning',         // sprite key for the icon above the ball
+        statusIcon: 'lightning',         // SpriteKey for the icon above the ball
 
-        // ── Optional: second simultaneous status effect ───────────────────────
+        // ── Optional second simultaneous status effect ────────────────────────
         // secondStatusEffect: 'rage',
         // secondStatusDuration: 2000,
         // secondStatusMagnitude: 0.4,
@@ -81,8 +86,8 @@ export const templateBall: BallDefinition = {
         hitFlashColor: '#F7C430',
         hitFlashTarget: 'self',          // 'self' | 'enemy'
 
-        // ── HUD label ─────────────────────────────────────────────────────────
-        hudLabel: 'boost',               // shown in the bottom panel strip
+        // ── HUD label (shown in bottom info strip) ────────────────────────────
+        hudLabel: 'boost',
       },
 
       // ── HUD display ────────────────────────────────────────────────────────

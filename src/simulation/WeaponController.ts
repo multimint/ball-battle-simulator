@@ -45,7 +45,8 @@ export class WeaponController {
 
   getRangeMult(team: 'A' | 'B', teamA: TeamConfig, teamB: TeamConfig, statusMgr: StatusEffectManager): number {
     const ability = team === 'A' ? teamA.ball.ability : teamB.ball.ability;
-    const rangePerStack = Number(ability?.params?.rangePerStack ?? 0);
+    if (ability?.trigger !== 'onHitDealt') return 1;
+    const rangePerStack = ability.params.rangePerStack ?? 0;
     if (rangePerStack === 0) return 1;
     const stacks = statusMgr.getEffects(team).find((e) => e.type === 'speedBoost')?.stacks ?? 0;
     return 1 + stacks * rangePerStack;

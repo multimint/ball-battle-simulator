@@ -330,12 +330,12 @@ export class GameSimulator {
       const teamData = team === 'A' ? this.teamA : this.teamB;
       const p = teamData.ball.ability?.params;
       if (!p?.tickTrailEnabled) continue;
-      const condEffect = p.tickTrailConditionEffect as string | undefined;
+      const condEffect = p.tickTrailConditionEffect;
       if (condEffect) {
         const effect = this.statusMgr.getEffects(team).find(e => e.type === condEffect);
-        if (!effect || effect.stacks < Number(p.tickTrailConditionMinStacks ?? 1)) continue;
+        if (!effect || effect.stacks < (p.tickTrailConditionMinStacks ?? 1)) continue;
       }
-      if (Math.random() >= Number(p.tickTrailSpawnChance ?? 1)) continue;
+      if (Math.random() >= (p.tickTrailSpawnChance ?? 1)) continue;
       const body = team === 'A' ? this.bodyA : this.bodyB;
       let tx: number, ty: number, tr: number;
       if (p.tickTrailAtWeapon) {
@@ -343,17 +343,17 @@ export class GameSimulator {
         const hitboxR = getWeaponHitboxRadius(teamData.weapon);
         const pos = getOrbitPosition(body.position.x, body.position.y, teamData.ball.radius, angle, hitboxR);
         tx = pos.x; ty = pos.y;
-        tr = hitboxR * Number(p.tickTrailRadiusFrac ?? 0.45);
+        tr = hitboxR * (p.tickTrailRadiusFrac ?? 0.45);
       } else {
         tx = body.position.x; ty = body.position.y;
-        tr = teamData.ball.radius * Number(p.tickTrailRadiusFrac ?? 0.5);
+        tr = teamData.ball.radius * (p.tickTrailRadiusFrac ?? 0.5);
       }
       this.particles.pushTrail({
         x: tx, y: ty, radius: tr,
-        color: p.tickTrailColor as string ?? '#FFFFFF',
-        alpha: Number(p.tickTrailAlpha ?? 0.5),
-        ttl: Number(p.tickTrailTtl ?? 8),
-        maxTtl: Number(p.tickTrailTtl ?? 8),
+        color: p.tickTrailColor ?? '#FFFFFF',
+        alpha: p.tickTrailAlpha ?? 0.5,
+        ttl: p.tickTrailTtl ?? 8,
+        maxTtl: p.tickTrailTtl ?? 8,
       });
     }
 
@@ -653,42 +653,41 @@ export class GameSimulator {
 
     // Generic status-effect application
     if (p.statusEffect) {
-      const target = (p.statusTarget as string) === 'self' ? team : (team === 'A' ? 'B' : 'A');
-      this.applyStatusEffect(target, p.statusEffect as StatusEffectType, Number(p.statusDuration ?? 2000), Number(p.statusMagnitude ?? 0.3), (p.stackBehavior as StatusEffect['stackBehavior']) ?? 'refresh', Number(p.maxStacks ?? 1), p.statusColor as string ?? '#FF8800', (p.statusIcon as SpriteKey | undefined) ?? 'burst');
+      const target = p.statusTarget === 'self' ? team : (team === 'A' ? 'B' : 'A');
+      this.applyStatusEffect(target, p.statusEffect, p.statusDuration ?? 2000, p.statusMagnitude ?? 0.3, p.stackBehavior ?? 'refresh', p.maxStacks ?? 1, p.statusColor ?? '#FF8800', p.statusIcon ?? 'burst');
     }
 
     // Ability-triggered screen effects
     if (p.hitFlash) {
-      const flashColor = p.hitFlashColor as string ?? '#FFFFFF';
-      const flashTeam = (p.hitFlashTarget as string) === 'enemy' ? (team === 'A' ? 'B' : 'A') : team;
-      this.effects.applyHitFlash(flashTeam, 0.65, flashColor, 5);
+      const flashTeam = p.hitFlashTarget === 'enemy' ? (team === 'A' ? 'B' : 'A') : team;
+      this.effects.applyHitFlash(flashTeam, 0.65, p.hitFlashColor ?? '#FFFFFF', 5);
     }
-    if (p.hitShakeMagnitude) this.effects.applyScreenShake(Number(p.hitShakeMagnitude), SCREEN_SHAKE_TTL);
+    if (p.hitShakeMagnitude) this.effects.applyScreenShake(p.hitShakeMagnitude, SCREEN_SHAKE_TTL);
     if (p.hitSlowMo)         this.effects.applySlowMotion();
-    if (p.hitScreenFlash)    this.effects.applyScreenFlash(Number(p.hitScreenFlashAlpha ?? 0.3), p.hitScreenFlashColor as string ?? '#FFFFFF', Math.round(Number(p.hitScreenFlashTtl ?? 5)));
+    if (p.hitScreenFlash)    this.effects.applyScreenFlash(p.hitScreenFlashAlpha ?? 0.3, p.hitScreenFlashColor ?? '#FFFFFF', Math.round(p.hitScreenFlashTtl ?? 5));
 
     // Second status effect
     if (p.secondStatusEffect) {
-      const target2 = (p.secondStatusTarget as string) === 'enemy' ? (team === 'A' ? 'B' : 'A') : team;
-      this.applyStatusEffect(target2, p.secondStatusEffect as StatusEffectType, Number(p.secondStatusDuration ?? 2000), Number(p.secondStatusMagnitude ?? 0.3), (p.secondStatusBehavior as StatusEffect['stackBehavior']) ?? 'refresh', Number(p.secondStatusMaxStacks ?? 1), p.secondStatusColor as string ?? '#FF8800', (p.secondStatusIcon as SpriteKey | undefined) ?? 'burst');
+      const target2 = p.secondStatusTarget === 'enemy' ? (team === 'A' ? 'B' : 'A') : team;
+      this.applyStatusEffect(target2, p.secondStatusEffect, p.secondStatusDuration ?? 2000, p.secondStatusMagnitude ?? 0.3, p.secondStatusBehavior ?? 'refresh', p.secondStatusMaxStacks ?? 1, p.secondStatusColor ?? '#FF8800', p.secondStatusIcon ?? 'burst');
     }
 
     // Trail on trigger — spawned at ball position when ability fires
     if (p.trailOnTrigger) {
       const ballRadius = (team === 'A' ? this.teamA : this.teamB).ball.radius;
-      const count = Number(p.trailCount ?? 1);
-      const spawnChance = Number(p.trailSpawnChance ?? 1);
+      const count = p.trailCount ?? 1;
+      const spawnChance = p.trailSpawnChance ?? 1;
       if (Math.random() < spawnChance) {
         for (let i = 0; i < count; i++) {
-          const scatter = Number(p.trailScatterFrac ?? 0) * ballRadius;
+          const scatter = (p.trailScatterFrac ?? 0) * ballRadius;
           this.particles.pushTrail({
             x: body.position.x + (scatter > 0 ? (Math.random() - 0.5) * scatter : 0),
             y: body.position.y + (scatter > 0 ? (Math.random() - 0.5) * scatter : 0),
-            radius: ballRadius * Number(p.trailRadiusFrac ?? 0.5),
-            color: p.trailColor as string ?? '#FFFFFF',
-            alpha: Number(p.trailAlpha ?? 0.5),
-            ttl: Number(p.trailTtl ?? 8),
-            maxTtl: Number(p.trailTtl ?? 8),
+            radius: ballRadius * (p.trailRadiusFrac ?? 0.5),
+            color: p.trailColor ?? '#FFFFFF',
+            alpha: p.trailAlpha ?? 0.5,
+            ttl: p.trailTtl ?? 8,
+            maxTtl: p.trailTtl ?? 8,
           });
         }
       }

@@ -115,19 +115,102 @@ export interface StatusRow {
   value: string;
 }
 
-export interface BallAbility {
+// ─── Ability Params ───────────────────────────────────────────────────────────
+
+/** Shared optional fields available to any ability trigger. */
+export interface CommonAbilityParams {
+  // Primary status effect applied on trigger
+  statusEffect?: StatusEffectType;
+  statusTarget?: 'self' | 'enemy';
+  statusDuration?: number;        // ms
+  statusMagnitude?: number;       // multiplier (0–2)
+  stackBehavior?: StatusEffect['stackBehavior'];
+  maxStacks?: number;
+  statusColor?: string;
+  statusIcon?: SpriteKey;
+
+  // Second simultaneous status effect
+  secondStatusEffect?: StatusEffectType;
+  secondStatusTarget?: 'self' | 'enemy';
+  secondStatusDuration?: number;
+  secondStatusMagnitude?: number;
+  secondStatusBehavior?: StatusEffect['stackBehavior'];
+  secondStatusMaxStacks?: number;
+  secondStatusColor?: string;
+  secondStatusIcon?: SpriteKey;
+
+  // Hit flash overlay on the ball
+  hitFlash?: boolean;
+  hitFlashColor?: string;
+  hitFlashTarget?: 'self' | 'enemy';
+
+  // Screen shake / flash / slow-motion on trigger
+  hitShakeMagnitude?: number;
+  hitSlowMo?: boolean;
+  hitScreenFlash?: boolean;
+  hitScreenFlashAlpha?: number;
+  hitScreenFlashColor?: string;
+  hitScreenFlashTtl?: number;
+
+  // Trail burst spawned at ball position when ability fires
+  trailOnTrigger?: boolean;
+  trailColor?: string;
+  trailRadiusFrac?: number;       // fraction of ball radius
+  trailAlpha?: number;            // initial alpha (0–1)
+  trailTtl?: number;              // frames
+  trailCount?: number;            // trail segments per burst
+  trailScatterFrac?: number;      // scatter radius fraction
+  trailSpawnChance?: number;      // 0–1
+
+  // Per-frame tick trail while ability condition is met
+  tickTrailEnabled?: boolean;
+  tickTrailConditionEffect?: StatusEffectType;
+  tickTrailConditionMinStacks?: number;
+  tickTrailSpawnChance?: number;
+  tickTrailAtWeapon?: boolean;    // spawn at weapon position instead of ball
+  tickTrailColor?: string;
+  tickTrailRadiusFrac?: number;
+  tickTrailAlpha?: number;
+  tickTrailTtl?: number;
+
+  // HUD bottom strip label
+  hudLabel?: string;
+}
+
+/** Params for `onHitDealt` abilities (e.g. Quick Flail Momentum). */
+export interface OnHitDealtParams extends CommonAbilityParams {
+  rangePerStack?: number; // weapon range multiplier added per status stack
+}
+
+/** Params for `onLowHP` abilities (e.g. Blood Axe Bloodrage). */
+export interface OnLowHPParams extends CommonAbilityParams {
+  threshold: number;      // HP fraction (0–1) at which berserk activates
+}
+
+/** Params for passive / bounce / hit-received abilities — same optional fields. */
+export type PassiveParams      = CommonAbilityParams;
+export type OnBounceParams     = CommonAbilityParams;
+export type OnHitReceivedParams = CommonAbilityParams;
+export type TrailParams        = CommonAbilityParams;
+
+// ─── Ball Ability (discriminated union) ──────────────────────────────────────
+
+type BallAbilityBase = {
   id: string;
   name: string;
   description: string;
-  trigger: BallAbilityType;
-  params: Record<string, number | string | boolean>;
-  /**
-   * Returns HUD rows for this ability's live state.
-   * Called each rendered frame with the current status effects and HP fraction.
-   * Return [] to show nothing (e.g. passive abilities with no displayable state).
-   */
+  /** Returns HUD rows for this ability's live state. Return [] for no display. */
   getHudRows?: (effects: StatusEffect[], hpFrac: number) => StatusRow[];
-}
+};
+
+export type BallAbility =
+  | (BallAbilityBase & { trigger: 'onHitDealt';    params: OnHitDealtParams })
+  | (BallAbilityBase & { trigger: 'onLowHP';       params: OnLowHPParams })
+  | (BallAbilityBase & { trigger: 'onHitReceived'; params: OnHitReceivedParams })
+  | (BallAbilityBase & { trigger: 'onBounce';      params: OnBounceParams })
+  | (BallAbilityBase & { trigger: 'passive';       params: PassiveParams })
+  | (BallAbilityBase & { trigger: 'trail';         params: TrailParams })
+  | (BallAbilityBase & { trigger: 'spawnUnit';     params: CommonAbilityParams });
 
 // ─── Status Effects ───────────────────────────────────────────────────────────
 
