@@ -1,6 +1,7 @@
 import Matter from 'matter-js';
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 import type { TeamConfig, WeaponStats, AttackConfig, WinnerType, BallAbility, BallAbilityType, StatusEffect, StatusEffectType } from '../models/types';
+import type { SpriteKey } from '../sprites/SpriteKey';
 import { synthesizeFightAudio, type AudioEvent } from '../audio/fightAudioSynthesizer';
 import { StatusEffectManager } from './StatusEffectManager';
 import { getHitMultipliers, getMeleeEffectLabel } from './WeaponHitProcessor';
@@ -894,7 +895,7 @@ export class GameSimulator {
       });
       const boostMag = attackerBerserk ? Math.min(1.2, lastDmg * 0.018) : Math.min(0.7, lastDmg * 0.01);
       const boostDur = Math.round(attackerBerserk ? Math.min(1000, lastDmg * 18) : Math.min(700, lastDmg * 12));
-      this.applyStatusEffect(targetTeam, 'speedBoost', boostDur, boostMag, 'refresh', 1, '#FF6600', '💨');
+      this.applyStatusEffect(targetTeam, 'speedBoost', boostDur, boostMag, 'refresh', 1, '#FF6600', 'burst');
     }
 
     // Ball ability triggers for hit events
@@ -1113,7 +1114,7 @@ export class GameSimulator {
     stackBehavior: StatusEffect['stackBehavior'],
     maxStacks: number,
     color: string,
-    icon: string,
+    icon: SpriteKey,
   ): void {
     this.statusMgr.apply(team, type, durationMs, magnitude, stackBehavior, maxStacks, color, icon, this.simTime);
   }
@@ -1181,7 +1182,7 @@ export class GameSimulator {
         (p.stackBehavior as StatusEffect['stackBehavior']) ?? 'refresh',
         Number(p.maxStacks ?? 1),
         p.statusColor as string ?? '#FF8800',
-        p.statusIcon as string ?? '✨',
+        (p.statusIcon as SpriteKey | undefined) ?? 'burst',
       );
     }
 
@@ -1218,7 +1219,7 @@ export class GameSimulator {
         (p.secondStatusBehavior as StatusEffect['stackBehavior']) ?? 'refresh',
         Number(p.secondStatusMaxStacks ?? 1),
         p.secondStatusColor as string ?? '#FF8800',
-        p.secondStatusIcon as string ?? '✨',
+        (p.secondStatusIcon as SpriteKey | undefined) ?? 'burst',
       );
     }
 

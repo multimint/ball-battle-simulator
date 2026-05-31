@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { StatusEffectManager } from '../StatusEffectManager';
+import type { SpriteKey } from '../../sprites/SpriteKey';
 
 function makeManager() {
   return new StatusEffectManager();
@@ -18,7 +19,7 @@ describe('StatusEffectManager', () => {
   describe('apply()', () => {
     it('adds a new effect', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'burn', ...Object.values(BASE) as [number, number, 'refresh', number, string, string]);
+      mgr.apply('A', 'burn', ...Object.values(BASE) as [number, number, 'refresh', number, string, SpriteKey]);
       expect(mgr.hasEffect('A', 'burn')).toBe(true);
       expect(mgr.hasEffect('B', 'burn')).toBe(false);
     });
@@ -57,9 +58,9 @@ describe('StatusEffectManager', () => {
 
     it('ignores re-application on stack-behavior=ignore', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'freeze', 5000, 0.5, 'ignore', 1, '#00F', '❄️');
+      mgr.apply('A', 'freeze', 5000, 0.5, 'ignore', 1, '#00F', 'dot-yellow');
       const before = mgr.getEffects('A')[0].remainingMs;
-      mgr.apply('A', 'freeze', 9999, 0.9, 'ignore', 1, '#00F', '❄️');
+      mgr.apply('A', 'freeze', 9999, 0.9, 'ignore', 1, '#00F', 'dot-yellow');
       expect(mgr.getEffects('A')[0].remainingMs).toBe(before);
     });
   });
@@ -67,7 +68,7 @@ describe('StatusEffectManager', () => {
   describe('tick()', () => {
     it('decrements remainingMs for non-stack effects', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'freeze', 1000, 0.5, 'refresh', 1, '#00F', '❄️');
+      mgr.apply('A', 'freeze', 1000, 0.5, 'refresh', 1, '#00F', 'dot-yellow');
       const hp = { A: 100, B: 100 };
       mgr.tick(200, hp);
       expect(mgr.getEffects('A')[0].remainingMs).toBe(800);
@@ -75,7 +76,7 @@ describe('StatusEffectManager', () => {
 
     it('removes expired effects', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'freeze', 100, 0.5, 'refresh', 1, '#00F', '❄️');
+      mgr.apply('A', 'freeze', 100, 0.5, 'refresh', 1, '#00F', 'dot-yellow');
       const hp = { A: 100, B: 100 };
       mgr.tick(200, hp);
       expect(mgr.hasEffect('A', 'freeze')).toBe(false);
@@ -100,7 +101,7 @@ describe('StatusEffectManager', () => {
 
     it('applies poison DoT per tick', () => {
       const mgr = makeManager();
-      mgr.apply('B', 'poison', 5000, 5, 'refresh', 1, '#0F0', '☠️');
+      mgr.apply('B', 'poison', 5000, 5, 'refresh', 1, '#0F0', 'dot-green');
       const hp = { A: 100, B: 100 };
       mgr.tick(1000, hp); // 1 second → 5 damage
       expect(hp.B).toBeCloseTo(95, 1);
@@ -123,7 +124,7 @@ describe('StatusEffectManager', () => {
 
     it('freeze reduces speed', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'freeze', 5000, 0.5, 'refresh', 1, '#00F', '❄️');
+      mgr.apply('A', 'freeze', 5000, 0.5, 'refresh', 1, '#00F', 'dot-yellow');
       expect(mgr.getSpeedMultiplier('A')).toBeCloseTo(0.5);
     });
 
@@ -137,7 +138,7 @@ describe('StatusEffectManager', () => {
 
     it('clamps minimum speed multiplier to 0.1', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'freeze', 5000, 2.0, 'refresh', 1, '#00F', '❄️');
+      mgr.apply('A', 'freeze', 5000, 2.0, 'refresh', 1, '#00F', 'dot-yellow');
       expect(mgr.getSpeedMultiplier('A')).toBe(0.1);
     });
   });
@@ -151,7 +152,7 @@ describe('StatusEffectManager', () => {
 
     it('weaken reduces outgoing damage', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'weaken', 5000, 0.4, 'refresh', 1, '#888', '💨');
+      mgr.apply('A', 'weaken', 5000, 0.4, 'refresh', 1, '#888', 'burst');
       expect(mgr.getOutgoingDamageMultiplier('A')).toBeCloseTo(0.6);
     });
   });
@@ -159,7 +160,7 @@ describe('StatusEffectManager', () => {
   describe('getIncomingDamageMultiplier()', () => {
     it('harden reduces incoming damage', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'harden', 5000, 0.25, 'refresh', 1, '#888', '🛡️');
+      mgr.apply('A', 'harden', 5000, 0.25, 'refresh', 1, '#888', 'scales');
       expect(mgr.getIncomingDamageMultiplier('A')).toBeCloseTo(0.75);
     });
   });
@@ -172,14 +173,14 @@ describe('StatusEffectManager', () => {
 
     it('absorbs damage up to shield magnitude', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'shield', 999_999, 30, 'refresh', 1, '#FFF', '🛡️');
+      mgr.apply('A', 'shield', 999_999, 30, 'refresh', 1, '#FFF', 'scales');
       expect(mgr.consumeShield('A', 20)).toBe(0);
       expect(mgr.getEffects('A')[0].magnitude).toBe(10);
     });
 
     it('removes shield when fully depleted', () => {
       const mgr = makeManager();
-      mgr.apply('A', 'shield', 999_999, 10, 'refresh', 1, '#FFF', '🛡️');
+      mgr.apply('A', 'shield', 999_999, 10, 'refresh', 1, '#FFF', 'scales');
       const remaining = mgr.consumeShield('A', 50);
       expect(remaining).toBe(40);
       expect(mgr.hasEffect('A', 'shield')).toBe(false);
