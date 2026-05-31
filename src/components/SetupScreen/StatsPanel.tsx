@@ -78,8 +78,8 @@ export default function StatsPanel({ team }: StatsPanelProps) {
       {/* Stat bars */}
       <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <StatRow label="HP"  value={ball.durability}    max={80}  color={teamColor} />
-        <StatRow label="ATK" value={ball.attackPower}    max={20}  color={teamColor} />
-        <StatRow label="SPD" value={ball.maxSpeed * 10}  max={80}  color={teamColor} />
+        <StatRow label="ATK" value={weapon.attacks.reduce((s, a) => s + a.damage, 0) / weapon.attacks.length} max={20}  color={teamColor} />
+        <StatRow label="SPD" value={ball.maxSpeed * 10}  max={100} color={teamColor} />
       </div>
 
       {/* Ability & weapon descriptions */}
