@@ -1,4 +1,5 @@
 import type { SpriteKey } from '../sprites/SpriteKey';
+import type { AudioProfile } from '../audio/types';
 
 // ─── Ball Configuration ───────────────────────────────────────────────────────
 
@@ -40,6 +41,7 @@ export interface AttackConfig {
   bulletSpread?: number;  // radians between bullets (default 0.40)
   bulletInterval?: number;// seconds between each bullet in a burst; omit = fire all at once
   bulletSpeed?: number;   // travel speed multiplier (default 2.0; lower = slower)
+  audioHint?: 'laser';    // triggers weapon-specific audio instead of the ball's default hit sound
 }
 
 export interface WeaponStats {
@@ -68,6 +70,7 @@ export interface FighterPreset {
   icon: SpriteKey;
   ball: BallStats;
   weapon: WeaponStats;
+  audioProfile: AudioProfile;
 }
 
 // ─── Team ─────────────────────────────────────────────────────────────────────
@@ -79,6 +82,7 @@ export interface TeamConfig {
   name: string;
   ball: BallStats;
   weapon: WeaponStats;
+  audioProfile: AudioProfile;
 }
 
 // ─── Game Phase ───────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@
  *   Done — it will appear in the fighter selector automatically.
  */
 
-import type { BallDefinition } from './types';
+import type { BallDefinition, AudioProfile } from './types';
 import type { SpritePainter } from '../sprites/spriteDefinitions';
 import { BALL_RADIUS, BALL_SPEED } from './constants';
 
@@ -99,6 +99,13 @@ export const templateBall: BallDefinition = {
     effectLabel: 'sword',                // 'sword' | 'spear' | 'hammer' | 'flail' — melee animation
     attacks: [
       { type: 'melee', cooldown: 0.75, damage: 8, knockback: 45 },
+      // For hitscan laser weapons, add: audioHint: 'laser'
     ],
   },
+
+  // ── Audio identity ────────────────────────────────────────────────────────
+  // hitStyle:     sound on weapon hit    — 'thunderous' | 'swift' | 'arcane'
+  // abilityStyle: sound on ability trigger — 'berserk' | 'sharp' | 'frenzy'
+  // To add a new style, register it in src/audio/fightAudioSynthesizer.ts.
+  audioProfile: { hitStyle: 'swift', abilityStyle: 'frenzy' } satisfies AudioProfile,
 };

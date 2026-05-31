@@ -1,4 +1,4 @@
-import type { BallDefinition } from './types';
+import type { BallDefinition, AudioProfile } from './types';
 import type { SpritePainter } from '../sprites/spriteDefinitions';
 import { BALL_RADIUS, BALL_SPEED } from './constants';
 
@@ -80,4 +80,5 @@ export const bloodAxe: BallDefinition = {
     color: '#884400',
     attacks: [{ type: 'melee', cooldown: 0.8, damage: 9, knockback: 55 }],
   },
+  audioProfile: { hitStyle: 'thunderous', abilityStyle: 'berserk' } satisfies AudioProfile,
 };

@@ -1,6 +1,7 @@
 import Matter from 'matter-js';
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 import type { TeamConfig, WeaponStats, AttackConfig, WinnerType, BallAbility, BallAbilityType, StatusEffect, StatusEffectType } from '../models/types';
+import { synthesizeFightAudio, type AudioEvent } from '../audio/fightAudioSynthesizer';
 import { StatusEffectManager } from './StatusEffectManager';
 import { getHitMultipliers, getMeleeEffectLabel } from './WeaponHitProcessor';
 import { isAbilityBerserk } from '../utils/ability';
@@ -129,6 +130,18 @@ export class GameSimulator {
   private bullets: Bullet[] = [];
 
   private statusMgr = new StatusEffectManager();
+
+  private audioEvents: AudioEvent[] = [];
+  private koSimTime = -1;
+  // Minimum ms between ability audio events per team (prevents spam on per-tick triggers)
+  private abilityAudioCooldownA = -Infinity;
+  private abilityAudioCooldownB = -Infinity;
+  // onLowHP fires every tick — only emit audio the first time the state is entered
+  private onLowHPAudioFiredA = false;
+  private onLowHPAudioFiredB = false;
+  // Separate cooldowns so a wall bounce can't suppress an immediate ball-to-ball bounce
+  private ballBounceCooldown = -Infinity;
+  private wallBounceCooldown = -Infinity;
 
   private physicsCanvas: OffscreenCanvas;
   private captureCanvas: OffscreenCanvas;
@@ -263,6 +276,7 @@ export class GameSimulator {
       this.muxer = new Muxer({
         target,
         video: { codec: 'avc', width: CAPTURE_CANVAS_WIDTH, height: CAPTURE_CANVAS_HEIGHT, frameRate: this.fps },
+        audio: { codec: 'aac', sampleRate: 44100, numberOfChannels: 1 },
         fastStart: 'in-memory',
       });
       this.encoder = new VideoEncoder({
@@ -305,17 +319,32 @@ export class GameSimulator {
 
         spawnParticleBurst(this.particles, point.x, point.y, this.teamA.ball.color, 8, MAX_PARTICLES);
         this.turns++;
+
+        // Ball-to-ball bounce audio (cooldown prevents rapid-collision spam)
+        if (this.simTime - this.ballBounceCooldown >= 120) {
+          const intensity = Math.min(1, impulse / 8);
+          this.audioEvents.push({ timeMs: this.simTime, type: 'bounce', intensity });
+          this.ballBounceCooldown = this.simTime;
+        }
       }
 
-      // Wall-bounce ability trigger
+      // Wall-bounce ability trigger + audio
       for (const pair of event.pairs) {
         const isWall = (b: Matter.Body) => b.label === 'wall';
         const isBallA = (b: Matter.Body) => b.id === this.bodyA.id;
         const isBallB = (b: Matter.Body) => b.id === this.bodyB.id;
         if ((isWall(pair.bodyA) && isBallA(pair.bodyB)) || (isWall(pair.bodyB) && isBallA(pair.bodyA))) {
           this.applyBallAbility(this.teamA.ball.ability, 'A', 'onBounce', { x: this.bodyA.position.x, y: this.bodyA.position.y });
+          if (this.simTime - this.wallBounceCooldown >= 120) {
+            this.audioEvents.push({ timeMs: this.simTime, type: 'bounce', intensity: 0.4 });
+            this.wallBounceCooldown = this.simTime;
+          }
         } else if ((isWall(pair.bodyA) && isBallB(pair.bodyB)) || (isWall(pair.bodyB) && isBallB(pair.bodyA))) {
           this.applyBallAbility(this.teamB.ball.ability, 'B', 'onBounce', { x: this.bodyB.position.x, y: this.bodyB.position.y });
+          if (this.simTime - this.wallBounceCooldown >= 120) {
+            this.audioEvents.push({ timeMs: this.simTime, type: 'bounce', intensity: 0.4 });
+            this.wallBounceCooldown = this.simTime;
+          }
         }
       }
     };
@@ -329,6 +358,9 @@ export class GameSimulator {
 
     // Restore the static fight-view background before encoding fight frames.
     this.captureCtx.drawImage(this.captureBg as unknown as HTMLCanvasElement, 0, 0);
+
+    // Record the frame count before the fight starts — used to offset audio event timestamps.
+    const preFightFrames = frameIdx;
 
     // ── Phase 2: Fight simulation ─────────────────────────────────────────
     // Physics always steps at 60 Hz so fights are deterministic regardless of
@@ -372,6 +404,26 @@ export class GameSimulator {
 
     Engine.clear(this.engine);
     World.clear(this.engine.world, false);
+
+    // ── Audio synthesis & encoding ────────────────────────────────────────
+    if (this.muxer && typeof AudioEncoder !== 'undefined' && typeof AudioData !== 'undefined') {
+      try {
+        const preFightMs = (preFightFrames / this.fps) * 1000;
+        const totalDurationMs = (frameIdx / this.fps) * 1000;
+        // Offset fight-relative timestamps by the pre-fight intro+flash duration
+        const audioEvents: AudioEvent[] = this.audioEvents.map((ev) => ({
+          ...ev,
+          timeMs: preFightMs + ev.timeMs,
+        }));
+        // Add KO event at the moment the match ended
+        const koMs = this.koSimTime >= 0 ? this.koSimTime : this.simTime;
+        audioEvents.push({ timeMs: preFightMs + koMs, type: 'ko', intensity: 1.0 });
+        const pcm = synthesizeFightAudio(audioEvents, totalDurationMs);
+        await this.encodeAudio(pcm, 44100);
+      } catch (err) {
+        console.warn('GameSimulator: audio synthesis failed', err);
+      }
+    }
 
     const blob = await this.finalizeVideo();
 
@@ -498,6 +550,7 @@ export class GameSimulator {
     if (aKO && bKO) { this.matchEnded = true; this.winner = 'draw'; }
     else if (bKO) { this.matchEnded = true; this.winner = 'A'; }
     else if (aKO) { this.matchEnded = true; this.winner = 'B'; }
+    if (this.matchEnded && this.koSimTime === -1) this.koSimTime = this.simTime;
 
     this.simTime += delta;
   }
@@ -654,6 +707,12 @@ export class GameSimulator {
       ttl: 2000,
       attack,
     });
+
+    // Emit fire sound once per volley (bulletIdx 0 = first bullet of the spread)
+    if (bulletIdx === 0) {
+      const hitStyle = (team === 'A' ? this.teamA : this.teamB).audioProfile.hitStyle;
+      this.audioEvents.push({ timeMs: this.simTime, type: 'bulletFire', hitStyle, intensity: 1.0 });
+    }
   }
 
   private updateBullets(scaledDelta: number): void {
@@ -807,6 +866,23 @@ export class GameSimulator {
 
     applyTierEffects(attack.type, targetTeam, weapon.color ?? '#FFFFFF', lastDmg);
 
+    // Audio: emit hit event scaled by damage (intensity 0–1 where 30 dmg = max)
+    if (attack.type !== 'utility') {
+      const hitStyle = (attackerTeam === 'A' ? this.teamA : this.teamB).audioProfile.hitStyle;
+      if (attack.audioHint === 'laser') {
+        // Weapon-defined laser: fire + heavy hit sounds (decoupled from hitStyle)
+        this.audioEvents.push({ timeMs: this.simTime, type: 'laserFire', hitStyle, intensity: 1.0 });
+        this.audioEvents.push({ timeMs: this.simTime, type: 'laserHit',  hitStyle, intensity: 1.0 });
+      } else {
+        this.audioEvents.push({
+          timeMs: this.simTime,
+          type: 'hit',
+          hitStyle,
+          intensity: Math.min(1, Math.max(0, lastDmg / 30)),
+        });
+      }
+    }
+
     // Velocity burst in hit direction — amplified when attacker is in berserk
     if (lastDmg > 0) {
       const attackerBerserk = this.isBerserk(attackerTeam);
@@ -942,6 +1018,61 @@ export class GameSimulator {
     return frameIdx;
   }
 
+  private async encodeAudio(pcm: Float32Array, sampleRate: number): Promise<void> {
+    if (!this.muxer) return;
+    const FRAME_SIZE = 1024;
+    // Duration in microseconds for one AAC frame at this sample rate
+    const frameDurationUs = Math.round(FRAME_SIZE / sampleRate * 1_000_000);
+
+    type AudioChunkEntry = { data: Uint8Array; type: 'key' | 'delta'; timestampUs: number; meta: EncodedAudioChunkMetadata | undefined };
+    const chunks: AudioChunkEntry[] = [];
+
+    const audioEncoder = new AudioEncoder({
+      output: (chunk, meta) => {
+        const data = new Uint8Array(chunk.byteLength);
+        chunk.copyTo(data);
+        chunks.push({
+          data,
+          type: chunk.type,
+          timestampUs: chunk.timestamp,
+          meta: meta ?? undefined,
+        });
+      },
+      error: (e) => console.warn('AudioEncoder error:', e),
+    });
+
+    audioEncoder.configure({ codec: 'mp4a.40.2', sampleRate, numberOfChannels: 1, bitrate: 128_000 });
+
+    let frameIdx = 0;
+    for (let offset = 0; offset < pcm.length; offset += FRAME_SIZE) {
+      const frame = new Float32Array(FRAME_SIZE);
+      frame.set(pcm.subarray(offset, Math.min(offset + FRAME_SIZE, pcm.length)));
+
+      const timestampUs = frameIdx * frameDurationUs;
+      const audioData = new AudioData({
+        format: 'f32-planar',
+        sampleRate,
+        numberOfFrames: FRAME_SIZE,
+        numberOfChannels: 1,
+        timestamp: timestampUs,
+        data: frame,
+      });
+      audioEncoder.encode(audioData);
+      audioData.close();
+      frameIdx++;
+
+      if (frameIdx % 200 === 0) await new Promise<void>((r) => setTimeout(r, 0));
+    }
+
+    await audioEncoder.flush();
+    audioEncoder.close();
+
+    // Use addAudioChunkRaw with explicit duration to handle encoders that return null duration
+    for (const { data, type, timestampUs, meta } of chunks) {
+      this.muxer.addAudioChunkRaw(data, type, timestampUs, frameDurationUs, meta);
+    }
+  }
+
   private async finalizeVideo(): Promise<Blob> {
     if (!this.encoder || !this.muxer || !this.target) {
       // Return a tiny empty blob if encoding is not supported
@@ -1017,6 +1148,27 @@ export class GameSimulator {
     const body = team === 'A' ? this.bodyA : this.bodyB;
     const opponentBody = team === 'A' ? this.bodyB : this.bodyA;
     const p = ability.params;
+
+    // Audio: emit ability event for meaningful triggers (not per-tick trail/passive)
+    if (trigger !== 'trail' && trigger !== 'passive') {
+      const abilityStyle = (team === 'A' ? this.teamA : this.teamB).audioProfile.abilityStyle;
+      if (trigger === 'onLowHP') {
+        // Fire exactly once when the state is first entered
+        const alreadyFired = team === 'A' ? this.onLowHPAudioFiredA : this.onLowHPAudioFiredB;
+        if (!alreadyFired) {
+          this.audioEvents.push({ timeMs: this.simTime, type: 'ability', abilityStyle, intensity: 1.0 });
+          if (team === 'A') this.onLowHPAudioFiredA = true;
+          else this.onLowHPAudioFiredB = true;
+        }
+      } else {
+        const cooldown = team === 'A' ? this.abilityAudioCooldownA : this.abilityAudioCooldownB;
+        if (this.simTime - cooldown >= 600) {
+          this.audioEvents.push({ timeMs: this.simTime, type: 'ability', abilityStyle, intensity: 1.0 });
+          if (team === 'A') this.abilityAudioCooldownA = this.simTime;
+          else this.abilityAudioCooldownB = this.simTime;
+        }
+      }
+    }
 
     // Generic status-effect application — any ability can carry statusEffect params
     if (p.statusEffect) {

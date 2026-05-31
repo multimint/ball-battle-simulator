@@ -1,4 +1,4 @@
-import type { BallDefinition } from './types';
+import type { BallDefinition, AudioProfile } from './types';
 import type { SpritePainter } from '../sprites/spriteDefinitions';
 import { BALL_RADIUS } from './constants';
 
@@ -35,7 +35,8 @@ export const hawkeye: BallDefinition = {
     hitEffect: 'laser',
     attacks: [
       { type: 'projectile', cooldown: 3,    damage: 3,  knockback: 20, aimAtEnemy: true, bulletCount: 3, bulletSpeed: 1.0 },
-      { type: 'projectile', cooldown: 10.0, damage: 15, knockback: 65, aimAtEnemy: true, hitscan: true },
+      { type: 'projectile', cooldown: 10.0, damage: 15, knockback: 65, aimAtEnemy: true, hitscan: true, audioHint: 'laser' },
     ],
   },
+  audioProfile: { hitStyle: 'arcane', abilityStyle: 'sharp' } satisfies AudioProfile,
 };

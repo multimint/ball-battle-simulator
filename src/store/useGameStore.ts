@@ -38,17 +38,19 @@ interface GameStore {
 }
 
 const defaultTeamA: TeamConfig = {
-  fighterId: FIGHTER_PRESETS[0].id,
-  name: FIGHTER_PRESETS[0].name,
-  ball: FIGHTER_PRESETS[0].ball,
-  weapon: FIGHTER_PRESETS[0].weapon,
+  fighterId:    FIGHTER_PRESETS[0].id,
+  name:         FIGHTER_PRESETS[0].name,
+  ball:         FIGHTER_PRESETS[0].ball,
+  weapon:       FIGHTER_PRESETS[0].weapon,
+  audioProfile: FIGHTER_PRESETS[0].audioProfile,
 };
 
 const defaultTeamB: TeamConfig = {
-  fighterId: FIGHTER_PRESETS[0].id,
-  name: FIGHTER_PRESETS[0].name,
-  ball: FIGHTER_PRESETS[0].ball,
-  weapon: FIGHTER_PRESETS[0].weapon,
+  fighterId:    FIGHTER_PRESETS[0].id,
+  name:         FIGHTER_PRESETS[0].name,
+  ball:         FIGHTER_PRESETS[0].ball,
+  weapon:       FIGHTER_PRESETS[0].weapon,
+  audioProfile: FIGHTER_PRESETS[0].audioProfile,
 };
 
 function randomVelocity(maxSpeed: number, baseAngle: number): { x: number; y: number } {
@@ -75,10 +77,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setFighterConfig: (team, fighter) =>
     set((s) => ({
       teamA: team === 'A'
-        ? { ...s.teamA, fighterId: fighter.id, name: fighter.name, ball: fighter.ball, weapon: fighter.weapon }
+        ? { ...s.teamA, fighterId: fighter.id, name: fighter.name, ball: fighter.ball, weapon: fighter.weapon, audioProfile: fighter.audioProfile }
         : s.teamA,
       teamB: team === 'B'
-        ? { ...s.teamB, fighterId: fighter.id, name: fighter.name, ball: fighter.ball, weapon: fighter.weapon }
+        ? { ...s.teamB, fighterId: fighter.id, name: fighter.name, ball: fighter.ball, weapon: fighter.weapon, audioProfile: fighter.audioProfile }
         : s.teamB,
     })),
 

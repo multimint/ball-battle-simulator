@@ -1,4 +1,4 @@
-import type { BallDefinition } from './types';
+import type { BallDefinition, AudioProfile } from './types';
 import type { SpritePainter } from '../sprites/spriteDefinitions';
 import { BALL_RADIUS } from './constants';
 
@@ -71,4 +71,5 @@ export const quickFlail: BallDefinition = {
     effectLabel: 'spear',
     attacks: [{ type: 'melee', cooldown: 0.7, damage: 10, knockback: 40 }],
   },
+  audioProfile: { hitStyle: 'swift', abilityStyle: 'frenzy' } satisfies AudioProfile,
 };

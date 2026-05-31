@@ -20,10 +20,11 @@ export const BALL_SPRITE_PAINTERS = {
 
 /** Drop-in replacement for the old FIGHTER_PRESETS array. */
 export const FIGHTER_PRESETS = BALL_DEFINITIONS.map((b) => ({
-  id:     b.id,
-  name:   b.name,
-  lore:   b.lore,
-  icon:   b.ball.icon!,
-  ball:   b.ball,
-  weapon: b.weapon,
+  id:           b.id,
+  name:         b.name,
+  lore:         b.lore,
+  icon:         b.ball.icon!,
+  ball:         b.ball,
+  weapon:       b.weapon,
+  audioProfile: b.audioProfile,
 }));

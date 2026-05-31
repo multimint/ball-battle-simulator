@@ -52,6 +52,7 @@ export default function PlaybackScreen() {
           <video
             ref={videoRef}
             playsInline
+            controls
             style={{
               height: '100%',
               width: 'auto',
@@ -101,6 +102,7 @@ export default function PlaybackScreen() {
         <video
           ref={videoRef}
           playsInline
+          controls
           style={{
             height: '100%',
             width: 'auto',
