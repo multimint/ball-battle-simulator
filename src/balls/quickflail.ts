@@ -67,7 +67,7 @@ export const quickFlail: BallDefinition = {
     name: 'Long Sword',
     range: 1.5, speed: 6.75, trigger: 'onCollision',
     description: 'Long blade that orbits fast — land enough hits and momentum takes over.',
-    color: '#33BB55',
+    color: '#33BB55', icon: 'weapon-long-sword',
     effectLabel: 'spear',
     attacks: [{ type: 'melee', cooldown: 0.7, damage: 10, knockback: 40 }],
   },

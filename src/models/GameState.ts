@@ -1,5 +1,6 @@
 import type { Body } from 'matter-js';
 import type { AttackConfig } from './types';
+import type { SpriteKey } from '../sprites/SpriteKey';
 
 // ─── Particle System ──────────────────────────────────────────────────────────
 
@@ -94,8 +95,9 @@ export interface Bullet {
   owner: 'A' | 'B';
   radius: number;
   color: string;
-  ttl: number;         // ms remaining
+  ttl: number;          // ms remaining
   attack: AttackConfig; // which attack config fired this bullet
+  spriteKey?: SpriteKey; // traveling bullet sprite (from weapon.projectileIcon)
 }
 
 // ─── Ability Trail Segments ───────────────────────────────────────────────────

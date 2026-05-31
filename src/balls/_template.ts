@@ -4,8 +4,7 @@
  * Steps to add a new ball:
  *   1. Copy this file to src/balls/<yourball>.ts
  *   2. Fill in all fields below
- *   3. Add your sprite key to SpriteKey.ts
- *   4. Register in src/balls/index.ts:
+ *   3. Register in src/balls/index.ts:
  *        import { yourBall } from './<yourball>';
  *        export const BALL_DEFINITIONS = [..., yourBall] as const;
  *        export const BALL_SPRITE_PAINTERS = { ..., <yourkey>: yourBall.painter };
@@ -96,6 +95,8 @@ export const templateBall: BallDefinition = {
     trigger: 'onCollision',              // onCollision | onTimer | onSpeed | onEdge | none
     description: 'One-line weapon description shown in the stats panel.',
     color: '#F7C430',
+    icon: 'weapon-long-sword',           // orbit-weapon sprite — pick from weaponSprites.ts keys
+    // projectileIcon: 'proj-orb',       // bullet sprite — add for projectile weapons
     effectLabel: 'sword',                // 'sword' | 'spear' | 'hammer' | 'flail' — melee animation
     attacks: [
       { type: 'melee', cooldown: 0.75, damage: 8, knockback: 45 },

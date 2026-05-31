@@ -4,7 +4,7 @@ import type { TeamConfig, WeaponStats, AttackConfig, WinnerType, BallAbility, Ba
 import type { SpriteKey } from '../sprites/SpriteKey';
 import { synthesizeFightAudio, type AudioEvent } from '../audio/fightAudioSynthesizer';
 import { StatusEffectManager } from './StatusEffectManager';
-import { getHitMultipliers, getMeleeEffectLabel } from './WeaponHitProcessor';
+import { getHitMultipliers } from './WeaponHitProcessor';
 import { isAbilityBerserk } from '../utils/ability';
 import type { Particle, WeaponEffect, FloatingDamage, ScreenShake, ScreenFlash, HitFlash, TrailSegment, Bullet } from '../models/GameState';
 import { Renderer } from '../rendering/Renderer';
@@ -13,7 +13,7 @@ import { drawCaptureTopPanel, drawCaptureBottomPanel } from '../rendering/drawCa
 import { drawIntroCard, drawResultCard } from '../rendering/drawBattleCard';
 import { loadAllSprites } from '../sprites/SpriteRegistry';
 import { spawnParticleBurst, stepParticles } from '../rendering/drawParticles';
-import { stepFloaters, createFloater } from '../rendering/drawFloaters';
+import { stepFloaters } from '../rendering/drawFloaters';
 import { createWeaponEffect } from '../rendering/drawWeaponEffect';
 import { getWeaponHitboxRadius, getOrbitPosition } from '../rendering/drawOrbitWeapon';
 import { applyKnockback, clampVelocity, nudgeBody, directionBetween, bodyOptionsFromBall } from '../utils/physics';
@@ -707,6 +707,7 @@ export class GameSimulator {
       color: weapon.color ?? '#4488CC',
       ttl: 2000,
       attack,
+      spriteKey: weapon.projectileIcon,
     });
 
     // Emit fire sound once per volley (bulletIdx 0 = first bullet of the spread)
@@ -761,20 +762,11 @@ export class GameSimulator {
       this.hp[team] = Math.max(0, this.hp[team] - rounded);
       const opponent: 'A' | 'B' = team === 'A' ? 'B' : 'A';
       this.damageDealt[opponent] += actual;
-      this.floaters.push(
-        createFloater(
-          `-${rounded}`,
-          defender.position.x + (Math.random() - 0.5) * 20,
-          defender.position.y - 20,
-          targetTeam === 'A' ? '#E47D79' : '#4A90E2',
-        ),
-      );
       const lifesteal = this.statusMgr.getEffects(attackingTeam).find((e) => e.type === 'lifesteal');
       if (lifesteal) {
         const heal = Math.round(actual * lifesteal.magnitude);
         if (heal > 0) {
           this.hp[attackerTeam] = Math.min(this.maxHp[attackerTeam], this.hp[attackerTeam] + heal);
-          this.floaters.push(createFloater(`+${heal}`, attacker.position.x, attacker.position.y - 20, '#44FF88'));
         }
       }
       lastDmg = rounded;
@@ -812,7 +804,6 @@ export class GameSimulator {
         applyKnockback(defender, dir.x, dir.y, attack.knockback * kbMult);
         damage(targetTeam, attack.damage * dmgMult);
         burst(defender.position.x, defender.position.y, weapon.color ?? '#CC6633', 8);
-        this.weaponEffects.push(createWeaponEffect(getMeleeEffectLabel(weapon), attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#CC6633', 12));
         break;
       }
       case 'shield': {

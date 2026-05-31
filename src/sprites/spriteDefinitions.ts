@@ -1,4 +1,5 @@
 import { BALL_SPRITE_PAINTERS } from '../balls/index';
+import { WEAPON_SPRITE_PAINTERS, PROJECTILE_SPRITE_PAINTERS } from './weaponSprites';
 
 export type SpritePainter = (
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -78,4 +79,6 @@ const SYSTEM_PAINTERS = {
 export const SPRITE_PAINTERS = {
   ...BALL_SPRITE_PAINTERS,
   ...SYSTEM_PAINTERS,
+  ...WEAPON_SPRITE_PAINTERS,
+  ...PROJECTILE_SPRITE_PAINTERS,
 } satisfies Record<string, SpritePainter>;

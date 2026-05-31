@@ -145,7 +145,6 @@ export class Renderer {
       ctx.beginPath();
       ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
       ctx.fill();
-      // Bright core
       ctx.shadowBlur = 4;
       ctx.fillStyle = '#FFFFFF';
       ctx.globalAlpha = 0.8;

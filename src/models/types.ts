@@ -48,6 +48,8 @@ export interface WeaponStats {
   name: string;
   description: string;
   color?: string;
+  icon?: SpriteKey;            // orbit-weapon sprite
+  projectileIcon?: SpriteKey;  // traveling bullet sprite (projectile weapons only)
   range: number;        // orbit distance (ball radii)
   speed: number;        // orbit angular speed
   trigger: TriggerType;

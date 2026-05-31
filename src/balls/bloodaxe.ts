@@ -77,7 +77,7 @@ export const bloodAxe: BallDefinition = {
     name: 'War Axe',
     range: 1.0, speed: 4.0, trigger: 'onCollision',
     description: 'Slow, devastating swing. Each hit lands with crushing force.',
-    color: '#884400',
+    color: '#884400', icon: 'weapon-war-axe',
     attacks: [{ type: 'melee', cooldown: 0.8, damage: 9, knockback: 55 }],
   },
   audioProfile: { hitStyle: 'thunderous', abilityStyle: 'berserk' } satisfies AudioProfile,
