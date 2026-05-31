@@ -45,8 +45,6 @@ export const hawkeye: BallDefinition = {
     restitution: 0.45,
     spinSpeed: 3.5,
     durability: 60,
-    attackPower: 11,
-    knockbackPower: 50,
     color: '#4488CC',
     icon: 'crosshair',
     ability: {
@@ -55,6 +53,7 @@ export const hawkeye: BallDefinition = {
       description: 'Laser hits freeze the target — −50% move speed and weapon spin for 3s.',
       trigger: 'passive',
       params: {},
+      getHudRows: () => [],
     },
   },
   weapon: {

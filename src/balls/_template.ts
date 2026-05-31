@@ -14,6 +14,7 @@
 import type { BallDefinition, AudioProfile } from './types';
 import type { SpritePainter } from '../sprites/spriteDefinitions';
 import { BALL_RADIUS, BALL_SPEED } from './constants';
+import type { StatusEffect, StatusRow } from '../models/types';
 
 // ── Sprite ────────────────────────────────────────────────────────────────────
 // Draw your icon on a 24×24 logical canvas. The system scales it automatically.
@@ -46,8 +47,6 @@ export const templateBall: BallDefinition = {
     restitution: 0.45,                   // bounce 0.35–0.55
     spinSpeed: 3.5,                      // angular velocity base
     durability: 60,                      // HP — 40 (glass) to 80 (tank)
-    attackPower: 8,                      // base damage multiplier
-    knockbackPower: 45,                  // base knockback force
     color: '#F7C430',                    // CSS color shown as ball fill + team accent
     icon: 'lightning',                   // must match a key in SpriteKey.ts
 
@@ -84,6 +83,17 @@ export const templateBall: BallDefinition = {
 
         // ── HUD label ─────────────────────────────────────────────────────────
         hudLabel: 'boost',               // shown in the bottom panel strip
+      },
+
+      // ── HUD display ────────────────────────────────────────────────────────
+      // Return StatusRow[] for what to show in the info strip below the arena.
+      // `effects` = live status effects on this ball; `hpFrac` = current HP / maxHP.
+      // Return [] to show nothing (e.g. passive abilities).
+      // The weapon charge row is added automatically — don't include it here.
+      getHudRows(effects: StatusEffect[], _hpFrac: number): StatusRow[] {
+        const stacks = effects.find(e => e.type === 'speedBoost')?.stacks ?? 0;
+        const mult = 1 + stacks * 0.3;
+        return [{ label: 'boost', value: `×${mult.toFixed(1)}` }];
       },
     },
   },

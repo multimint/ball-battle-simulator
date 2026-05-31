@@ -1,6 +1,7 @@
 import type { BallDefinition, AudioProfile } from './types';
 import type { SpritePainter } from '../sprites/spriteDefinitions';
 import { BALL_RADIUS, BALL_SPEED } from './constants';
+import type { StatusEffect, StatusRow } from '../models/types';
 
 const painter: SpritePainter = (ctx) => {
   ctx.fillStyle = '#FF6B35';
@@ -41,8 +42,6 @@ export const bloodAxe: BallDefinition = {
     restitution: 0.4,
     spinSpeed: 2.5,
     durability: 70,
-    attackPower: 13,
-    knockbackPower: 60,
     color: '#CC2200',
     icon: 'flame',
     ability: {
@@ -78,6 +77,9 @@ export const bloodAxe: BallDefinition = {
         trailTtl: 12,
         trailSpawnChance: 0.7,
         hudLabel: 'berserk',
+      },
+      getHudRows(_effects: StatusEffect[], hpFrac: number): StatusRow[] {
+        return [{ label: 'berserk', value: hpFrac < 0.3 ? 'on' : 'off' }];
       },
     },
   },

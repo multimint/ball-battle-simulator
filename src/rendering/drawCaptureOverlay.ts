@@ -7,7 +7,6 @@ import {
 import { COLORS } from '../constants/colors';
 import { FONTS, TEXT_STYLES } from '../constants/typography';
 import { fitText } from '../utils/canvas';
-import { isAbilityBerserk } from '../utils/ability';
 import { spriteRegistry } from '../sprites/SpriteRegistry';
 
 const BG  = COLORS.captureBackground;
@@ -20,9 +19,9 @@ function darkenHex(hex: string, factor = 0.75): string {
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
-type StatusRow = { label: string; value: string };
+import type { StatusRow } from '../models/types';
 
-/** Builds up to two display rows from weapon charge + ability live state. */
+/** Builds display rows: weapon charge row (central) + ability rows (delegated to ball). */
 function getStatusRows(
   ability: BallAbility | undefined,
   weapon: WeaponStats | undefined,
@@ -32,36 +31,16 @@ function getStatusRows(
 ): StatusRow[] {
   const rows: StatusRow[] = [];
 
-  // Weapon charge row — always shown when weapon aims at enemy
+  // Weapon charge row — always shown when weapon aims at enemy (weapon concern, not ball concern)
   if (weapon?.attacks.some(a => a.aimAtEnemy)) {
     rows.push(charge >= 100
       ? { label: 'laser', value: 'ready' }
       : { label: 'laser', value: `${Math.floor(charge)}%` });
   }
 
-  // Ability row — shown for dynamic triggers or explicit hudLabel
-  if (ability) {
-    switch (ability.trigger) {
-      case 'onHitDealt': {
-        const label  = String(ability.params.hudLabel ?? 'faster');
-        const boost  = effects.find(e => e.type === (ability.params.statusEffect ?? 'speedBoost'));
-        const stacks = boost?.stacks ?? 0;
-        const mult   = 1 + stacks * Number(ability.params?.statusMagnitude ?? 0.3);
-        rows.push({ label, value: `×${mult.toFixed(1)}` });
-        break;
-      }
-      case 'onLowHP': {
-        const label = String(ability.params.hudLabel ?? 'berserk');
-        rows.push({ label, value: isAbilityBerserk(ability, hpFrac) ? 'on' : 'off' });
-        break;
-      }
-      default:
-        if (ability.params.hudLabel) {
-          rows.push({ label: String(ability.params.hudLabel), value: String(ability.params.hudValue ?? '') });
-        }
-        // passive without hudLabel → no row
-        break;
-    }
+  // Ability rows — each ball owns its own display logic via getHudRows
+  if (ability?.getHudRows) {
+    rows.push(...ability.getHudRows(effects, hpFrac));
   }
 
   if (rows.length === 0) rows.push({ label: '—', value: '' });

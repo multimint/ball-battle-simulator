@@ -1,6 +1,7 @@
 import type { BallDefinition, AudioProfile } from './types';
 import type { SpritePainter } from '../sprites/spriteDefinitions';
 import { BALL_RADIUS } from './constants';
+import type { StatusEffect, StatusRow } from '../models/types';
 
 const painter: SpritePainter = (ctx) => {
   ctx.fillStyle = '#F7C430';
@@ -29,8 +30,6 @@ export const quickFlail: BallDefinition = {
     restitution: 0.5,
     spinSpeed: 4.5,
     durability: 60,
-    attackPower: 1.6,
-    knockbackPower: 35,
     color: '#44CC22',
     icon: 'lightning',
     ability: {
@@ -68,6 +67,11 @@ export const quickFlail: BallDefinition = {
         tickTrailAlpha: 0.55,
         tickTrailTtl: 8,
         hudLabel: 'momentum',
+      },
+      getHudRows(effects: StatusEffect[]): StatusRow[] {
+        const stacks = effects.find(e => e.type === 'speedBoost')?.stacks ?? 0;
+        const mult = 1 + stacks * 0.3;
+        return [{ label: 'momentum', value: `×${mult.toFixed(1)}` }];
       },
     },
   },

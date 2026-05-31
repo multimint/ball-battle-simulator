@@ -12,8 +12,6 @@ export interface BallStats {
   restitution: number;   // bounce (0–1)
   spinSpeed: number;     // base angular velocity (rad/s)
   durability: number;    // hit points (HP)
-  attackPower: number;   // base damage multiplier
-  knockbackPower: number;// base knockback multiplier
   color: string;         // CSS color
   icon?: SpriteKey;      // optional sprite icon
   ability?: BallAbility; // optional passive ability
@@ -109,12 +107,28 @@ export type BallAbilityType =
   | 'passive'
   | 'spawnUnit';
 
+// ─── HUD Status Row ───────────────────────────────────────────────────────────
+
+/** A single label/value pair rendered in the info strip below the arena. */
+export interface StatusRow {
+  label: string;
+  value: string;
+}
+
+// ─── Ball Ability ─────────────────────────────────────────────────────────────
+
 export interface BallAbility {
   id: string;
   name: string;
   description: string;
   trigger: BallAbilityType;
   params: Record<string, number | string | boolean>;
+  /**
+   * Returns HUD rows for this ability's live state.
+   * Called each rendered frame with the current status effects and HP fraction.
+   * Return [] to show nothing (e.g. passive abilities with no displayable state).
+   */
+  getHudRows?: (effects: StatusEffect[], hpFrac: number) => StatusRow[];
 }
 
 // ─── Status Effects ───────────────────────────────────────────────────────────
