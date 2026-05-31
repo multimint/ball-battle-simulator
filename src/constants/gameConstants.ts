@@ -32,6 +32,15 @@ export const PARTICLE_BURST_COUNT = 10;  // particles per collision burst
 export const FLOATER_RISE_SPEED = 0.8;  // px per frame upward
 export const FLOATER_FADE_SPEED = 0.022; // alpha per frame
 export const HP_RING_STROKE = 4;        // px — HP arc ring width
+// ── Berserk homing ────────────────────────────────────────────────────────────
+export const BERSERK_HOMING_BLEND = 0.25;       // fraction of velocity steered toward enemy per tick
+export const BERSERK_TRAIL_SPAWN_CHANCE = 0.65; // probability of spawning a trail segment while homing
+// ── Soft ball attraction ──────────────────────────────────────────────────────
+export const SOFT_ATTRACT_THRESHOLD_PX = 200;   // distance above which balls pull toward each other
+export const SOFT_ATTRACT_FORCE_COEFF = 0.000004; // force per excess px
+// ── Audio cooldowns ───────────────────────────────────────────────────────────
+export const BOUNCE_COOLDOWN_MS = 120;          // min ms between bounce audio events
+export const ABILITY_AUDIO_COOLDOWN_MS = 600;   // min ms between repeated ability audio events
 // ── Orbit weapon system ───────────────────────────────────────────────────────
 export const WEAPON_ORBIT_GAP = 8;           // px gap between ball edge and weapon hitbox center
 export const WEAPON_ORBIT_SPEED_SCALE = 1.5; // rad/s per weapon.speed unit

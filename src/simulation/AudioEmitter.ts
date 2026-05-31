@@ -1,4 +1,5 @@
 import type { AudioEvent, HitSoundKey, AbilitySoundKey } from '../audio/fightAudioSynthesizer';
+import { BOUNCE_COOLDOWN_MS, ABILITY_AUDIO_COOLDOWN_MS } from '../constants/gameConstants';
 
 export class AudioEmitter {
   private events: AudioEvent[] = [];
@@ -39,7 +40,7 @@ export class AudioEmitter {
       return true;
     }
     const cooldown = team === 'A' ? this.abilityAudioCooldownA : this.abilityAudioCooldownB;
-    if (timeMs - cooldown < 600) return false;
+    if (timeMs - cooldown < ABILITY_AUDIO_COOLDOWN_MS) return false;
     this.events.push({ timeMs, type: 'ability', abilityStyle, intensity: 1.0 });
     if (team === 'A') this.abilityAudioCooldownA = timeMs;
     else              this.abilityAudioCooldownB = timeMs;
@@ -47,14 +48,14 @@ export class AudioEmitter {
   }
 
   emitBallBounce(hitStyle: HitSoundKey, timeMs: number): boolean {
-    if (timeMs - this.ballBounceCooldown < 120) return false;
+    if (timeMs - this.ballBounceCooldown < BOUNCE_COOLDOWN_MS) return false;
     this.events.push({ timeMs, type: 'bounce', hitStyle, intensity: 0.6 });
     this.ballBounceCooldown = timeMs;
     return true;
   }
 
   emitWallBounce(hitStyle: HitSoundKey, timeMs: number): boolean {
-    if (timeMs - this.wallBounceCooldown < 120) return false;
+    if (timeMs - this.wallBounceCooldown < BOUNCE_COOLDOWN_MS) return false;
     this.events.push({ timeMs, type: 'bounce', hitStyle, intensity: 0.3 });
     this.wallBounceCooldown = timeMs;
     return true;

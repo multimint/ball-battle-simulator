@@ -27,6 +27,10 @@ import {
   BALL_A_START,
   BALL_B_START,
   MAX_PARTICLES,
+  BERSERK_HOMING_BLEND,
+  BERSERK_TRAIL_SPAWN_CHANCE,
+  SOFT_ATTRACT_THRESHOLD_PX,
+  SOFT_ATTRACT_FORCE_COEFF,
 } from '../constants/gameConstants';
 import type { InitialVelocities, SimulationResult } from '../store/useGameStore';
 
@@ -370,11 +374,10 @@ export class GameSimulator {
     const adx = this.bodyB.position.x - this.bodyA.position.x;
     const ady = this.bodyB.position.y - this.bodyA.position.y;
     const adist = Math.hypot(adx, ady);
-    if (adist > 200) {
-      const k = 0.000004;
-      const excess = adist - 200;
-      const fx = (adx / adist) * k * excess;
-      const fy = (ady / adist) * k * excess;
+    if (adist > SOFT_ATTRACT_THRESHOLD_PX) {
+      const excess = adist - SOFT_ATTRACT_THRESHOLD_PX;
+      const fx = (adx / adist) * SOFT_ATTRACT_FORCE_COEFF * excess;
+      const fy = (ady / adist) * SOFT_ATTRACT_FORCE_COEFF * excess;
       Body.applyForce(this.bodyA, this.bodyA.position, { x: fx,  y: fy  });
       Body.applyForce(this.bodyB, this.bodyB.position, { x: -fx, y: -fy });
     }
@@ -408,10 +411,10 @@ export class GameSimulator {
     const ny = dy / dist;
     const speed = Math.hypot(self.velocity.x, self.velocity.y);
     Body.setVelocity(self, {
-      x: self.velocity.x * 0.75 + nx * speed * 0.25,
-      y: self.velocity.y * 0.75 + ny * speed * 0.25,
+      x: self.velocity.x * (1 - BERSERK_HOMING_BLEND) + nx * speed * BERSERK_HOMING_BLEND,
+      y: self.velocity.y * (1 - BERSERK_HOMING_BLEND) + ny * speed * BERSERK_HOMING_BLEND,
     });
-    if (Math.random() < 0.65) {
+    if (Math.random() < BERSERK_TRAIL_SPAWN_CHANCE) {
       this.particles.pushTrail({ x: self.position.x, y: self.position.y, radius: radius * 0.55, color: '#FF3300', alpha: 0.55, ttl: 10, maxTtl: 10 });
     }
   }
