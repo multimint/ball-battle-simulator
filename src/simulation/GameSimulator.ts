@@ -119,6 +119,8 @@ export class GameSimulator {
 
   private chargeA = 0;
   private chargeB = 0;
+  private rangeMultA = 1;
+  private rangeMultB = 1;
 
   // Per-attack-index timers (length = weapon.attacks.length for each team)
   private lastHitTimesA: number[] = [];
@@ -460,10 +462,17 @@ export class GameSimulator {
     enforceMinSpeed(this.bodyA, this.teamA.ball.maxSpeed * speedMultA);
     enforceMinSpeed(this.bodyB, this.teamB.ball.maxSpeed * speedMultB);
 
-    const berserkSpinA = isAbilityBerserk(this.teamA.ball.ability, this.hp.A / this.maxHp.A) ? 3.5 : 1.0;
-    const berserkSpinB = isAbilityBerserk(this.teamB.ball.ability, this.hp.B / this.maxHp.B) ? 3.5 : 1.0;
-    Body.setAngularVelocity(this.bodyA, this.teamA.ball.spinSpeed * 0.05 * berserkSpinA * Math.sign(this.bodyA.velocity.x || 1));
-    Body.setAngularVelocity(this.bodyB, this.teamB.ball.spinSpeed * 0.05 * berserkSpinB * Math.sign(this.bodyB.velocity.x || 1));
+    const berserkA = isAbilityBerserk(this.teamA.ball.ability, this.hp.A / this.maxHp.A);
+    const berserkB = isAbilityBerserk(this.teamB.ball.ability, this.hp.B / this.maxHp.B);
+
+    // Berserk homing — steer 25% toward enemy each tick
+    this.applyBerserkHoming(berserkA, this.bodyA, this.bodyB, this.teamA.ball.radius);
+    this.applyBerserkHoming(berserkB, this.bodyB, this.bodyA, this.teamB.ball.radius);
+
+    const berserkSpinA = berserkA ? 3.5 : 1.0;
+    const berserkSpinB = berserkB ? 3.5 : 1.0;
+    Body.setAngularVelocity(this.bodyA, this.teamA.ball.spinSpeed * 0.05 * berserkSpinA * speedMultA * Math.sign(this.bodyA.velocity.x || 1));
+    Body.setAngularVelocity(this.bodyB, this.teamB.ball.spinSpeed * 0.05 * berserkSpinB * speedMultB * Math.sign(this.bodyB.velocity.x || 1));
 
     this.updateStuck(this.stuckA, this.bodyA);
     this.updateStuck(this.stuckB, this.bodyB);
@@ -495,7 +504,7 @@ export class GameSimulator {
       let tx: number, ty: number, tr: number;
       if (p.tickTrailAtWeapon) {
         const angle = team === 'A' ? this.orbitAngleA : this.orbitAngleB;
-        const hitboxR = getWeaponHitboxRadius(teamData.weapon);
+        const hitboxR = getWeaponHitboxRadius(teamData.weapon); // orbit position uses base
         const pos = getOrbitPosition(body.position.x, body.position.y, teamData.ball.radius, angle, hitboxR);
         tx = pos.x; ty = pos.y;
         tr = hitboxR * Number(p.tickTrailRadiusFrac ?? 0.45);
@@ -556,9 +565,44 @@ export class GameSimulator {
     this.simTime += delta;
   }
 
+  private getRangeMult(team: 'A' | 'B'): number {
+    const ability = team === 'A' ? this.teamA.ball.ability : this.teamB.ball.ability;
+    const rangePerStack = Number(ability?.params?.rangePerStack ?? 0);
+    if (rangePerStack === 0) return 1;
+    const stacks = this.statusMgr.getEffects(team).find((e) => e.type === 'speedBoost')?.stacks ?? 0;
+    return 1 + stacks * rangePerStack;
+  }
+
   private isBerserk(team: 'A' | 'B'): boolean {
     const t = team === 'A' ? this.teamA : this.teamB;
     return isAbilityBerserk(t.ball.ability, this.hp[team] / this.maxHp[team]);
+  }
+
+  private applyBerserkHoming(active: boolean, self: Matter.Body, enemy: Matter.Body, radius: number): void {
+    if (!active) return;
+    const dx = enemy.position.x - self.position.x;
+    const dy = enemy.position.y - self.position.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 1) return;
+    const nx = dx / dist;
+    const ny = dy / dist;
+    const speed = Math.hypot(self.velocity.x, self.velocity.y);
+    const blend = 0.25;
+    Body.setVelocity(self, {
+      x: self.velocity.x * (1 - blend) + nx * speed * blend,
+      y: self.velocity.y * (1 - blend) + ny * speed * blend,
+    });
+    if (Math.random() < 0.65) {
+      this.trailSegments.push({
+        x: self.position.x,
+        y: self.position.y,
+        radius: radius * 0.55,
+        color: '#FF3300',
+        alpha: 0.55,
+        ttl: 10,
+        maxTtl: 10,
+      });
+    }
   }
 
   private updateWeaponOrbit(delta: number): void {
@@ -572,16 +616,18 @@ export class GameSimulator {
     if (anyAimA) {
       this.orbitAngleA = Math.atan2(bodyB.position.y - bodyA.position.y, bodyB.position.x - bodyA.position.x);
     } else {
-      this.orbitAngleA += orbitSpeed(teamA.weapon) * (this.isBerserk('A') ? berserkMult : 1) * dt;
+      this.orbitAngleA += orbitSpeed(teamA.weapon) * (this.isBerserk('A') ? berserkMult : 1) * this.getSpeedMultiplier('A') * dt;
     }
     if (anyAimB) {
       this.orbitAngleB = Math.atan2(bodyA.position.y - bodyB.position.y, bodyA.position.x - bodyB.position.x);
     } else {
-      this.orbitAngleB -= orbitSpeed(teamB.weapon) * (this.isBerserk('B') ? berserkMult : 1) * dt;
+      this.orbitAngleB -= orbitSpeed(teamB.weapon) * (this.isBerserk('B') ? berserkMult : 1) * this.getSpeedMultiplier('B') * dt;
     }
 
-    const hitboxA = getWeaponHitboxRadius(teamA.weapon);
-    const hitboxB = getWeaponHitboxRadius(teamB.weapon);
+    this.rangeMultA = this.getRangeMult('A');
+    this.rangeMultB = this.getRangeMult('B');
+    const hitboxA = getWeaponHitboxRadius(teamA.weapon, this.rangeMultA);
+    const hitboxB = getWeaponHitboxRadius(teamB.weapon, this.rangeMultB);
 
     // Charge display: use the same effective cooldown the firing condition uses,
     // so 100% / "ready" appears on exactly the same frame the laser fires.
@@ -662,11 +708,23 @@ export class GameSimulator {
           }
         }
       } else {
-        // Orbit melee: check hitbox collision
+        // Orbit melee: capsule hitbox along the blade (orbit center → blade tip)
+        const baseHitboxR = getWeaponHitboxRadius(weapon); // orbit distance never scales
         const pos = getOrbitPosition(attacker.position.x, attacker.position.y,
-          (team === 'A' ? this.teamA : this.teamB).ball.radius, orbitAngle, hitboxR);
-        const dist = Math.hypot(pos.x - defender.position.x, pos.y - defender.position.y);
-        if (dist < hitboxR + defenderRadius && this.simTime - hitTimes[i] >= cd) {
+          (team === 'A' ? this.teamA : this.teamB).ball.radius, orbitAngle, baseHitboxR);
+        const reachR  = hitboxR * (weapon.hitReachMult ?? 1);
+        const tipX    = pos.x + Math.cos(orbitAngle) * reachR;
+        const tipY    = pos.y + Math.sin(orbitAngle) * reachR;
+        const ex      = defender.position.x;
+        const ey      = defender.position.y;
+        // Closest point on blade segment to enemy center
+        const t       = reachR > 0 ? Math.max(0, Math.min(1,
+          ((ex - pos.x) * (tipX - pos.x) + (ey - pos.y) * (tipY - pos.y)) / (reachR * reachR),
+        )) : 0;
+        const capsuleDist = Math.hypot(ex - (pos.x + t * (tipX - pos.x)),
+                                       ey - (pos.y + t * (tipY - pos.y)));
+        const capsuleR = baseHitboxR * 0.6; // blade width
+        if (capsuleDist < capsuleR + defenderRadius && this.simTime - hitTimes[i] >= cd) {
           hitTimes[i] = this.simTime;
           this.applyHit(weapon, attack, attacker, defender, team);
         }
@@ -861,6 +919,20 @@ export class GameSimulator {
       }
     }
 
+    // Attack-level status effect (e.g. freeze on laser hit)
+    if (attack.hitStatusEffect && lastDmg > 0) {
+      this.applyStatusEffect(
+        targetTeam,
+        attack.hitStatusEffect,
+        attack.hitStatusDuration ?? 2000,
+        attack.hitStatusMagnitude ?? 0.3,
+        'refresh',
+        1,
+        attack.hitStatusColor ?? '#88CCFF',
+        attack.hitStatusIcon ?? 'burst',
+      );
+    }
+
     applyTierEffects(attack.type, targetTeam, weapon.color ?? '#FFFFFF', lastDmg);
 
     // Audio: emit hit event scaled by damage (intensity 0–1 where 30 dmg = max)
@@ -937,6 +1009,8 @@ export class GameSimulator {
       abilityB: this.teamB.ball.ability,
       effectsA: this.statusMgr.getEffects('A'),
       effectsB: this.statusMgr.getEffects('B'),
+      rangeMultA: this.rangeMultA,
+      rangeMultB: this.rangeMultB,
     });
 
     // 2. Blit current physics frame into the arena region of the capture canvas.

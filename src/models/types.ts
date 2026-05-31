@@ -42,6 +42,11 @@ export interface AttackConfig {
   bulletInterval?: number;// seconds between each bullet in a burst; omit = fire all at once
   bulletSpeed?: number;   // travel speed multiplier (default 2.0; lower = slower)
   audioHint?: 'laser';    // triggers weapon-specific audio instead of the ball's default hit sound
+  hitStatusEffect?: StatusEffectType; // status effect applied to target on hit
+  hitStatusDuration?: number;         // ms
+  hitStatusMagnitude?: number;        // strength (0–1)
+  hitStatusColor?: string;            // ring/icon tint
+  hitStatusIcon?: SpriteKey;          // sprite shown above target when effect is applied
 }
 
 export interface WeaponStats {
@@ -56,6 +61,7 @@ export interface WeaponStats {
   attacks: AttackConfig[];
   kbMult?: number;      // knockback multiplier override (default 1.0)
   dmgMult?: number;     // damage multiplier override (default 1.0)
+  hitReachMult?: number;// hit-detection radius multiplier — set to match blade tip (default 1.0)
   effectLabel?: string; // melee hit animation: 'hammer'|'sword'|'spear'|'flail'
   hitEffect?: 'explosion' | 'laser'; // projectile visual on impact
   hitEffectRadius?: number;          // radius for explosion effects (px)

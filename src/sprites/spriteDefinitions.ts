@@ -64,6 +64,19 @@ const SYSTEM_PAINTERS = {
     ctx.beginPath(); ctx.arc(12, 12, 8, 0, Math.PI * 2); ctx.fill();
   },
 
+  snowflake(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D) {
+    ctx.strokeStyle = '#88CCFF';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const cx = 12 + Math.cos(a) * 9, cy = 12 + Math.sin(a) * 9;
+      ctx.beginPath(); ctx.moveTo(12, 12); ctx.lineTo(cx, cy); ctx.stroke();
+      const bx = Math.cos(a + Math.PI / 6) * 4, by = Math.sin(a + Math.PI / 6) * 4;
+      ctx.beginPath(); ctx.moveTo(cx - bx, cy - by); ctx.lineTo(cx + bx, cy + by); ctx.stroke();
+    }
+  },
+
   ball(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D) {
     ctx.fillStyle = '#ECEFF1';
     ctx.beginPath(); ctx.arc(12, 12, 9, 0, Math.PI * 2); ctx.fill();

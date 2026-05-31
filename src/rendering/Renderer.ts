@@ -39,6 +39,8 @@ export interface RenderState {
   abilityB?: BallAbility;
   effectsA?: StatusEffect[];
   effectsB?: StatusEffect[];
+  rangeMultA?: number;
+  rangeMultB?: number;
 }
 
 export class Renderer {
@@ -123,7 +125,8 @@ export class Renderer {
       state.ballA.radius,
       state.orbitAngleA,
       state.weaponA,
-      'A'
+      'A',
+      state.rangeMultA ?? 1,
     );
     drawOrbitWeapon(
       ctx,
@@ -132,7 +135,8 @@ export class Renderer {
       state.ballB.radius,
       state.orbitAngleB,
       state.weaponB,
-      'B'
+      'B',
+      state.rangeMultB ?? 1,
     );
 
     // 6. Traveling bullets (drawn over weapons, under hit effects)

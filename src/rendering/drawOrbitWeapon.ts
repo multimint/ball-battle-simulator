@@ -11,8 +11,8 @@ const HITBOX_BY_CATEGORY: Record<string, number> = {
   utility:    18,   // was 11 — magnet / repulsor field
 };
 
-export function getWeaponHitboxRadius(weapon: WeaponStats): number {
-  return HITBOX_BY_CATEGORY[weapon.attacks[0].type] ?? 10;
+export function getWeaponHitboxRadius(weapon: WeaponStats, rangeMult = 1): number {
+  return (HITBOX_BY_CATEGORY[weapon.attacks[0].type] ?? 10) * rangeMult;
 }
 
 /** Compute the weapon's world position from the ball center + orbit angle. */
@@ -43,10 +43,12 @@ export function drawOrbitWeapon(
   ballRadius: number,
   angle: number,
   weapon: WeaponStats,
-  team: 'A' | 'B'
+  team: 'A' | 'B',
+  rangeMult = 1,
 ): void {
-  const hitboxR = getWeaponHitboxRadius(weapon);
-  const pos = getOrbitPosition(ballX, ballY, ballRadius, angle, hitboxR);
+  const baseHitboxR = getWeaponHitboxRadius(weapon);          // orbit distance never scales
+  const hitboxR     = getWeaponHitboxRadius(weapon, rangeMult); // shape scales with stacks
+  const pos = getOrbitPosition(ballX, ballY, ballRadius, angle, baseHitboxR);
   const color = weapon.color ?? (team === 'A' ? '#E47D79' : '#4A90E2');
 
   ctx.save();
