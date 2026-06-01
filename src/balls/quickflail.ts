@@ -87,6 +87,35 @@ export const quickFlail: BallDefinition = {
     icon: 'weapon-long-sword',
     effectLabel: 'spear',
     attacks: [{ type: 'melee', cooldown: 0.7, damage: 4, knockback: 40 }],
+    drawShape: (ctx, color, r) => {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 5;
+      ctx.strokeStyle = '#7A5C2E';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-r * 1.1, 0);
+      ctx.lineTo(r * 0.05, 0);
+      ctx.stroke();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(r * 0.05, -r * 0.55);
+      ctx.lineTo(r * 0.05, r * 0.55);
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(r * 0.05, r * 0.14);
+      ctx.lineTo(r * 0.05, -r * 0.14);
+      ctx.lineTo(r * 1.8, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF55';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    },
   },
   audioProfile: {
     hitStyle: 'swift',

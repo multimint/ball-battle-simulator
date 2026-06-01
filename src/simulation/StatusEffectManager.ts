@@ -1,22 +1,23 @@
 import type { StatusEffect, StatusEffectType } from '../models/types';
 import type { SpriteKey } from '../sprites/SpriteKey';
 
-export class StatusEffectManager {
-  private effectsA: StatusEffect[] = [];
-  private effectsB: StatusEffect[] = [];
+export interface ApplyEffectOptions {
+  team: 'A' | 'B';
+  type: StatusEffectType;
+  durationMs: number;
+  magnitude: number;
+  stackBehavior: StatusEffect['stackBehavior'];
+  maxStacks: number;
+  color: string;
+  icon: SpriteKey;
+  simTime?: number;
+}
 
-  apply(
-    team: 'A' | 'B',
-    type: StatusEffectType,
-    durationMs: number,
-    magnitude: number,
-    stackBehavior: StatusEffect['stackBehavior'],
-    maxStacks: number,
-    color: string,
-    icon: SpriteKey,
-    simTime = 0,
-  ): void {
-    const effects = team === 'A' ? this.effectsA : this.effectsB;
+export class StatusEffectManager {
+  private effects: Record<'A' | 'B', StatusEffect[]> = { A: [], B: [] };
+
+  apply({ team, type, durationMs, magnitude, stackBehavior, maxStacks, color, icon, simTime = 0 }: ApplyEffectOptions): void {
+    const effects = this.effects[team];
     const existing = effects.find((e) => e.type === type);
     if (existing) {
       if (stackBehavior === 'refresh') {
@@ -40,12 +41,10 @@ export class StatusEffectManager {
     });
   }
 
-  /** Advance status effects by `delta` ms, applying DoT to `hp`. */
   tick(delta: number, hp: { A: number; B: number }): void {
     for (const team of ['A', 'B'] as const) {
-      const effects = team === 'A' ? this.effectsA : this.effectsB;
       const alive: StatusEffect[] = [];
-      for (const effect of effects) {
+      for (const effect of this.effects[team]) {
         if (effect.stackBehavior !== 'stack') {
           effect.remainingMs -= delta;
         }
@@ -56,23 +55,21 @@ export class StatusEffectManager {
         }
         if (effect.stackBehavior === 'stack' || effect.remainingMs > 0) alive.push(effect);
       }
-      if (team === 'A') this.effectsA = alive;
-      else this.effectsB = alive;
+      this.effects[team] = alive;
     }
   }
 
   getEffects(team: 'A' | 'B'): StatusEffect[] {
-    return team === 'A' ? this.effectsA : this.effectsB;
+    return this.effects[team];
   }
 
   hasEffect(team: 'A' | 'B', type: StatusEffectType): boolean {
-    return (team === 'A' ? this.effectsA : this.effectsB).some((e) => e.type === type);
+    return this.effects[team].some((e) => e.type === type);
   }
 
   getSpeedMultiplier(team: 'A' | 'B'): number {
-    const effects = team === 'A' ? this.effectsA : this.effectsB;
     let mult = 1.0;
-    for (const e of effects) {
+    for (const e of this.effects[team]) {
       if (e.type === 'freeze') mult *= (1 - e.magnitude * e.stacks);
       if (e.type === 'speedBoost') {
         const bonus = e.magnitude * e.stacks + (e.stacks > 3 ? e.magnitude * (e.stacks - 3) : 0);
@@ -83,26 +80,24 @@ export class StatusEffectManager {
   }
 
   getOutgoingDamageMultiplier(team: 'A' | 'B'): number {
-    const effects = team === 'A' ? this.effectsA : this.effectsB;
     let mult = 1.0;
-    for (const e of effects) {
-      if (e.type === 'rage') mult *= (1 + e.magnitude);
+    for (const e of this.effects[team]) {
+      if (e.type === 'rage')   mult *= (1 + e.magnitude);
       if (e.type === 'weaken') mult *= (1 - e.magnitude);
     }
     return Math.max(0.1, mult);
   }
 
   getIncomingDamageMultiplier(team: 'A' | 'B'): number {
-    const effects = team === 'A' ? this.effectsA : this.effectsB;
     let mult = 1.0;
-    for (const e of effects) {
+    for (const e of this.effects[team]) {
       if (e.type === 'harden') mult *= (1 - e.magnitude);
     }
     return Math.max(0.1, mult);
   }
 
   consumeShield(team: 'A' | 'B', rawDamage: number): number {
-    const effects = team === 'A' ? this.effectsA : this.effectsB;
+    const effects = this.effects[team];
     const shieldIdx = effects.findIndex((e) => e.type === 'shield');
     if (shieldIdx === -1) return rawDamage;
     const shield = effects[shieldIdx];

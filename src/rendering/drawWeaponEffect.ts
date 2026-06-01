@@ -1,6 +1,7 @@
 import type { WeaponEffect } from '../models/GameState';
+import type { Ctx2D } from './ctx';
 
-export function drawWeaponEffects(ctx: CanvasRenderingContext2D, effects: WeaponEffect[]): void {
+export function drawWeaponEffects(ctx: Ctx2D, effects: WeaponEffect[]): void {
   for (const e of effects) {
     const alpha = 1 - e.progress / e.maxProgress;
     ctx.save();
@@ -42,7 +43,7 @@ export function drawWeaponEffects(ctx: CanvasRenderingContext2D, effects: Weapon
   }
 }
 
-function drawHammerEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void {
+function drawHammerEffect(ctx: Ctx2D, e: WeaponEffect): void {
   ctx.save();
   ctx.translate(e.x, e.y);
   ctx.rotate(e.angle);
@@ -53,7 +54,7 @@ function drawHammerEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void 
   ctx.restore();
 }
 
-function drawSwordEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void {
+function drawSwordEffect(ctx: Ctx2D, e: WeaponEffect): void {
   ctx.save();
   ctx.translate(e.x, e.y);
   ctx.rotate(e.angle);
@@ -73,7 +74,7 @@ function drawSwordEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void {
   ctx.restore();
 }
 
-function drawSpearEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void {
+function drawSpearEffect(ctx: Ctx2D, e: WeaponEffect): void {
   ctx.save();
   ctx.translate(e.x, e.y);
   ctx.rotate(e.angle);
@@ -95,7 +96,7 @@ function drawSpearEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void {
   ctx.restore();
 }
 
-function drawLaserEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void {
+function drawLaserEffect(ctx: Ctx2D, e: WeaponEffect): void {
   if (e.x2 === undefined || e.y2 === undefined) return;
   const t = 1 - e.progress / e.maxProgress;
 
@@ -145,7 +146,7 @@ function drawLaserEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void {
   ctx.restore();
 }
 
-function drawCannonEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void {
+function drawCannonEffect(ctx: Ctx2D, e: WeaponEffect): void {
   ctx.fillStyle = e.color;
   ctx.shadowColor = e.color;
   ctx.shadowBlur = 8;
@@ -155,7 +156,7 @@ function drawCannonEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void 
   ctx.shadowBlur = 0;
 }
 
-function drawExplosionEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void {
+function drawExplosionEffect(ctx: Ctx2D, e: WeaponEffect): void {
   const progress = e.progress / e.maxProgress;
   const r = (e.radius ?? 60) * progress;
   const alpha = 1 - progress;
@@ -169,7 +170,7 @@ function drawExplosionEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): vo
   ctx.fill();
 }
 
-function drawShieldEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void {
+function drawShieldEffect(ctx: Ctx2D, e: WeaponEffect): void {
   const r = (e.radius ?? 40);
   ctx.beginPath();
   ctx.arc(e.x, e.y, r, -Math.PI * 0.8, Math.PI * 0.8);
@@ -179,7 +180,7 @@ function drawShieldEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void 
   ctx.stroke();
 }
 
-function drawShockwaveEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void {
+function drawShockwaveEffect(ctx: Ctx2D, e: WeaponEffect): void {
   const progress = e.progress / e.maxProgress;
   const r = (e.radius ?? 80) * progress;
   ctx.beginPath();
@@ -189,7 +190,7 @@ function drawShockwaveEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): vo
   ctx.stroke();
 }
 
-function drawFlailEffect(ctx: CanvasRenderingContext2D, e: WeaponEffect): void {
+function drawFlailEffect(ctx: Ctx2D, e: WeaponEffect): void {
   ctx.beginPath();
   ctx.arc(e.x, e.y, 12, 0, Math.PI * 2);
   ctx.fillStyle = e.color;

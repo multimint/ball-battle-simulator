@@ -1,24 +1,11 @@
 import type { TeamConfig, WinnerType } from '../models/types';
 import { CAPTURE_CANVAS_WIDTH, CAPTURE_CANVAS_HEIGHT } from '../constants/gameConstants';
-import { COLORS } from '../constants/colors';
 import { FONTS } from '../constants/typography';
 import { fitText } from '../utils/canvas';
+import { easeInOutCubic, easeOutQuart, easeInOutQuart } from '../utils/animation';
 import { spriteRegistry } from '../sprites/SpriteRegistry';
 import type { SpriteKey } from '../sprites/SpriteKey';
-
-type Ctx2D = CanvasRenderingContext2D;
-
-function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-}
-
-function easeOutQuart(t: number): number {
-  return 1 - Math.pow(1 - t, 4);
-}
-
-function easeInOutQuart(t: number): number {
-  return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
-}
+import type { Ctx2D } from './ctx';
 
 function drawTeamPanel(
   ctx: Ctx2D,

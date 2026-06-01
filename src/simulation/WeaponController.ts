@@ -3,44 +3,55 @@ import type { TeamConfig, WeaponStats, AttackConfig } from '../models/types';
 import type { Bullet } from '../models/GameState';
 import type { StatusEffectManager } from './StatusEffectManager';
 import { getWeaponHitboxRadius, getOrbitPosition } from '../rendering/drawOrbitWeapon';
-import { WEAPON_HIT_COOLDOWN_MIN, WEAPON_ORBIT_SPEED_SCALE } from '../constants/gameConstants';
+import { WEAPON_HIT_COOLDOWN_MIN, WEAPON_ORBIT_SPEED_SCALE, HITSCAN_PREFIRE_MS, BERSERK_ORBIT_SPEED_MULT } from '../constants/gameConstants';
 import { isAbilityBerserk } from '../utils/ability';
 
-const HITSCAN_PREFIRE_MS = 150;
-const BERSERK_ORBIT_SPEED_MULT = 2.5;
-
 const { Body } = Matter;
+
+interface TeamWeaponState {
+  orbitAngle: number;
+  lastHitTimes: number[];
+  burstCounts: number[];
+  lastBulletTimes: number[];
+  charge: number;
+  rangeMult: number;
+}
+
+const ORBIT_DIR: Record<'A' | 'B', 1 | -1> = { A: 1, B: -1 };
 
 function orbitSpeed(weapon: WeaponStats): number {
   return Math.max(1.8, weapon.speed) * WEAPON_ORBIT_SPEED_SCALE;
 }
 
 export class WeaponController {
-  orbitAngleA = Math.PI * 0.25;
-  orbitAngleB = Math.PI * 1.25;
-
-  private lastHitTimesA: number[];
-  private lastHitTimesB: number[];
-  private burstCountsA: number[];
-  private burstCountsB: number[];
-  private lastBulletTimesA: number[];
-  private lastBulletTimesB: number[];
+  private state: Record<'A' | 'B', TeamWeaponState>;
 
   bullets: Bullet[] = [];
-  chargeA = 0;
-  chargeB = 0;
-  rangeMultA = 1;
-  rangeMultB = 1;
+
+  get orbitAngleA() { return this.state.A.orbitAngle; }
+  get orbitAngleB() { return this.state.B.orbitAngle; }
+  get chargeA()     { return this.state.A.charge; }
+  get chargeB()     { return this.state.B.charge; }
+  get rangeMultA()  { return this.state.A.rangeMult; }
+  get rangeMultB()  { return this.state.B.rangeMult; }
 
   constructor(teamA: TeamConfig, teamB: TeamConfig) {
-    const nA = teamA.weapon.attacks.length;
-    const nB = teamB.weapon.attacks.length;
-    this.lastHitTimesA    = new Array(nA).fill(0);
-    this.lastHitTimesB    = new Array(nB).fill(0);
-    this.burstCountsA     = new Array(nA).fill(0);
-    this.burstCountsB     = new Array(nB).fill(0);
-    this.lastBulletTimesA = new Array(nA).fill(0);
-    this.lastBulletTimesB = new Array(nB).fill(0);
+    this.state = {
+      A: {
+        orbitAngle: Math.PI * 0.25,
+        lastHitTimes:    new Array(teamA.weapon.attacks.length).fill(0),
+        burstCounts:     new Array(teamA.weapon.attacks.length).fill(0),
+        lastBulletTimes: new Array(teamA.weapon.attacks.length).fill(0),
+        charge: 0, rangeMult: 1,
+      },
+      B: {
+        orbitAngle: Math.PI * 1.25,
+        lastHitTimes:    new Array(teamB.weapon.attacks.length).fill(0),
+        burstCounts:     new Array(teamB.weapon.attacks.length).fill(0),
+        lastBulletTimes: new Array(teamB.weapon.attacks.length).fill(0),
+        charge: 0, rangeMult: 1,
+      },
+    };
   }
 
   getRangeMult(team: 'A' | 'B', teamA: TeamConfig, teamB: TeamConfig, statusMgr: StatusEffectManager): number {
@@ -64,47 +75,36 @@ export class WeaponController {
     statusMgr: StatusEffectManager,
   ): { hitboxA: number; hitboxB: number } {
     const dt = delta / 1000;
+    const pairs = [
+      { team: 'A' as const, config: teamA, body: bodyA, enemy: bodyB },
+      { team: 'B' as const, config: teamB, body: bodyB, enemy: bodyA },
+    ];
 
-    const anyAimA = teamA.weapon.attacks.some(a => a.aimAtEnemy);
-    const anyAimB = teamB.weapon.attacks.some(a => a.aimAtEnemy);
+    for (const { team, config, body, enemy } of pairs) {
+      const ts = this.state[team];
+      const anyAim = config.weapon.attacks.some(a => a.aimAtEnemy);
+      if (anyAim) {
+        ts.orbitAngle = Math.atan2(enemy.position.y - body.position.y, enemy.position.x - body.position.x);
+      } else {
+        const berserk  = isAbilityBerserk(config.ball.ability, hp[team] / maxHp[team]);
+        const speedMult = statusMgr.getSpeedMultiplier(team);
+        ts.orbitAngle += ORBIT_DIR[team] * orbitSpeed(config.weapon) * (berserk ? BERSERK_ORBIT_SPEED_MULT : 1) * speedMult * dt;
+      }
+      ts.rangeMult = this.getRangeMult(team, teamA, teamB, statusMgr);
 
-    const berserkA = isAbilityBerserk(teamA.ball.ability, hp.A / maxHp.A);
-    const berserkB = isAbilityBerserk(teamB.ball.ability, hp.B / maxHp.B);
-    const speedMultA = statusMgr.getSpeedMultiplier('A');
-    const speedMultB = statusMgr.getSpeedMultiplier('B');
-
-    if (anyAimA) {
-      this.orbitAngleA = Math.atan2(bodyB.position.y - bodyA.position.y, bodyB.position.x - bodyA.position.x);
-    } else {
-      this.orbitAngleA += orbitSpeed(teamA.weapon) * (berserkA ? BERSERK_ORBIT_SPEED_MULT : 1) * speedMultA * dt;
-    }
-    if (anyAimB) {
-      this.orbitAngleB = Math.atan2(bodyA.position.y - bodyB.position.y, bodyA.position.x - bodyB.position.x);
-    } else {
-      this.orbitAngleB -= orbitSpeed(teamB.weapon) * (berserkB ? BERSERK_ORBIT_SPEED_MULT : 1) * speedMultB * dt;
-    }
-
-    this.rangeMultA = this.getRangeMult('A', teamA, teamB, statusMgr);
-    this.rangeMultB = this.getRangeMult('B', teamA, teamB, statusMgr);
-    const hitboxA = getWeaponHitboxRadius(teamA.weapon, this.rangeMultA);
-    const hitboxB = getWeaponHitboxRadius(teamB.weapon, this.rangeMultB);
-
-    const laserA = teamA.weapon.attacks.filter(a => a.aimAtEnemy).sort((a, b) => b.cooldown - a.cooldown)[0];
-    if (laserA) {
-      const idx = teamA.weapon.attacks.indexOf(laserA);
-      const cd = Math.max(WEAPON_HIT_COOLDOWN_MIN, laserA.cooldown * 1000);
-      const effectiveCd = cd + (laserA.hitscan ? HITSCAN_PREFIRE_MS : 0);
-      this.chargeA = Math.min(100, ((simTime - this.lastHitTimesA[idx]) / effectiveCd) * 100);
-    }
-    const laserB = teamB.weapon.attacks.filter(a => a.aimAtEnemy).sort((a, b) => b.cooldown - a.cooldown)[0];
-    if (laserB) {
-      const idx = teamB.weapon.attacks.indexOf(laserB);
-      const cd = Math.max(WEAPON_HIT_COOLDOWN_MIN, laserB.cooldown * 1000);
-      const effectiveCd = cd + (laserB.hitscan ? HITSCAN_PREFIRE_MS : 0);
-      this.chargeB = Math.min(100, ((simTime - this.lastHitTimesB[idx]) / effectiveCd) * 100);
+      // Charge tracking for aimed (laser/cannon) weapons
+      const laser = config.weapon.attacks.filter(a => a.aimAtEnemy).sort((a, b) => b.cooldown - a.cooldown)[0];
+      if (laser) {
+        const idx = config.weapon.attacks.indexOf(laser);
+        const cd = Math.max(WEAPON_HIT_COOLDOWN_MIN, laser.cooldown * 1000);
+        ts.charge = Math.min(100, ((simTime - ts.lastHitTimes[idx]) / (cd + (laser.hitscan ? HITSCAN_PREFIRE_MS : 0))) * 100);
+      }
     }
 
-    return { hitboxA, hitboxB };
+    return {
+      hitboxA: getWeaponHitboxRadius(teamA.weapon, this.state.A.rangeMult),
+      hitboxB: getWeaponHitboxRadius(teamB.weapon, this.state.B.rangeMult),
+    };
   }
 
   processAttacks(
@@ -119,10 +119,7 @@ export class WeaponController {
     onHit: (weapon: WeaponStats, attack: AttackConfig, attacker: Matter.Body, defender: Matter.Body, team: 'A' | 'B') => void,
     onBulletFire: (weapon: WeaponStats, attack: AttackConfig, hitboxR: number, bulletIdx: number, team: 'A' | 'B') => void,
   ): void {
-    const hitTimes    = team === 'A' ? this.lastHitTimesA    : this.lastHitTimesB;
-    const burstCounts = team === 'A' ? this.burstCountsA     : this.burstCountsB;
-    const bulletTimes = team === 'A' ? this.lastBulletTimesA : this.lastBulletTimesB;
-    const orbitAngle  = team === 'A' ? this.orbitAngleA      : this.orbitAngleB;
+    const ts = this.state[team];
 
     for (let i = 0; i < weapon.attacks.length; i++) {
       const attack = weapon.attacks[i];
@@ -130,25 +127,25 @@ export class WeaponController {
 
       if (attack.aimAtEnemy) {
         if (attack.hitscan) {
-          if (simTime - hitTimes[i] >= cd + HITSCAN_PREFIRE_MS) {
-            hitTimes[i] = simTime - HITSCAN_PREFIRE_MS;
+          if (simTime - ts.lastHitTimes[i] >= cd + HITSCAN_PREFIRE_MS) {
+            ts.lastHitTimes[i] = simTime - HITSCAN_PREFIRE_MS;
             onHit(weapon, attack, attacker, defender, team);
           }
         } else if (attack.bulletInterval) {
-          if (burstCounts[i] === 0 && simTime - hitTimes[i] >= cd) {
-            hitTimes[i] = simTime;
-            burstCounts[i] = attack.bulletCount ?? 1;
-            bulletTimes[i] = simTime - cd;
+          if (ts.burstCounts[i] === 0 && simTime - ts.lastHitTimes[i] >= cd) {
+            ts.lastHitTimes[i] = simTime;
+            ts.burstCounts[i]  = attack.bulletCount ?? 1;
+            ts.lastBulletTimes[i] = simTime - cd;
           }
-          if (burstCounts[i] > 0 && simTime - bulletTimes[i] >= attack.bulletInterval * 1000) {
-            bulletTimes[i] = simTime;
-            const bulletIdx = (attack.bulletCount ?? 1) - burstCounts[i];
+          if (ts.burstCounts[i] > 0 && simTime - ts.lastBulletTimes[i] >= attack.bulletInterval * 1000) {
+            ts.lastBulletTimes[i] = simTime;
+            const bulletIdx = (attack.bulletCount ?? 1) - ts.burstCounts[i];
             onBulletFire(weapon, attack, hitboxR, bulletIdx, team);
-            burstCounts[i]--;
+            ts.burstCounts[i]--;
           }
         } else {
-          if (simTime - hitTimes[i] >= cd) {
-            hitTimes[i] = simTime;
+          if (simTime - ts.lastHitTimes[i] >= cd) {
+            ts.lastHitTimes[i] = simTime;
             const count = attack.bulletCount ?? 1;
             for (let j = 0; j < count; j++) {
               onBulletFire(weapon, attack, hitboxR, j, team);
@@ -157,10 +154,10 @@ export class WeaponController {
         }
       } else {
         const baseHitboxR = getWeaponHitboxRadius(weapon);
-        const pos = getOrbitPosition(attacker.position.x, attacker.position.y, ballRadius, orbitAngle, baseHitboxR);
+        const pos = getOrbitPosition(attacker.position.x, attacker.position.y, ballRadius, ts.orbitAngle, baseHitboxR);
         const reachR  = hitboxR * (weapon.hitReachMult ?? 1);
-        const tipX    = pos.x + Math.cos(orbitAngle) * reachR;
-        const tipY    = pos.y + Math.sin(orbitAngle) * reachR;
+        const tipX    = pos.x + Math.cos(ts.orbitAngle) * reachR;
+        const tipY    = pos.y + Math.sin(ts.orbitAngle) * reachR;
         const ex      = defender.position.x;
         const ey      = defender.position.y;
         const t       = reachR > 0 ? Math.max(0, Math.min(1,
@@ -168,9 +165,8 @@ export class WeaponController {
         )) : 0;
         const capsuleDist = Math.hypot(ex - (pos.x + t * (tipX - pos.x)),
                                        ey - (pos.y + t * (tipY - pos.y)));
-        const capsuleR = baseHitboxR * 0.6;
-        if (capsuleDist < capsuleR + defenderRadius && simTime - hitTimes[i] >= cd) {
-          hitTimes[i] = simTime;
+        if (capsuleDist < baseHitboxR * 0.6 + defenderRadius && simTime - ts.lastHitTimes[i] >= cd) {
+          ts.lastHitTimes[i] = simTime;
           onHit(weapon, attack, attacker, defender, team);
         }
       }
@@ -187,14 +183,13 @@ export class WeaponController {
     opponent: Matter.Body,
     ballRadius: number,
   ): void {
-    const orbitAngle = team === 'A' ? this.orbitAngleA : this.orbitAngleB;
+    const orbitAngle = this.state[team].orbitAngle;
     const start = getOrbitPosition(body.position.x, body.position.y, ballRadius, orbitAngle, hitboxR);
     const dx = opponent.position.x - start.x;
     const dy = opponent.position.y - start.y;
     const dist = Math.hypot(dx, dy);
     const baseAngle = dist > 0 ? Math.atan2(dy, dx) : 0;
     const speed = (attack.bulletSpeed ?? 2.0) * (2 / 3);
-
     const count = attack.bulletCount ?? 1;
     const spread = attack.bulletSpread ?? 0.40;
     const halfSpread = ((count - 1) * spread) / 2;
@@ -223,20 +218,18 @@ export class WeaponController {
     bodyB: Matter.Body,
     onHit: (weapon: WeaponStats, attack: AttackConfig, attacker: Matter.Body, defender: Matter.Body, team: 'A' | 'B') => void,
   ): void {
+    const teams = { A: { body: bodyA, enemyBody: bodyB, enemyBall: teamB.ball, weapon: teamA.weapon },
+                    B: { body: bodyB, enemyBody: bodyA, enemyBall: teamA.ball, weapon: teamB.weapon } };
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const b = this.bullets[i];
-      b.x += b.vx * scaledDelta;
-      b.y += b.vy * scaledDelta;
+      b.x  += b.vx * scaledDelta;
+      b.y  += b.vy * scaledDelta;
       b.ttl -= scaledDelta;
       if (b.ttl <= 0) { this.bullets.splice(i, 1); continue; }
-
-      const attacker  = b.owner === 'A' ? bodyA : bodyB;
-      const enemy     = b.owner === 'A' ? bodyB : bodyA;
-      const enemyBall = b.owner === 'A' ? teamB.ball : teamA.ball;
-      const dist = Math.hypot(enemy.position.x - b.x, enemy.position.y - b.y);
+      const { body, enemyBody, enemyBall, weapon } = teams[b.owner];
+      const dist = Math.hypot(enemyBody.position.x - b.x, enemyBody.position.y - b.y);
       if (dist < enemyBall.radius + b.radius && hp.A > 0 && hp.B > 0) {
-        const weapon = b.owner === 'A' ? teamA.weapon : teamB.weapon;
-        onHit(weapon, b.attack, attacker, enemy, b.owner);
+        onHit(weapon, b.attack, body, enemyBody, b.owner);
         this.bullets.splice(i, 1);
       }
     }

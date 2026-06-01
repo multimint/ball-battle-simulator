@@ -19,7 +19,7 @@ import {
   WHITE_FLASH_FRAMES,
 } from '../constants/gameConstants';
 
-type Ctx2D = CanvasRenderingContext2D;
+type Ctx2D = OffscreenCanvasRenderingContext2D;
 
 export interface HudData {
   damageDealtA: number;
@@ -64,21 +64,21 @@ export class VideoEncoder {
 
     this.physicsCanvas = new OffscreenCanvas(ARENA_SIZE, ARENA_SIZE);
     this.captureCanvas = new OffscreenCanvas(CAPTURE_CANVAS_WIDTH, CAPTURE_CANVAS_HEIGHT);
-    this.captureCtx = this.captureCanvas.getContext('2d') as unknown as Ctx2D;
+    this.captureCtx = this.captureCanvas.getContext('2d')!;
 
     loadAllSprites();
 
     const physicsStaticBg = this.buildPhysicsStaticBg(teamA, teamB);
-    const physicsCtx = this.physicsCanvas.getContext('2d') as unknown as Ctx2D;
+    const physicsCtx = this.physicsCanvas.getContext('2d')!;
     this.renderer = new Renderer(physicsCtx, physicsStaticBg);
 
     this.captureBg = this.buildCaptureBg(teamA, teamB);
-    this.captureCtx.drawImage(this.captureBg as unknown as HTMLCanvasElement, 0, 0);
+    this.captureCtx.drawImage(this.captureBg, 0, 0);
   }
 
   private buildPhysicsStaticBg(teamA: TeamConfig, teamB: TeamConfig): OffscreenCanvas {
     const bg = new OffscreenCanvas(ARENA_SIZE, ARENA_SIZE);
-    const ctx = bg.getContext('2d') as unknown as Ctx2D;
+    const ctx = bg.getContext('2d')!;
     drawBackground(ctx);
     drawArenaWalls(ctx, teamA.ball.color, teamB.ball.color);
     return bg;
@@ -86,7 +86,7 @@ export class VideoEncoder {
 
   private buildCaptureBg(teamA: TeamConfig, teamB: TeamConfig): OffscreenCanvas {
     const bg = new OffscreenCanvas(CAPTURE_CANVAS_WIDTH, CAPTURE_CANVAS_HEIGHT);
-    const ctx = bg.getContext('2d') as unknown as Ctx2D;
+    const ctx = bg.getContext('2d')!;
     drawCaptureTopPanel(ctx, teamA, teamB);
 
     ctx.fillStyle = '#FFFADE';
@@ -132,15 +132,15 @@ export class VideoEncoder {
   }
 
   restoreCaptureBg(): void {
-    this.captureCtx.drawImage(this.captureBg as unknown as HTMLCanvasElement, 0, 0);
+    this.captureCtx.drawImage(this.captureBg, 0, 0);
   }
 
   renderFrame(state: RenderState, hud: HudData): void {
     this.renderer.render(state);
 
     const cctx = this.captureCtx;
-    (cctx as unknown as OffscreenCanvasRenderingContext2D).imageSmoothingEnabled = false;
-    cctx.drawImage(this.physicsCanvas as unknown as HTMLCanvasElement, this.arenaX, this.arenaY, this.arenaDrawSize, this.arenaDrawSize);
+    cctx.imageSmoothingEnabled = false;
+    cctx.drawImage(this.physicsCanvas, this.arenaX, this.arenaY, this.arenaDrawSize, this.arenaDrawSize);
 
     drawCaptureBottomPanel(
       cctx,

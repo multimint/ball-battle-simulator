@@ -1,7 +1,8 @@
 // Canvas 2D drawing helpers
+import type { Ctx2D } from '../rendering/ctx';
 
 export function drawCircle(
-  ctx: CanvasRenderingContext2D,
+  ctx: Ctx2D,
   x: number,
   y: number,
   radius: number,
@@ -21,7 +22,7 @@ export function drawCircle(
 }
 
 export function drawArc(
-  ctx: CanvasRenderingContext2D,
+  ctx: Ctx2D,
   x: number,
   y: number,
   radius: number,
@@ -39,7 +40,7 @@ export function drawArc(
 }
 
 export function drawLine(
-  ctx: CanvasRenderingContext2D,
+  ctx: Ctx2D,
   x1: number,
   y1: number,
   x2: number,
@@ -57,7 +58,7 @@ export function drawLine(
 }
 
 export function drawText(
-  ctx: CanvasRenderingContext2D,
+  ctx: Ctx2D,
   text: string,
   x: number,
   y: number,
@@ -73,7 +74,7 @@ export function drawText(
 }
 
 /** Measures `text` and truncates with '…' if it exceeds `maxWidth` at `font`. */
-export function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, font?: string): string {
+export function fitText(ctx: Ctx2D, text: string, maxWidth: number, font?: string): string {
   if (font) ctx.font = font;
   if (ctx.measureText(text).width <= maxWidth) return text;
   let t = text;
@@ -84,7 +85,7 @@ export function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: n
 }
 
 export function drawRoundedRect(
-  ctx: CanvasRenderingContext2D,
+  ctx: Ctx2D,
   x: number,
   y: number,
   w: number,

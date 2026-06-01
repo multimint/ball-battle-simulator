@@ -13,10 +13,9 @@ interface ControlPanelProps {
   isMobile?: boolean;
 }
 
-export default function ControlPanel({ videoRef, isEnded, onReplay, isMobile }: ControlPanelProps) {
+export default function ControlPanel({ videoRef, isEnded: _isEnded, onReplay, isMobile }: ControlPanelProps) {
   const teamA              = useGameStore((s) => s.teamA);
   const teamB              = useGameStore((s) => s.teamB);
-  const preSimBlob         = useGameStore((s) => s.preSimBlob);
   const simulationResult   = useGameStore((s) => s.simulationResult);
   const initialVelocities  = useGameStore((s) => s.initialVelocities);
   const startNewSimulation = useGameStore((s) => s.startNewSimulation);

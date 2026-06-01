@@ -1,6 +1,7 @@
 import { ARENA_SIZE } from '../constants/gameConstants';
+import type { Ctx2D } from './ctx';
 
-export function drawBackground(ctx: CanvasRenderingContext2D): void {
+export function drawBackground(ctx: Ctx2D): void {
   // Arena floor
   ctx.fillStyle = '#FEFEFE';
   ctx.fillRect(0, 0, ARENA_SIZE, ARENA_SIZE);
@@ -36,7 +37,7 @@ export function drawBackground(ctx: CanvasRenderingContext2D): void {
   ctx.fill();
 }
 
-export function drawArenaWalls(ctx: CanvasRenderingContext2D, colorA: string, colorB: string): void {
+export function drawArenaWalls(ctx: Ctx2D, colorA: string, colorB: string): void {
   // Gradient border
   const grad = ctx.createLinearGradient(0, 0, ARENA_SIZE, ARENA_SIZE);
   grad.addColorStop(0, colorA);

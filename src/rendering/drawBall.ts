@@ -2,9 +2,10 @@ import type { HitFlash } from '../models/GameState';
 import type { BallAbility, BallStats, StatusEffect } from '../models/types';
 import { isAbilityBerserk } from '../utils/ability';
 import { spriteRegistry } from '../sprites/SpriteRegistry';
+import type { Ctx2D } from './ctx';
 
 export function drawBall(
-  ctx: CanvasRenderingContext2D,
+  ctx: Ctx2D,
   x: number,
   y: number,
   angle: number,

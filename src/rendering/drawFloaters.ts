@@ -1,7 +1,8 @@
 import type { FloatingDamage } from '../models/GameState';
 import { FLOATER_RISE_SPEED, FLOATER_FADE_SPEED } from '../constants/gameConstants';
+import type { Ctx2D } from './ctx';
 
-export function drawFloaters(ctx: CanvasRenderingContext2D, floaters: FloatingDamage[]): void {
+export function drawFloaters(ctx: Ctx2D, floaters: FloatingDamage[]): void {
   for (const f of floaters) {
     ctx.save();
     ctx.globalAlpha = f.alpha;

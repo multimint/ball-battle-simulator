@@ -8,6 +8,7 @@ import { COLORS } from '../constants/colors';
 import { FONTS, TEXT_STYLES } from '../constants/typography';
 import { fitText } from '../utils/canvas';
 import { spriteRegistry } from '../sprites/SpriteRegistry';
+import type { Ctx2D } from './ctx';
 
 const BG  = COLORS.captureBackground;
 const DIM = COLORS.panelTextDark;
@@ -49,7 +50,7 @@ function getStatusRows(
 
 /** Top panel: cream background, team sprite + name + VS. */
 export function drawCaptureTopPanel(
-  ctx: CanvasRenderingContext2D,
+  ctx: Ctx2D,
   teamA: TeamConfig,
   teamB: TeamConfig,
 ): void {
@@ -99,7 +100,7 @@ export function drawCaptureTopPanel(
 
 /** Bottom panel: always-visible ability status strip, tight below the arena. */
 export function drawCaptureBottomPanel(
-  ctx: CanvasRenderingContext2D,
+  ctx: Ctx2D,
   _damageA: number,
   _damageB: number,
   _turns: number,
@@ -135,7 +136,7 @@ export function drawCaptureBottomPanel(
 }
 
 function drawTeamStrip(
-  ctx: CanvasRenderingContext2D,
+  ctx: Ctx2D,
   rows: StatusRow[],
   color: string,
   x: number,

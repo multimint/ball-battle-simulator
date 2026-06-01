@@ -2,7 +2,7 @@ import React from 'react';
 import * as LabelPrimitive from '@radix-ui/react-label';
 import { clsx } from 'clsx';
 
-interface LabelProps extends React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> {}
+type LabelProps = React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>;
 
 export function Label({ className, ...props }: LabelProps) {
   return (

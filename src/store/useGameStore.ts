@@ -1,11 +1,7 @@
 import { create } from 'zustand';
 import type { GamePhase, WinnerType, TeamConfig, TeamId, FighterPreset } from '../models/types';
 import { FIGHTER_PRESETS } from '../balls';
-import {
-  PHYSICS_SPEED_SCALE,
-  INITIAL_SPEED_MIN_FRAC,
-  INITIAL_SPEED_MAX_FRAC,
-} from '../constants/gameConstants';
+import { PHYSICS_SPEED_SCALE } from '../constants/gameConstants';
 
 export interface InitialVelocities {
   velA: { x: number; y: number };

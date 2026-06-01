@@ -1,17 +1,24 @@
-import Matter from 'matter-js';
 import type { BallStats, WeaponStats, BallAbility, StatusEffect } from '../models/types';
 import type { Particle, WeaponEffect, FloatingDamage, ScreenShake, ScreenFlash, HitFlash, TrailSegment, Bullet } from '../models/GameState';
+import type { Ctx2D } from './ctx';
 import { drawBackground, drawArenaWalls } from './drawBackground';
 import { drawBall } from './drawBall';
 import { drawParticles } from './drawParticles';
 import { drawFloaters } from './drawFloaters';
 import { drawWeaponEffects } from './drawWeaponEffect';
 import { drawOrbitWeapon } from './drawOrbitWeapon';
+import { drawBullets } from './drawBullets';
 import { ARENA_SIZE } from '../constants/gameConstants';
 
+export interface BallRenderPos {
+  x: number;
+  y: number;
+  angle: number;
+}
+
 export interface RenderState {
-  bodyA: Matter.Body;
-  bodyB: Matter.Body;
+  ballAPos: BallRenderPos;
+  ballBPos: BallRenderPos;
   ballA: BallStats;
   ballB: BallStats;
   hpA: number;
@@ -44,10 +51,10 @@ export interface RenderState {
 }
 
 export class Renderer {
-  private ctx: CanvasRenderingContext2D;
+  private ctx: Ctx2D;
   private staticBg: OffscreenCanvas | null;
 
-  constructor(ctx: CanvasRenderingContext2D, staticBg?: OffscreenCanvas) {
+  constructor(ctx: Ctx2D, staticBg?: OffscreenCanvas) {
     this.ctx = ctx;
     this.staticBg = staticBg ?? null;
   }
@@ -70,7 +77,7 @@ export class Renderer {
 
     // 1. Background + arena border (pre-rendered if available, otherwise dynamic)
     if (this.staticBg) {
-      ctx.drawImage(this.staticBg as unknown as HTMLCanvasElement, 0, 0);
+      ctx.drawImage(this.staticBg, 0, 0);
     } else {
       drawBackground(ctx);
       drawArenaWalls(ctx, state.colorA, state.colorB);
@@ -92,9 +99,9 @@ export class Renderer {
     // 4. Balls
     drawBall(
       ctx,
-      state.bodyA.position.x,
-      state.bodyA.position.y,
-      state.bodyA.angle,
+      state.ballAPos.x,
+      state.ballAPos.y,
+      state.ballAPos.angle,
       state.ballA,
       state.hpA,
       state.maxHpA,
@@ -105,9 +112,9 @@ export class Renderer {
     );
     drawBall(
       ctx,
-      state.bodyB.position.x,
-      state.bodyB.position.y,
-      state.bodyB.angle,
+      state.ballBPos.x,
+      state.ballBPos.y,
+      state.ballBPos.angle,
       state.ballB,
       state.hpB,
       state.maxHpB,
@@ -120,8 +127,8 @@ export class Renderer {
     // 5. Orbiting weapons (drawn on top of balls, inside the shake transform)
     drawOrbitWeapon(
       ctx,
-      state.bodyA.position.x,
-      state.bodyA.position.y,
+      state.ballAPos.x,
+      state.ballAPos.y,
       state.ballA.radius,
       state.orbitAngleA,
       state.weaponA,
@@ -130,8 +137,8 @@ export class Renderer {
     );
     drawOrbitWeapon(
       ctx,
-      state.bodyB.position.x,
-      state.bodyB.position.y,
+      state.ballBPos.x,
+      state.ballBPos.y,
       state.ballB.radius,
       state.orbitAngleB,
       state.weaponB,
@@ -140,23 +147,7 @@ export class Renderer {
     );
 
     // 6. Traveling bullets (drawn over weapons, under hit effects)
-    for (const b of state.bullets ?? []) {
-      ctx.save();
-      ctx.shadowColor = b.color;
-      ctx.shadowBlur = 12;
-      ctx.fillStyle = b.color;
-      ctx.globalAlpha = 0.9;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 4;
-      ctx.fillStyle = '#FFFFFF';
-      ctx.globalAlpha = 0.8;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, b.radius * 0.45, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
+    drawBullets(ctx, state.bullets ?? []);
 
     // 7. Remaining weapon effects (explosions, lasers, sword flashes, etc.)
     drawWeaponEffects(ctx, state.weaponEffects.filter((e) => e.type !== 'shield'));

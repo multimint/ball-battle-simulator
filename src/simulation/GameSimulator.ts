@@ -1,23 +1,22 @@
 import Matter from 'matter-js';
-import type { TeamConfig, WeaponStats, AttackConfig, WinnerType, BallAbility, BallAbilityType, StatusEffect, StatusEffectType } from '../models/types';
-import type { SpriteKey } from '../sprites/SpriteKey';
+import type { TeamConfig, WeaponStats, AttackConfig, WinnerType, BallAbility, BallAbilityType } from '../models/types';
 import { StatusEffectManager } from './StatusEffectManager';
-import { getHitMultipliers } from './WeaponHitProcessor';
 import { isAbilityBerserk } from '../utils/ability';
 import { getCollisionImpulse, getCollisionPoint } from '../utils/collision';
-import { applyKnockback, clampVelocity, nudgeBody, directionBetween, bodyOptionsFromBall } from '../utils/physics';
+import { clampVelocity, nudgeBody, bodyOptionsFromBall } from '../utils/physics';
 import { getWeaponHitboxRadius, getOrbitPosition } from '../rendering/drawOrbitWeapon';
 import { EffectsController } from './EffectsController';
 import { ParticleController } from './ParticleController';
 import { AudioEmitter } from './AudioEmitter';
 import { WeaponController } from './WeaponController';
 import { VideoEncoder } from './VideoEncoder';
+import { processHit } from './HitProcessor';
+import { applyAbility } from './AbilityHandler';
 import {
   ARENA_SIZE,
   VELOCITY_CLAMP,
   PHYSICS_SPEED_SCALE,
   INITIAL_SPEED_MIN_FRAC,
-  SLOW_MOTION_FACTOR,
   SCREEN_SHAKE_MAGNITUDE,
   SCREEN_SHAKE_TTL,
   STUCK_FRAMES,
@@ -26,13 +25,15 @@ import {
   WALL_THICKNESS,
   BALL_A_START,
   BALL_B_START,
-  MAX_PARTICLES,
   BERSERK_HOMING_BLEND,
   BERSERK_TRAIL_SPAWN_CHANCE,
+  BERSERK_SPIN_MULT,
+  BERSERK_TRAIL_COLOR,
   SOFT_ATTRACT_THRESHOLD_PX,
   SOFT_ATTRACT_FORCE_COEFF,
 } from '../constants/gameConstants';
 import type { InitialVelocities, SimulationResult } from '../store/useGameStore';
+import type { ApplyEffectOptions } from './StatusEffectManager';
 
 const { Engine, World, Bodies, Composite, Body, Events } = Matter;
 
@@ -138,41 +139,7 @@ export class GameSimulator {
     const isEncoderSupported = typeof VideoEncoder !== 'undefined' && typeof VideoFrame !== 'undefined';
     if (isEncoderSupported) this.video.initEncoder();
 
-    // ── Collision event: particles + turn counter ───────────────────────────
-    const handleCollision = (event: Matter.IEventCollision<Matter.Engine>) => {
-      for (const pair of event.pairs) {
-        const invA = [pair.bodyA, pair.bodyB].some((b) => b.id === this.bodyA.id);
-        const invB = [pair.bodyA, pair.bodyB].some((b) => b.id === this.bodyB.id);
-        if (!invA || !invB) continue;
-
-        const impulse = getCollisionImpulse(pair);
-        const point   = getCollisionPoint(pair);
-
-        if (impulse > HEAVY_HIT_THRESHOLD) {
-          this.effects.applySlowMotion();
-          this.effects.applyScreenShake(SCREEN_SHAKE_MAGNITUDE, SCREEN_SHAKE_TTL);
-        }
-
-        this.particles.spawnBurst(point.x, point.y, this.teamA.ball.color, 8);
-        this.turns++;
-
-        this.audio.emitBallBounce(this.teamA.audioProfile.hitStyle, this.simTime);
-      }
-
-      // Wall-bounce ability trigger + audio
-      for (const pair of event.pairs) {
-        const isWall  = (b: Matter.Body) => b.label === 'wall';
-        const isBallA = (b: Matter.Body) => b.id === this.bodyA.id;
-        const isBallB = (b: Matter.Body) => b.id === this.bodyB.id;
-        if ((isWall(pair.bodyA) && isBallA(pair.bodyB)) || (isWall(pair.bodyB) && isBallA(pair.bodyA))) {
-          this.applyBallAbility(this.teamA.ball.ability, 'A', 'onBounce', { x: this.bodyA.position.x, y: this.bodyA.position.y });
-          this.audio.emitWallBounce(this.teamA.audioProfile.hitStyle, this.simTime);
-        } else if ((isWall(pair.bodyA) && isBallB(pair.bodyB)) || (isWall(pair.bodyB) && isBallB(pair.bodyA))) {
-          this.applyBallAbility(this.teamB.ball.ability, 'B', 'onBounce', { x: this.bodyB.position.x, y: this.bodyB.position.y });
-          this.audio.emitWallBounce(this.teamB.audioProfile.hitStyle, this.simTime);
-        }
-      }
-    };
+    const handleCollision = (e: Matter.IEventCollision<Matter.Engine>) => this.onCollision(e);
     Events.on(this.engine, 'collisionStart', handleCollision);
 
     // ── Phase 1: Intro card ───────────────────────────────────────────────
@@ -222,7 +189,7 @@ export class GameSimulator {
     frameIdx = this.video.encodeWhiteFlash(frameIdx);
 
     // ── Phase 3: Result card ──────────────────────────────────────────────
-    frameIdx = await this.video.encodeResultPhase(this.teamA, this.teamB, this.winner, frameIdx, onProgress);
+    await this.video.encodeResultPhase(this.teamA, this.teamB, this.winner, frameIdx, onProgress);
 
     onProgress(1.0);
 
@@ -256,35 +223,65 @@ export class GameSimulator {
     };
   }
 
+  private onCollision(event: Matter.IEventCollision<Matter.Engine>): void {
+    for (const pair of event.pairs) {
+      const invA = [pair.bodyA, pair.bodyB].some((b) => b.id === this.bodyA.id);
+      const invB = [pair.bodyA, pair.bodyB].some((b) => b.id === this.bodyB.id);
+      if (!invA || !invB) continue;
+
+      const impulse = getCollisionImpulse(pair);
+      const point   = getCollisionPoint(pair);
+
+      if (impulse > HEAVY_HIT_THRESHOLD) {
+        this.effects.applySlowMotion();
+        this.effects.applyScreenShake(SCREEN_SHAKE_MAGNITUDE, SCREEN_SHAKE_TTL);
+      }
+
+      this.particles.spawnBurst(point.x, point.y, this.teamA.ball.color, 8);
+      this.turns++;
+      this.audio.emitBallBounce(this.teamA.audioProfile.hitStyle, this.simTime);
+    }
+
+    // Wall-bounce ability trigger + audio
+    for (const pair of event.pairs) {
+      const isWall  = (b: Matter.Body) => b.label === 'wall';
+      const isBallA = (b: Matter.Body) => b.id === this.bodyA.id;
+      const isBallB = (b: Matter.Body) => b.id === this.bodyB.id;
+      if ((isWall(pair.bodyA) && isBallA(pair.bodyB)) || (isWall(pair.bodyB) && isBallA(pair.bodyA))) {
+        this.applyBallAbility(this.teamA.ball.ability, 'A', 'onBounce', { x: this.bodyA.position.x, y: this.bodyA.position.y });
+        this.audio.emitWallBounce(this.teamA.audioProfile.hitStyle, this.simTime);
+      } else if ((isWall(pair.bodyA) && isBallB(pair.bodyB)) || (isWall(pair.bodyB) && isBallB(pair.bodyA))) {
+        this.applyBallAbility(this.teamB.ball.ability, 'B', 'onBounce', { x: this.bodyB.position.x, y: this.bodyB.position.y });
+        this.audio.emitWallBounce(this.teamB.audioProfile.hitStyle, this.simTime);
+      }
+    }
+  }
+
   private tick(delta: number): void {
     const scaledDelta = delta * this.effects.slowMotion;
 
     this.effects.step();
-
     Engine.update(this.engine, scaledDelta);
 
-    const speedMultA = this.getSpeedMultiplier('A');
-    const speedMultB = this.getSpeedMultiplier('B');
-    clampVelocity(this.bodyA, this.teamA.ball.maxSpeed * speedMultA, VELOCITY_CLAMP);
-    clampVelocity(this.bodyB, this.teamB.ball.maxSpeed * speedMultB, VELOCITY_CLAMP);
+    const teams = [
+      { id: 'A' as const, config: this.teamA, body: this.bodyA, stuck: this.stuckA },
+      { id: 'B' as const, config: this.teamB, body: this.bodyB, stuck: this.stuckB },
+    ];
+    const speedMults = teams.map(t => this.getSpeedMultiplier(t.id)) as [number, number];
 
-    enforceMinSpeed(this.bodyA, this.teamA.ball.maxSpeed * speedMultA);
-    enforceMinSpeed(this.bodyB, this.teamB.ball.maxSpeed * speedMultB);
-
-    const berserkA = isAbilityBerserk(this.teamA.ball.ability, this.hp.A / this.maxHp.A);
-    const berserkB = isAbilityBerserk(this.teamB.ball.ability, this.hp.B / this.maxHp.B);
-
-    // Berserk homing — steer 25% toward enemy each tick
-    this.applyBerserkHoming(berserkA, this.bodyA, this.bodyB, this.teamA.ball.radius);
-    this.applyBerserkHoming(berserkB, this.bodyB, this.bodyA, this.teamB.ball.radius);
-
-    const berserkSpinA = berserkA ? 3.5 : 1.0;
-    const berserkSpinB = berserkB ? 3.5 : 1.0;
-    Body.setAngularVelocity(this.bodyA, this.teamA.ball.spinSpeed * 0.05 * berserkSpinA * speedMultA * Math.sign(this.bodyA.velocity.x || 1));
-    Body.setAngularVelocity(this.bodyB, this.teamB.ball.spinSpeed * 0.05 * berserkSpinB * speedMultB * Math.sign(this.bodyB.velocity.x || 1));
-
-    this.updateStuck(this.stuckA, this.bodyA);
-    this.updateStuck(this.stuckB, this.bodyB);
+    // Speed clamp, min-speed enforcement, berserk homing, spin, stuck detection
+    const berserk = teams.map(t => isAbilityBerserk(t.config.ball.ability, this.hp[t.id] / this.maxHp[t.id]));
+    for (let i = 0; i < 2; i++) {
+      const team    = teams[i];
+      const enemy   = teams[1 - i];
+      const sMult   = speedMults[i];
+      clampVelocity(team.body, team.config.ball.maxSpeed * sMult, VELOCITY_CLAMP);
+      enforceMinSpeed(team.body, team.config.ball.maxSpeed * sMult);
+      this.applyBerserkHoming(berserk[i], team.body, enemy.body, team.config.ball.radius);
+      const spin = berserk[i] ? BERSERK_SPIN_MULT : 1.0;
+      Body.setAngularVelocity(team.body, team.config.ball.spinSpeed * 0.05 * spin * sMult * Math.sign(team.body.velocity.x || 1));
+      this.updateStuck(team.stuck, team.body);
+    }
 
     // Weapon orbit & attack processing
     this.effects.stepWeaponEffects();
@@ -295,90 +292,46 @@ export class GameSimulator {
       this.hp, this.maxHp,
       this.statusMgr,
     );
+    const hitboxes = [hitboxA, hitboxB] as const;
 
     if (this.hp.A > 0 && this.hp.B > 0) {
-      this.weapons.processAttacks(
-        'A', this.simTime, this.teamA.weapon, this.bodyA, this.bodyB,
-        this.teamB.ball.radius, hitboxA, this.teamA.ball.radius,
-        this.applyHit.bind(this),
-        (w, atk, hr, idx, team) => {
-          this.weapons.spawnBullet(team, w, atk, hr, idx, this.bodyA, this.bodyB, this.teamA.ball.radius);
-          if (idx === 0) this.audio.emitBulletFire(this.teamA.audioProfile.hitStyle, this.simTime);
-        },
-      );
-    }
-    if (this.hp.A > 0 && this.hp.B > 0) {
-      this.weapons.processAttacks(
-        'B', this.simTime, this.teamB.weapon, this.bodyB, this.bodyA,
-        this.teamA.ball.radius, hitboxB, this.teamB.ball.radius,
-        this.applyHit.bind(this),
-        (w, atk, hr, idx, team) => {
-          this.weapons.spawnBullet(team, w, atk, hr, idx, this.bodyB, this.bodyA, this.teamB.ball.radius);
-          if (idx === 0) this.audio.emitBulletFire(this.teamB.audioProfile.hitStyle, this.simTime);
-        },
-      );
+      for (let i = 0; i < 2; i++) {
+        const team    = teams[i];
+        const enemy   = teams[1 - i];
+        this.weapons.processAttacks(
+          team.id, this.simTime, team.config.weapon, team.body, enemy.body,
+          enemy.config.ball.radius, hitboxes[i], team.config.ball.radius,
+          this.applyHit.bind(this),
+          (w, atk, hr, idx, tid) => {
+            this.weapons.spawnBullet(tid, w, atk, hr, idx, team.body, enemy.body, team.config.ball.radius);
+            if (idx === 0) this.audio.emitBulletFire(team.config.audioProfile.hitStyle, this.simTime);
+          },
+        );
+      }
     }
     this.weapons.updateBullets(scaledDelta, this.hp, this.teamA, this.teamB, this.bodyA, this.bodyB, this.applyHit.bind(this));
 
-    // Tick status effects (DoT damage, duration countdown)
     this.tickStatusEffects(scaledDelta);
 
-    // Ball ability ticks (trail, passive, onLowHP)
-    this.applyBallAbility(this.teamA.ball.ability, 'A', 'trail',   { delta: scaledDelta, x: this.bodyA.position.x, y: this.bodyA.position.y });
-    this.applyBallAbility(this.teamB.ball.ability, 'B', 'trail',   { delta: scaledDelta, x: this.bodyB.position.x, y: this.bodyB.position.y });
-    this.applyBallAbility(this.teamA.ball.ability, 'A', 'passive', { delta: scaledDelta });
-    this.applyBallAbility(this.teamB.ball.ability, 'B', 'passive', { delta: scaledDelta });
-
-    // Generic tick trail — any ability with tickTrailEnabled emits trail each frame
-    for (const team of ['A', 'B'] as const) {
-      const teamData = team === 'A' ? this.teamA : this.teamB;
-      const p = teamData.ball.ability?.params;
-      if (!p?.tickTrailEnabled) continue;
-      const condEffect = p.tickTrailConditionEffect;
-      if (condEffect) {
-        const effect = this.statusMgr.getEffects(team).find(e => e.type === condEffect);
-        if (!effect || effect.stacks < (p.tickTrailConditionMinStacks ?? 1)) continue;
+    // Ball ability ticks (trail, passive, onLowHP) + per-frame ambient trail
+    for (const team of teams) {
+      this.applyBallAbility(team.config.ball.ability, team.id, 'trail',   { delta: scaledDelta, x: team.body.position.x, y: team.body.position.y });
+      this.applyBallAbility(team.config.ball.ability, team.id, 'passive', { delta: scaledDelta });
+      if (isAbilityBerserk(team.config.ball.ability, this.hp[team.id] / this.maxHp[team.id])) {
+        this.applyBallAbility(team.config.ball.ability, team.id, 'onLowHP', { delta: scaledDelta });
       }
-      if (Math.random() >= (p.tickTrailSpawnChance ?? 1)) continue;
-      const body = team === 'A' ? this.bodyA : this.bodyB;
-      let tx: number, ty: number, tr: number;
-      if (p.tickTrailAtWeapon) {
-        const angle = team === 'A' ? this.weapons.orbitAngleA : this.weapons.orbitAngleB;
-        const hitboxR = getWeaponHitboxRadius(teamData.weapon);
-        const pos = getOrbitPosition(body.position.x, body.position.y, teamData.ball.radius, angle, hitboxR);
-        tx = pos.x; ty = pos.y;
-        tr = hitboxR * (p.tickTrailRadiusFrac ?? 0.45);
-      } else {
-        tx = body.position.x; ty = body.position.y;
-        tr = teamData.ball.radius * (p.tickTrailRadiusFrac ?? 0.5);
-      }
-      this.particles.pushTrail({
-        x: tx, y: ty, radius: tr,
-        color: p.tickTrailColor ?? '#FFFFFF',
-        alpha: p.tickTrailAlpha ?? 0.5,
-        ttl: p.tickTrailTtl ?? 8,
-        maxTtl: p.tickTrailTtl ?? 8,
-      });
-    }
-
-    const hpFracA = this.hp.A / this.maxHp.A;
-    const hpFracB = this.hp.B / this.maxHp.B;
-    if (isAbilityBerserk(this.teamA.ball.ability, hpFracA)) {
-      this.applyBallAbility(this.teamA.ball.ability, 'A', 'onLowHP', { delta: scaledDelta });
-    }
-    if (isAbilityBerserk(this.teamB.ball.ability, hpFracB)) {
-      this.applyBallAbility(this.teamB.ball.ability, 'B', 'onLowHP', { delta: scaledDelta });
+      this.tickGenericTrail(team);
     }
 
     // Soft attraction: pull balls toward each other when far apart
-    const adx = this.bodyB.position.x - this.bodyA.position.x;
-    const ady = this.bodyB.position.y - this.bodyA.position.y;
+    const adx   = this.bodyB.position.x - this.bodyA.position.x;
+    const ady   = this.bodyB.position.y - this.bodyA.position.y;
     const adist = Math.hypot(adx, ady);
     if (adist > SOFT_ATTRACT_THRESHOLD_PX) {
       const excess = adist - SOFT_ATTRACT_THRESHOLD_PX;
       const fx = (adx / adist) * SOFT_ATTRACT_FORCE_COEFF * excess;
       const fy = (ady / adist) * SOFT_ATTRACT_FORCE_COEFF * excess;
-      Body.applyForce(this.bodyA, this.bodyA.position, { x: fx,  y: fy  });
+      Body.applyForce(this.bodyA, this.bodyA.position, { x:  fx, y:  fy });
       Body.applyForce(this.bodyB, this.bodyB.position, { x: -fx, y: -fy });
     }
 
@@ -415,14 +368,14 @@ export class GameSimulator {
       y: self.velocity.y * (1 - BERSERK_HOMING_BLEND) + ny * speed * BERSERK_HOMING_BLEND,
     });
     if (Math.random() < BERSERK_TRAIL_SPAWN_CHANCE) {
-      this.particles.pushTrail({ x: self.position.x, y: self.position.y, radius: radius * 0.55, color: '#FF3300', alpha: 0.55, ttl: 10, maxTtl: 10 });
+      this.particles.pushTrail({ x: self.position.x, y: self.position.y, radius: radius * 0.55, color: BERSERK_TRAIL_COLOR, alpha: 0.55, ttl: 10, maxTtl: 10 });
     }
   }
 
   private encodeFrame(frameIdx: number): void {
     this.video.renderFrame({
-      bodyA: this.bodyA,
-      bodyB: this.bodyB,
+      ballAPos: { x: this.bodyA.position.x, y: this.bodyA.position.y, angle: this.bodyA.angle },
+      ballBPos: { x: this.bodyB.position.x, y: this.bodyB.position.y, angle: this.bodyB.angle },
       ballA: this.teamA.ball,
       ballB: this.teamB.ball,
       hpA: this.hp.A,
@@ -481,17 +434,8 @@ export class GameSimulator {
     state.lastY = body.position.y;
   }
 
-  applyStatusEffect(
-    team: 'A' | 'B',
-    type: StatusEffectType,
-    durationMs: number,
-    magnitude: number,
-    stackBehavior: StatusEffect['stackBehavior'],
-    maxStacks: number,
-    color: string,
-    icon: SpriteKey,
-  ): void {
-    this.statusMgr.apply(team, type, durationMs, magnitude, stackBehavior, maxStacks, color, icon, this.simTime);
+  applyStatusEffect(opts: Omit<ApplyEffectOptions, 'simTime'>): void {
+    this.statusMgr.apply({ ...opts, simTime: this.simTime });
   }
 
   private tickStatusEffects(delta: number): void {
@@ -521,181 +465,66 @@ export class GameSimulator {
     defender: Matter.Body,
     attackerTeam: 'A' | 'B',
   ): void {
-    const targetTeam: 'A' | 'B' = attackerTeam === 'A' ? 'B' : 'A';
-    const dir = directionBetween(attacker, defender);
-    const hitAngle = Math.atan2(dir.y, dir.x);
-
-    let lastDmg = 0;
-    const damage = (team: 'A' | 'B', amount: number): number => {
-      const attackingTeam: 'A' | 'B' = team === 'A' ? 'B' : 'A';
-      let modified = amount * this.getOutgoingDamageMultiplier(attackingTeam) * this.getIncomingDamageMultiplier(team);
-      modified = this.consumeShield(team, modified);
-      const rounded = Math.round(modified);
-      const actual  = Math.min(rounded, this.hp[team]);
-      this.hp[team] = Math.max(0, this.hp[team] - actual);
-      if (actual > 0) {
-        const fx = defender.position.x + (Math.random() - 0.5) * 20;
-        const fy = defender.position.y - (defender.circleRadius ?? 25) - 8;
-        this.particles.pushFloater(String(actual), fx, fy, weapon.color ?? '#FFFFFF');
-      }
-      const opponent: 'A' | 'B' = team === 'A' ? 'B' : 'A';
-      this.damageDealt[opponent] += actual;
-      const lifesteal = this.statusMgr.getEffects(attackingTeam).find((e) => e.type === 'lifesteal');
-      if (lifesteal) {
-        const heal = Math.round(actual * lifesteal.magnitude);
-        if (heal > 0) this.hp[attackerTeam] = Math.min(this.maxHp[attackerTeam], this.hp[attackerTeam] + heal);
-      }
-      lastDmg = rounded;
-      return rounded;
-    };
-
-    switch (attack.type) {
-      case 'melee': {
-        const { kbMult, dmgMult } = getHitMultipliers(weapon, attack);
-        applyKnockback(defender, dir.x, dir.y, attack.knockback * kbMult);
-        damage(targetTeam, attack.damage * dmgMult);
-        this.particles.spawnBurst(defender.position.x, defender.position.y, weapon.color ?? '#CC6633', 8);
-        break;
-      }
-      case 'shield': {
-        applyKnockback(defender, dir.x, dir.y, attack.knockback * 1.8);
-        if (attack.damage > 0) damage(targetTeam, Math.max(1, Math.round(attack.damage * 0.2)));
-        this.effects.pushWeaponEffect('shield', attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#AAAAFF', 18, { radius: (attacker.circleRadius ?? 25) + 14 });
-        this.particles.spawnBurst(attacker.position.x, attacker.position.y, weapon.color ?? '#AAAAFF', 6);
-        break;
-      }
-      case 'projectile': {
-        const { kbMult, dmgMult } = getHitMultipliers(weapon, attack);
-        if (weapon.hitEffect === 'explosion') {
-          this.effects.pushWeaponEffect('explosion', defender.position.x, defender.position.y, 0, weapon.color ?? '#44AA44', 20, { radius: weapon.hitEffectRadius ?? 70 });
-        } else if (weapon.hitEffect === 'laser' && attack.hitscan) {
-          // Full laser beam — only for the hitscan laser attack, not split bullets
-          this.effects.pushWeaponEffect('laser', attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#44AAFF', 22, { x2: defender.position.x, y2: defender.position.y });
-          this.effects.pushWeaponEffect('explosion', defender.position.x, defender.position.y, 0, weapon.color ?? '#44AAFF', 18, { radius: 55 });
-          this.effects.applyScreenShake(8, 14);
-          this.effects.applyScreenFlash(0.45, weapon.color ?? '#4488FF', 8);
-          this.effects.applyHitFlash(targetTeam, 0.9, '#FFFFFF', 8);
-          this.effects.applySlowMotion();
-        }
-        applyKnockback(defender, dir.x, dir.y, attack.knockback * kbMult);
-        damage(targetTeam, attack.damage * dmgMult);
-        this.particles.spawnBurst(defender.position.x, defender.position.y, weapon.color ?? '#FFF', attack.hitscan ? 22 : 8);
-        break;
-      }
-      case 'aoe': {
-        applyKnockback(defender, dir.x, dir.y, attack.knockback * 1.5);
-        damage(targetTeam, attack.damage);
-        this.effects.pushWeaponEffect('shockwave', attacker.position.x, attacker.position.y, 0, weapon.color ?? '#FF44FF', 25, { radius: weapon.range * 30 });
-        this.particles.spawnBurst(attacker.position.x, attacker.position.y, weapon.color ?? '#FF44FF', 15);
-        break;
-      }
-      case 'utility': {
-        if (weapon.utilityBehavior === 'pull') {
-          const pullDir = directionBetween(defender, attacker);
-          applyKnockback(defender, pullDir.x, pullDir.y, 80);
-          if (attack.damage > 0) damage(targetTeam, attack.damage);
-          this.particles.spawnBurst((attacker.position.x + defender.position.x) / 2, (attacker.position.y + defender.position.y) / 2, weapon.color ?? '#44FFAA', 6);
-        } else if (weapon.utilityBehavior === 'push-both') {
-          applyKnockback(defender, dir.x, dir.y, attack.knockback * 1.3);
-          applyKnockback(attacker, -dir.x, -dir.y, attack.knockback * (weapon.selfKnockbackFrac ?? 0.4));
-          damage(targetTeam, attack.damage);
-          this.effects.pushWeaponEffect('explosion', attacker.position.x, attacker.position.y, 0, weapon.color ?? '#FFFF44', 18, { radius: 55 });
-        }
-        break;
-      }
-    }
-
-    // Attack-level status effect (e.g. freeze on laser hit)
-    if (attack.hitStatusEffect && lastDmg > 0) {
-      this.applyStatusEffect(targetTeam, attack.hitStatusEffect, attack.hitStatusDuration ?? 2000, attack.hitStatusMagnitude ?? 0.3, 'refresh', 1, attack.hitStatusColor ?? '#88CCFF', attack.hitStatusIcon ?? 'burst');
-    }
-
-    this.effects.applyTierEffects(attack.type, targetTeam, weapon.color ?? '#FFFFFF', lastDmg);
-
-    // Audio: emit hit event scaled by damage
-    if (attack.type !== 'utility') {
-      const hitStyle = (attackerTeam === 'A' ? this.teamA : this.teamB).audioProfile.hitStyle;
-      if (attack.audioHint === 'laser') {
-        this.audio.emitLaser(hitStyle, this.simTime);
-      } else {
-        this.audio.emitHit(hitStyle, Math.min(1, Math.max(0, lastDmg / 30)), this.simTime);
-      }
-    }
-
-    // Velocity burst in hit direction — amplified when attacker is in berserk
-    if (lastDmg > 0) {
-      const attackerBerserk = this.isBerserk(attackerTeam);
-      const burstMult = attackerBerserk ? 2.5 : 1.0;
-      const burst = Math.min(10, (lastDmg / 8) * burstMult);
-      Body.setVelocity(defender, { x: defender.velocity.x + dir.x * burst, y: defender.velocity.y + dir.y * burst });
-      const boostMag = attackerBerserk ? Math.min(1.2, lastDmg * 0.018) : Math.min(0.7, lastDmg * 0.01);
-      const boostDur = Math.round(attackerBerserk ? Math.min(1000, lastDmg * 18) : Math.min(700, lastDmg * 12));
-      this.applyStatusEffect(targetTeam, 'speedBoost', boostDur, boostMag, 'refresh', 1, '#FF6600', 'burst');
-    }
-
-    // Ball ability triggers for hit events
-    this.applyBallAbility(attackerTeam === 'A' ? this.teamA.ball.ability : this.teamB.ball.ability, attackerTeam, 'onHitDealt',   { x: defender.position.x, y: defender.position.y });
-    this.applyBallAbility(targetTeam  === 'A' ? this.teamA.ball.ability : this.teamB.ball.ability, targetTeam,  'onHitReceived', { x: defender.position.x, y: defender.position.y });
+    processHit({
+      weapon, attack, attacker, defender, attackerTeam,
+      hp: this.hp, maxHp: this.maxHp, damageDealt: this.damageDealt,
+      teamA: this.teamA, teamB: this.teamB,
+      statusMgr: this.statusMgr,
+      particles: this.particles,
+      effects: this.effects,
+      audio: this.audio,
+      simTime: this.simTime,
+      onAbility: (ability, team, trigger, pos) => this.applyBallAbility(ability, team, trigger, pos),
+    });
   }
 
   private applyBallAbility(
     ability: BallAbility | undefined,
     team: 'A' | 'B',
     trigger: BallAbilityType,
-    context: { delta?: number; x?: number; y?: number } = {},
+    _context: { delta?: number; x?: number; y?: number } = {},
   ): void {
     if (!ability || ability.trigger !== trigger) return;
-    const body = team === 'A' ? this.bodyA : this.bodyB;
-    const p = ability.params;
+    const body       = team === 'A' ? this.bodyA : this.bodyB;
+    const teamConfig = team === 'A' ? this.teamA  : this.teamB;
+    applyAbility({
+      ability, team, trigger, body, teamConfig,
+      statusMgr: this.statusMgr,
+      particles: this.particles,
+      effects: this.effects,
+      audio: this.audio,
+      simTime: this.simTime,
+    });
+  }
 
-    // Audio: emit ability event for meaningful triggers (not per-tick trail/passive)
-    if (trigger !== 'trail' && trigger !== 'passive') {
-      const abilityStyle = (team === 'A' ? this.teamA : this.teamB).audioProfile.abilityStyle;
-      this.audio.emitAbility(team, abilityStyle, trigger, this.simTime);
+  private tickGenericTrail(team: { id: 'A' | 'B'; config: TeamConfig; body: Matter.Body }): void {
+    const p = team.config.ball.ability?.params;
+    if (!p?.tickTrailEnabled) return;
+
+    const condEffect = p.tickTrailConditionEffect;
+    if (condEffect) {
+      const effect = this.statusMgr.getEffects(team.id).find(e => e.type === condEffect);
+      if (!effect || effect.stacks < (p.tickTrailConditionMinStacks ?? 1)) return;
     }
+    if (Math.random() >= (p.tickTrailSpawnChance ?? 1)) return;
 
-    // Generic status-effect application
-    if (p.statusEffect) {
-      const target = p.statusTarget === 'self' ? team : (team === 'A' ? 'B' : 'A');
-      this.applyStatusEffect(target, p.statusEffect, p.statusDuration ?? 2000, p.statusMagnitude ?? 0.3, p.stackBehavior ?? 'refresh', p.maxStacks ?? 1, p.statusColor ?? '#FF8800', p.statusIcon ?? 'burst');
+    let tx: number, ty: number, tr: number;
+    if (p.tickTrailAtWeapon) {
+      const angle   = team.id === 'A' ? this.weapons.orbitAngleA : this.weapons.orbitAngleB;
+      const hitboxR = getWeaponHitboxRadius(team.config.weapon);
+      const pos     = getOrbitPosition(team.body.position.x, team.body.position.y, team.config.ball.radius, angle, hitboxR);
+      tx = pos.x; ty = pos.y;
+      tr = hitboxR * (p.tickTrailRadiusFrac ?? 0.45);
+    } else {
+      tx = team.body.position.x; ty = team.body.position.y;
+      tr = team.config.ball.radius * (p.tickTrailRadiusFrac ?? 0.5);
     }
-
-    // Ability-triggered screen effects
-    if (p.hitFlash) {
-      const flashTeam = p.hitFlashTarget === 'enemy' ? (team === 'A' ? 'B' : 'A') : team;
-      this.effects.applyHitFlash(flashTeam, 0.65, p.hitFlashColor ?? '#FFFFFF', 5);
-    }
-    if (p.hitShakeMagnitude) this.effects.applyScreenShake(p.hitShakeMagnitude, SCREEN_SHAKE_TTL);
-    if (p.hitSlowMo)         this.effects.applySlowMotion();
-    if (p.hitScreenFlash)    this.effects.applyScreenFlash(p.hitScreenFlashAlpha ?? 0.3, p.hitScreenFlashColor ?? '#FFFFFF', Math.round(p.hitScreenFlashTtl ?? 5));
-
-    // Second status effect
-    if (p.secondStatusEffect) {
-      const target2 = p.secondStatusTarget === 'enemy' ? (team === 'A' ? 'B' : 'A') : team;
-      this.applyStatusEffect(target2, p.secondStatusEffect, p.secondStatusDuration ?? 2000, p.secondStatusMagnitude ?? 0.3, p.secondStatusBehavior ?? 'refresh', p.secondStatusMaxStacks ?? 1, p.secondStatusColor ?? '#FF8800', p.secondStatusIcon ?? 'burst');
-    }
-
-    // Trail on trigger — spawned at ball position when ability fires
-    if (p.trailOnTrigger) {
-      const ballRadius = (team === 'A' ? this.teamA : this.teamB).ball.radius;
-      const count = p.trailCount ?? 1;
-      const spawnChance = p.trailSpawnChance ?? 1;
-      if (Math.random() < spawnChance) {
-        for (let i = 0; i < count; i++) {
-          const scatter = (p.trailScatterFrac ?? 0) * ballRadius;
-          this.particles.pushTrail({
-            x: body.position.x + (scatter > 0 ? (Math.random() - 0.5) * scatter : 0),
-            y: body.position.y + (scatter > 0 ? (Math.random() - 0.5) * scatter : 0),
-            radius: ballRadius * (p.trailRadiusFrac ?? 0.5),
-            color: p.trailColor ?? '#FFFFFF',
-            alpha: p.trailAlpha ?? 0.5,
-            ttl: p.trailTtl ?? 8,
-            maxTtl: p.trailTtl ?? 8,
-          });
-        }
-      }
-    }
-
-    void context;
+    this.particles.pushTrail({
+      x: tx, y: ty, radius: tr,
+      color:  p.tickTrailColor ?? '#FFFFFF',
+      alpha:  p.tickTrailAlpha ?? 0.5,
+      ttl:    p.tickTrailTtl ?? 8,
+      maxTtl: p.tickTrailTtl ?? 8,
+    });
   }
 }

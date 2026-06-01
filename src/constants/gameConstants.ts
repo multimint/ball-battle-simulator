@@ -49,3 +49,10 @@ export const WEAPON_HIT_COOLDOWN_MIN = 320;  // ms minimum between orbit hits (p
 export const INTRO_DURATION_S = 2;           // seconds of intro card before fight
 export const RESULT_DURATION_S = 3;          // seconds of result card after fight
 export const WHITE_FLASH_FRAMES = 3;         // solid-white frames at each scene transition
+// ── Berserk system ────────────────────────────────────────────────────────────
+export const BERSERK_SPIN_MULT = 3.5;        // angular velocity multiplier when berserk
+export const BERSERK_BURST_MULT = 2.5;       // hit velocity burst multiplier when berserk
+export const BERSERK_TRAIL_COLOR = '#FF3300'; // homing trail particle color
+// ── Weapon hitscan system ─────────────────────────────────────────────────────
+export const HITSCAN_PREFIRE_MS = 150;       // ms delay before hitscan fires (visual telegraph)
+export const BERSERK_ORBIT_SPEED_MULT = 2.5; // orbit speed multiplier when berserk

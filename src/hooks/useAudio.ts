@@ -1,9 +1,5 @@
 import { useRef, useEffect } from 'react';
 
-// Howler is optional — we load it lazily to avoid crashes if audio fails
-let Howl: typeof import('howler').Howl | null = null;
-import('howler').then((m) => { Howl = m.Howl; }).catch(() => {});
-
 export interface AudioSystem {
   playCollision: (intensity?: number) => void;
   playWeaponFire: () => void;

@@ -1,6 +1,7 @@
 import type { Particle } from '../models/GameState';
+import type { Ctx2D } from './ctx';
 
-export function drawParticles(ctx: CanvasRenderingContext2D, particles: Particle[]): void {
+export function drawParticles(ctx: Ctx2D, particles: Particle[]): void {
   for (const p of particles) {
     const alpha = p.life / p.maxLife;
     ctx.save();
