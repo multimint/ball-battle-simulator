@@ -1,4 +1,4 @@
-import Matter from 'matter-js';
+import type Matter from 'matter-js';
 import type { BallAbility, BallAbilityType, TeamConfig } from '../models/types';
 import type { StatusEffectManager } from './StatusEffectManager';
 import type { ParticleController } from './ParticleController';

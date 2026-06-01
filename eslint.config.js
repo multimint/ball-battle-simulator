@@ -6,11 +6,7 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: [
-      'dist', 'node_modules', '*.config.js', '*.config.ts',
-      // Dead reference file — no longer mounted, intentionally kept for reference only
-      'src/components/GameScreen/ResultOverlay.tsx',
-    ],
+    ignores: ['dist', 'node_modules', '*.config.js', '*.config.ts'],
   },
 
   {

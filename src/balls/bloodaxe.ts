@@ -93,30 +93,6 @@ export const bloodAxe: BallDefinition = {
     color: '#884400',
     icon: 'weapon-war-axe',
     attacks: [{ type: 'melee', cooldown: 0.8, damage: 6, knockback: 55 }],
-    drawShape: (ctx, color, r) => {
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 5;
-      ctx.strokeStyle = '#7A5C2E';
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(-r * 1.0, 0);
-      ctx.lineTo(r * 0.2, 0);
-      ctx.stroke();
-      ctx.fillStyle = color;
-      ctx.shadowBlur = 8;
-      ctx.beginPath();
-      ctx.moveTo(r * 0.1, -r * 0.8);
-      ctx.lineTo(r * 0.85, -r * 1.1);
-      ctx.quadraticCurveTo(r * 1.5, 0, r * 0.85, r * 1.1);
-      ctx.lineTo(r * 0.1, r * 0.8);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = '#FFFFFF44';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    },
   },
   audioProfile: {
     hitStyle: 'thunderous',

@@ -1,9 +1,10 @@
 import Matter from 'matter-js';
-import type { WeaponStats, AttackConfig, TeamConfig, BallAbility, BallAbilityType } from '../models/types';
+import type { WeaponStats, AttackConfig, TeamConfig } from '../models/types';
 import type { StatusEffectManager } from './StatusEffectManager';
 import type { ParticleController } from './ParticleController';
 import type { EffectsController } from './EffectsController';
 import type { AudioEmitter } from './AudioEmitter';
+import { applyAbility } from './AbilityHandler';
 import { getHitMultipliers } from './WeaponHitProcessor';
 import { applyKnockback, directionBetween } from '../utils/physics';
 import { isAbilityBerserk } from '../utils/ability';
@@ -22,17 +23,13 @@ export interface HitCtx {
   damageDealt: { A: number; B: number };
   teamA: TeamConfig;
   teamB: TeamConfig;
+  bodyA: Matter.Body;
+  bodyB: Matter.Body;
   statusMgr: StatusEffectManager;
   particles: ParticleController;
   effects: EffectsController;
   audio: AudioEmitter;
   simTime: number;
-  onAbility: (
-    ability: BallAbility | undefined,
-    team: 'A' | 'B',
-    trigger: BallAbilityType,
-    pos: { x: number; y: number },
-  ) => void;
 }
 
 export function processHit(ctx: HitCtx): void {
@@ -152,8 +149,17 @@ export function processHit(ctx: HitCtx): void {
     ctx.statusMgr.apply({ team: targetTeam, type: 'speedBoost', durationMs: boostDur, magnitude: boostMag, stackBehavior: 'refresh', maxStacks: 1, color: '#FF6600', icon: 'burst', simTime: ctx.simTime });
   }
 
-  const attackerAbility = attackerTeam === 'A' ? ctx.teamA.ball.ability : ctx.teamB.ball.ability;
-  const defenderAbility = targetTeam  === 'A' ? ctx.teamA.ball.ability : ctx.teamB.ball.ability;
-  ctx.onAbility(attackerAbility, attackerTeam, 'onHitDealt',   { x: defender.position.x, y: defender.position.y });
-  ctx.onAbility(defenderAbility, targetTeam,   'onHitReceived', { x: defender.position.x, y: defender.position.y });
+  const sharedAbilityCtx = { statusMgr: ctx.statusMgr, particles: ctx.particles, effects: ctx.effects, audio: ctx.audio, simTime: ctx.simTime };
+
+  const attackerConfig = attackerTeam === 'A' ? ctx.teamA : ctx.teamB;
+  const defenderConfig = targetTeam   === 'A' ? ctx.teamA : ctx.teamB;
+  const attackerBody   = attackerTeam === 'A' ? ctx.bodyA : ctx.bodyB;
+  const defenderBody   = targetTeam   === 'A' ? ctx.bodyA : ctx.bodyB;
+
+  if (attackerConfig.ball.ability?.trigger === 'onHitDealt') {
+    applyAbility({ ability: attackerConfig.ball.ability, team: attackerTeam, trigger: 'onHitDealt', body: attackerBody, teamConfig: attackerConfig, ...sharedAbilityCtx });
+  }
+  if (defenderConfig.ball.ability?.trigger === 'onHitReceived') {
+    applyAbility({ ability: defenderConfig.ball.ability, team: targetTeam, trigger: 'onHitReceived', body: defenderBody, teamConfig: defenderConfig, ...sharedAbilityCtx });
+  }
 }

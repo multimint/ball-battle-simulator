@@ -52,6 +52,13 @@ interface StuckState {
   stuckFrames: number;
 }
 
+interface TeamTickState {
+  id: 'A' | 'B';
+  config: TeamConfig;
+  body: Matter.Body;
+  stuck: StuckState;
+}
+
 function enforceMinSpeed(body: Matter.Body, maxSpeed: number): void {
   const minSpeed = maxSpeed * PHYSICS_SPEED_SCALE * INITIAL_SPEED_MIN_FRAC * 0.6;
   const vx = body.velocity.x;
@@ -224,33 +231,27 @@ export class GameSimulator {
   }
 
   private onCollision(event: Matter.IEventCollision<Matter.Engine>): void {
+    const isWall  = (b: Matter.Body) => b.label === 'wall';
+    const isBallA = (b: Matter.Body) => b.id === this.bodyA.id;
+    const isBallB = (b: Matter.Body) => b.id === this.bodyB.id;
+
     for (const pair of event.pairs) {
-      const invA = [pair.bodyA, pair.bodyB].some((b) => b.id === this.bodyA.id);
-      const invB = [pair.bodyA, pair.bodyB].some((b) => b.id === this.bodyB.id);
-      if (!invA || !invB) continue;
+      const { bodyA, bodyB } = pair;
 
-      const impulse = getCollisionImpulse(pair);
-      const point   = getCollisionPoint(pair);
-
-      if (impulse > HEAVY_HIT_THRESHOLD) {
-        this.effects.applySlowMotion();
-        this.effects.applyScreenShake(SCREEN_SHAKE_MAGNITUDE, SCREEN_SHAKE_TTL);
-      }
-
-      this.particles.spawnBurst(point.x, point.y, this.teamA.ball.color, 8);
-      this.turns++;
-      this.audio.emitBallBounce(this.teamA.audioProfile.hitStyle, this.simTime);
-    }
-
-    // Wall-bounce ability trigger + audio
-    for (const pair of event.pairs) {
-      const isWall  = (b: Matter.Body) => b.label === 'wall';
-      const isBallA = (b: Matter.Body) => b.id === this.bodyA.id;
-      const isBallB = (b: Matter.Body) => b.id === this.bodyB.id;
-      if ((isWall(pair.bodyA) && isBallA(pair.bodyB)) || (isWall(pair.bodyB) && isBallA(pair.bodyA))) {
+      if ([bodyA, bodyB].some(isBallA) && [bodyA, bodyB].some(isBallB)) {
+        const impulse = getCollisionImpulse(pair);
+        const point   = getCollisionPoint(pair);
+        if (impulse > HEAVY_HIT_THRESHOLD) {
+          this.effects.applySlowMotion();
+          this.effects.applyScreenShake(SCREEN_SHAKE_MAGNITUDE, SCREEN_SHAKE_TTL);
+        }
+        this.particles.spawnBurst(point.x, point.y, this.teamA.ball.color, 8);
+        this.turns++;
+        this.audio.emitBallBounce(this.teamA.audioProfile.hitStyle, this.simTime);
+      } else if ((isWall(bodyA) && isBallA(bodyB)) || (isWall(bodyB) && isBallA(bodyA))) {
         this.applyBallAbility(this.teamA.ball.ability, 'A', 'onBounce', { x: this.bodyA.position.x, y: this.bodyA.position.y });
         this.audio.emitWallBounce(this.teamA.audioProfile.hitStyle, this.simTime);
-      } else if ((isWall(pair.bodyA) && isBallB(pair.bodyB)) || (isWall(pair.bodyB) && isBallB(pair.bodyA))) {
+      } else if ((isWall(bodyA) && isBallB(bodyB)) || (isWall(bodyB) && isBallB(bodyA))) {
         this.applyBallAbility(this.teamB.ball.ability, 'B', 'onBounce', { x: this.bodyB.position.x, y: this.bodyB.position.y });
         this.audio.emitWallBounce(this.teamB.audioProfile.hitStyle, this.simTime);
       }
@@ -469,12 +470,12 @@ export class GameSimulator {
       weapon, attack, attacker, defender, attackerTeam,
       hp: this.hp, maxHp: this.maxHp, damageDealt: this.damageDealt,
       teamA: this.teamA, teamB: this.teamB,
+      bodyA: this.bodyA, bodyB: this.bodyB,
       statusMgr: this.statusMgr,
       particles: this.particles,
       effects: this.effects,
       audio: this.audio,
       simTime: this.simTime,
-      onAbility: (ability, team, trigger, pos) => this.applyBallAbility(ability, team, trigger, pos),
     });
   }
 
@@ -497,7 +498,7 @@ export class GameSimulator {
     });
   }
 
-  private tickGenericTrail(team: { id: 'A' | 'B'; config: TeamConfig; body: Matter.Body }): void {
+  private tickGenericTrail(team: TeamTickState): void {
     const p = team.config.ball.ability?.params;
     if (!p?.tickTrailEnabled) return;
 

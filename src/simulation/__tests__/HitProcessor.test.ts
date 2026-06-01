@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { processHit } from '../HitProcessor';
 import { StatusEffectManager } from '../StatusEffectManager';
 import type { WeaponStats, AttackConfig } from '../../models/types';
@@ -32,8 +32,9 @@ describe('processHit()', () => {
       weapon: SWORD, attack, attacker, defender, attackerTeam,
       hp, maxHp, damageDealt,
       teamA: makeTeam(), teamB: makeTeam(),
+      bodyA: attacker, bodyB: defender,
       statusMgr, particles: makeParticles(), effects: makeEffects(), audio: makeAudio(),
-      simTime: 0, onAbility: vi.fn(),
+      simTime: 0,
     };
   }
 
@@ -117,14 +118,24 @@ describe('processHit()', () => {
     });
   });
 
-  describe('onAbility callback', () => {
-    it('fires onHitDealt for attacker and onHitReceived for defender', () => {
-      const onAbility = vi.fn();
-      const c = { ...ctx(), onAbility };
+  describe('ability triggers on hit', () => {
+    it('onHitDealt ability fires and applies its status effect to the enemy', () => {
+      const teamWithAbility = makeTeam({
+        ...SWORD,
+        attacks: [{ type: 'melee', cooldown: 1, damage: 10, knockback: 40 }],
+      });
+      // Give team A an onHitDealt ability that freezes the enemy
+      teamWithAbility.ball = {
+        ...teamWithAbility.ball,
+        ability: {
+          id: 'test', name: 'Test', description: '',
+          trigger: 'onHitDealt',
+          params: { statusEffect: 'freeze', statusDuration: 2000, statusMagnitude: 0.5, statusColor: '#00F', statusIcon: 'dot-yellow' },
+        },
+      };
+      const c = { ...ctx(), teamA: teamWithAbility };
       processHit(c);
-      const triggers = onAbility.mock.calls.map(([, , trigger]) => trigger);
-      expect(triggers).toContain('onHitDealt');
-      expect(triggers).toContain('onHitReceived');
+      expect(statusMgr.hasEffect('B', 'freeze')).toBe(true);
     });
   });
 

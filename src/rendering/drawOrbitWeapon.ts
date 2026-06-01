@@ -1,6 +1,7 @@
 import type { WeaponStats } from '../models/types';
 import { WEAPON_ORBIT_GAP } from '../constants/gameConstants';
 import type { Ctx2D } from './ctx';
+import { getWeaponShape } from './weaponShapes';
 
 // ── Hitbox radius per weapon category ────────────────────────────────────────
 // These define both hit-detection radius AND the visual size of the drawn shape.
@@ -81,10 +82,8 @@ export function drawOrbitWeapon(
 // ── Shape drawers (all local coords, business-end at +X) ─────────────────────
 
 function drawMeleeShape(ctx: Ctx2D, weapon: WeaponStats, color: string, r: number): void {
-  if (weapon.drawShape) {
-    weapon.drawShape(ctx, color, r);
-    return;
-  }
+  const shape = getWeaponShape(weapon.name);
+  if (shape) { shape(ctx, color, r); return; }
   // Generic sword fallback — narrow blade, tip at +X
   ctx.shadowColor = color;
   ctx.shadowBlur = 7;
@@ -140,10 +139,8 @@ function drawShieldShape(
 }
 
 function drawProjectileShape(ctx: Ctx2D, weapon: WeaponStats, color: string, r: number): void {
-  if (weapon.drawShape) {
-    weapon.drawShape(ctx, color, r);
-    return;
-  }
+  const shape = getWeaponShape(weapon.name);
+  if (shape) { shape(ctx, color, r); return; }
   // Generic projectile fallback — glowing diamond/bullet, tip at +X
   ctx.shadowColor = color;
   ctx.shadowBlur = 10;
@@ -187,10 +184,8 @@ function drawAoeShape(
 }
 
 function drawUtilityShape(ctx: Ctx2D, weapon: WeaponStats, color: string, r: number): void {
-  if (weapon.drawShape) {
-    weapon.drawShape(ctx, color, r);
-    return;
-  }
+  const shape = getWeaponShape(weapon.name);
+  if (shape) { shape(ctx, color, r); return; }
   // Generic utility fallback — gear/repulsor shape
   ctx.shadowColor = color;
   ctx.shadowBlur = 8;

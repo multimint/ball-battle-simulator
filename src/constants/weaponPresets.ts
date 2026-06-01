@@ -8,22 +8,6 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     color: '#CC6633', icon: 'weapon-heavy-hammer',
     kbMult: 1.6, dmgMult: 1.2, effectLabel: 'hammer',
     attacks: [{ type: 'melee', cooldown: 2.0, damage: 16, knockback: 100 }],
-    drawShape: (ctx, color, r) => {
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 5;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.rect(r * 0.2, -r * 0.75, r * 0.8, r * 1.5);
-      ctx.fill();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 4;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(-r, 0);
-      ctx.lineTo(r * 0.2, 0);
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    },
   },
   {
     name: 'Swift Sword',
@@ -39,25 +23,6 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     color: '#996633', icon: 'weapon-long-spear',
     kbMult: 0.9, effectLabel: 'spear',
     attacks: [{ type: 'melee', cooldown: 1.5, damage: 12, knockback: 30 }],
-    drawShape: (ctx, color, r) => {
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 5;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(-r * 1.1, 0);
-      ctx.lineTo(r * 0.7, 0);
-      ctx.stroke();
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(r * 0.7, -r * 0.5);
-      ctx.lineTo(r * 1.4, 0);
-      ctx.lineTo(r * 0.7, r * 0.5);
-      ctx.closePath();
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    },
   },
   {
     name: 'Chain Flail',
@@ -66,24 +31,6 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     color: '#888888', icon: 'weapon-chain-flail',
     kbMult: 0.7, dmgMult: 0.8, effectLabel: 'flail',
     attacks: [{ type: 'melee', cooldown: 0.5, damage: 8, knockback: 40 }],
-    drawShape: (ctx, color, r) => {
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 5;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * Math.PI * 2;
-        ctx.beginPath();
-        ctx.moveTo(Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55);
-        ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-        ctx.stroke();
-      }
-      ctx.shadowBlur = 0;
-    },
   },
   {
     name: 'Defender Shield',
@@ -114,22 +61,6 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     description: 'Throws and returns; can hit twice.',
     color: '#AACC44', icon: 'weapon-boomerang', projectileIcon: 'proj-boomerang',
     attacks: [{ type: 'projectile', cooldown: 2.0, damage: 10, knockback: 30, aimAtEnemy: true }],
-    drawShape: (ctx, color, r) => {
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 10;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 4;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.arc(0, 0, r, -Math.PI * 0.8, Math.PI * 0.8);
-      ctx.stroke();
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 0, r * 0.55, -Math.PI * 0.8, Math.PI * 0.8);
-      ctx.strokeStyle = color + '88';
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    },
   },
   {
     name: 'Shockwave',
@@ -145,28 +76,6 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     color: '#44FFAA', icon: 'weapon-magnet-beam',
     utilityBehavior: 'pull',
     attacks: [{ type: 'utility', cooldown: 1.0, damage: 0, knockback: 0 }],
-    drawShape: (ctx, color, r) => {
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 8;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 4;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(-r * 0.4, -r * 0.8);
-      ctx.lineTo(r * 0.7, -r * 0.8);
-      ctx.arc(r * 0.7, 0, r * 0.8, -Math.PI / 2, Math.PI / 2);
-      ctx.lineTo(-r * 0.4, r * 0.8);
-      ctx.stroke();
-      ctx.fillStyle = '#FF4444';
-      ctx.beginPath();
-      ctx.arc(-r * 0.4, -r * 0.8, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#4444FF';
-      ctx.beginPath();
-      ctx.arc(-r * 0.4, r * 0.8, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    },
   },
   {
     name: 'Repulsor',
@@ -183,25 +92,5 @@ export const WEAPON_PRESETS: WeaponStats[] = [
     color: '#44AA44', icon: 'weapon-grenade-bomb', projectileIcon: 'proj-bomb',
     kbMult: 1.2, dmgMult: 1.3, hitEffect: 'explosion', hitEffectRadius: 70,
     attacks: [{ type: 'projectile', cooldown: 4.0, damage: 20, knockback: 100, aimAtEnemy: true }],
-    drawShape: (ctx, color, r) => {
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(0, 0, r * 0.75, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#FFAA22';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(0, -r * 0.75);
-      ctx.quadraticCurveTo(r * 0.4, -r * 1.1, r * 0.2, -r * 1.5);
-      ctx.stroke();
-      ctx.fillStyle = '#FFEE44';
-      ctx.beginPath();
-      ctx.arc(r * 0.2, -r * 1.5, 3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    },
   },
 ];

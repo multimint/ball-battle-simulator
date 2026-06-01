@@ -65,7 +65,6 @@ export interface WeaponStats {
   hitEffectRadius?: number;          // radius for explosion effects (px)
   utilityBehavior?: 'pull' | 'push-both'; // utility weapon mode
   selfKnockbackFrac?: number;        // recoil fraction for push-both (default 0.4)
-  drawShape?: (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, color: string, radius: number) => void;
 }
 
 // ─── Fighter Preset (ball + weapon bundled) ───────────────────────────────────

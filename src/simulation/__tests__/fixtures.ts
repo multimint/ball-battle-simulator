@@ -2,7 +2,7 @@ import { vi } from 'vitest';
 import Matter from 'matter-js';
 import type { TeamConfig, WeaponStats } from '../../models/types';
 import type { ParticleController } from '../ParticleController';
-import type { EffectsController } from '../EffectsController';
+import { EffectsController } from '../EffectsController';
 import type { AudioEmitter } from '../AudioEmitter';
 
 export const SWORD: WeaponStats = {
@@ -33,10 +33,14 @@ export function makeParticles(): ParticleController {
 }
 
 export function makeEffects(): EffectsController {
-  return {
-    pushWeaponEffect: vi.fn(), applyScreenShake: vi.fn(), applyScreenFlash: vi.fn(),
-    applyHitFlash: vi.fn(), applySlowMotion: vi.fn(), applyTierEffects: vi.fn(),
-  } as unknown as EffectsController;
+  const fx = new EffectsController();
+  vi.spyOn(fx, 'pushWeaponEffect');
+  vi.spyOn(fx, 'applyScreenShake');
+  vi.spyOn(fx, 'applyScreenFlash');
+  vi.spyOn(fx, 'applyHitFlash');
+  vi.spyOn(fx, 'applySlowMotion');
+  vi.spyOn(fx, 'applyTierEffects');
+  return fx;
 }
 
 export function makeAudio(): AudioEmitter {
