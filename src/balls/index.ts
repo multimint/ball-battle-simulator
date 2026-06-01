@@ -17,10 +17,12 @@ if (new Set(ids).size !== ids.length) {
   throw new Error(`Duplicate ball IDs detected: ${ids.join(', ')}`);
 }
 
-/** Ball sprite painters auto-derived from BALL_DEFINITIONS — never edit manually. */
-export const BALL_SPRITE_PAINTERS: Record<string, SpritePainter> = Object.fromEntries(
-  BALL_DEFINITIONS.map((b): [string, SpritePainter] => [b.ball.icon, b.painter])
-);
+/** Sprite painters keyed by ball icon id — merged into SPRITE_PAINTERS by spriteDefinitions.ts. */
+export const BALL_SPRITE_PAINTERS = {
+  lightning: quickFlail.painter,
+  crosshair: hawkeye.painter,
+  flame:     bloodAxe.painter,
+} satisfies Record<string, SpritePainter>;
 
 /** Flat fighter preset objects derived from ball definitions — used by UI and store. */
 export const FIGHTER_PRESETS = BALL_DEFINITIONS.map((b) => ({

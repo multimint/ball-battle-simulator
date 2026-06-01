@@ -23,7 +23,7 @@ interface TeamWeaponState {
 
 const ORBIT_DIR: Record<'A' | 'B', 1 | -1> = { A: 1, B: -1 };
 
-function shouldWeaponFire(
+export function shouldWeaponFire(
   trigger: TriggerType,
   attacker: Matter.Body,
   hpFrac: number,
