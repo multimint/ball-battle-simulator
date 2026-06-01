@@ -5,8 +5,8 @@ import type { ParticleController } from './ParticleController';
 import type { EffectsController } from './EffectsController';
 import type { AudioEmitter } from './AudioEmitter';
 import { applyAbility } from './AbilityHandler';
-import { getHitMultipliers } from './WeaponHitProcessor';
-import { applyKnockback, directionBetween } from '../utils/physics';
+import { ATTACK_HANDLERS } from './attackHandlers';
+import { directionBetween } from '../utils/physics';
 import { isAbilityBerserk } from '../utils/ability';
 import { BERSERK_BURST_MULT } from '../constants/gameConstants';
 
@@ -64,64 +64,8 @@ export function processHit(ctx: HitCtx): void {
     return rounded;
   };
 
-  switch (attack.type) {
-    case 'melee': {
-      const { kbMult, dmgMult } = getHitMultipliers(weapon, attack);
-      applyKnockback(defender, dir.x, dir.y, attack.knockback * kbMult);
-      damage(targetTeam, attack.damage * dmgMult);
-      ctx.particles.spawnBurst(defender.position.x, defender.position.y, weapon.color ?? '#CC6633', 8);
-      break;
-    }
-    case 'shield': {
-      applyKnockback(defender, dir.x, dir.y, attack.knockback * 1.8);
-      if (attack.damage > 0) damage(targetTeam, Math.max(1, Math.round(attack.damage * 0.2)));
-      ctx.effects.pushWeaponEffect('shield', attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#AAAAFF', 18, { radius: (attacker.circleRadius ?? 25) + 14 });
-      ctx.particles.spawnBurst(attacker.position.x, attacker.position.y, weapon.color ?? '#AAAAFF', 6);
-      break;
-    }
-    case 'projectile': {
-      const { kbMult, dmgMult } = getHitMultipliers(weapon, attack);
-      if (weapon.hitEffect === 'explosion') {
-        ctx.effects.pushWeaponEffect('explosion', defender.position.x, defender.position.y, 0, weapon.color ?? '#44AA44', 20, { radius: weapon.hitEffectRadius ?? 70 });
-      } else if (weapon.hitEffect === 'laser' && attack.hitscan) {
-        ctx.effects.pushWeaponEffect('laser', attacker.position.x, attacker.position.y, hitAngle, weapon.color ?? '#44AAFF', 22, { x2: defender.position.x, y2: defender.position.y });
-        ctx.effects.pushWeaponEffect('explosion', defender.position.x, defender.position.y, 0, weapon.color ?? '#44AAFF', 18, { radius: 55 });
-        ctx.effects.applyScreenShake(8, 14);
-        ctx.effects.applyScreenFlash(0.45, weapon.color ?? '#4488FF', 8);
-        ctx.effects.applyHitFlash(targetTeam, 0.9, '#FFFFFF', 8);
-        ctx.effects.applySlowMotion();
-      }
-      applyKnockback(defender, dir.x, dir.y, attack.knockback * kbMult);
-      damage(targetTeam, attack.damage * dmgMult);
-      ctx.particles.spawnBurst(defender.position.x, defender.position.y, weapon.color ?? '#FFF', attack.hitscan ? 22 : 8);
-      break;
-    }
-    case 'aoe': {
-      applyKnockback(defender, dir.x, dir.y, attack.knockback * 1.5);
-      damage(targetTeam, attack.damage);
-      ctx.effects.pushWeaponEffect('shockwave', attacker.position.x, attacker.position.y, 0, weapon.color ?? '#FF44FF', 25, { radius: weapon.range * 30 });
-      ctx.particles.spawnBurst(attacker.position.x, attacker.position.y, weapon.color ?? '#FF44FF', 15);
-      break;
-    }
-    case 'utility': {
-      if (weapon.utilityBehavior === 'pull') {
-        const pullDir = directionBetween(defender, attacker);
-        applyKnockback(defender, pullDir.x, pullDir.y, 80);
-        if (attack.damage > 0) damage(targetTeam, attack.damage);
-        ctx.particles.spawnBurst(
-          (attacker.position.x + defender.position.x) / 2,
-          (attacker.position.y + defender.position.y) / 2,
-          weapon.color ?? '#44FFAA', 6,
-        );
-      } else if (weapon.utilityBehavior === 'push-both') {
-        applyKnockback(defender, dir.x,  dir.y,  attack.knockback * 1.3);
-        applyKnockback(attacker, -dir.x, -dir.y, attack.knockback * (weapon.selfKnockbackFrac ?? 0.4));
-        damage(targetTeam, attack.damage);
-        ctx.effects.pushWeaponEffect('explosion', attacker.position.x, attacker.position.y, 0, weapon.color ?? '#FFFF44', 18, { radius: 55 });
-      }
-      break;
-    }
-  }
+  const handler = ATTACK_HANDLERS[attack.type];
+  handler.resolve({ weapon, attack, attacker, defender, targetTeam, dir, hitAngle, damage, particles: ctx.particles, effects: ctx.effects });
 
   if (attack.hitStatusEffect && lastDmg > 0) {
     ctx.statusMgr.apply({ team: targetTeam, type: attack.hitStatusEffect, durationMs: attack.hitStatusDuration ?? 2000, magnitude: attack.hitStatusMagnitude ?? 0.3, stackBehavior: 'refresh', maxStacks: 1, color: attack.hitStatusColor ?? '#88CCFF', icon: attack.hitStatusIcon ?? 'burst', simTime: ctx.simTime });
@@ -129,7 +73,7 @@ export function processHit(ctx: HitCtx): void {
 
   ctx.effects.applyTierEffects(attack.type, targetTeam, weapon.color ?? '#FFFFFF', lastDmg);
 
-  if (attack.type !== 'utility') {
+  if (handler.emitsAudio !== false) {
     const hitStyle = (attackerTeam === 'A' ? ctx.teamA : ctx.teamB).audioProfile.hitStyle;
     if (attack.audioHint === 'laser') {
       ctx.audio.emitLaser(hitStyle, ctx.simTime);

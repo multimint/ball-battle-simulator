@@ -1,5 +1,6 @@
 import type { StatusEffect, StatusEffectType } from '../models/types';
 import type { SpriteKey } from '../sprites/SpriteKey';
+import { STATUS_HANDLERS } from './statusEffects';
 
 export interface ApplyEffectOptions {
   team: 'A' | 'B';
@@ -48,11 +49,7 @@ export class StatusEffectManager {
         if (effect.stackBehavior !== 'stack') {
           effect.remainingMs -= delta;
         }
-        if (effect.type === 'burn') {
-          hp[team] = Math.max(0, hp[team] - (effect.magnitude * effect.stacks / 1000) * delta);
-        } else if (effect.type === 'poison') {
-          hp[team] = Math.max(0, hp[team] - (effect.magnitude / 1000) * delta);
-        }
+        STATUS_HANDLERS[effect.type].tick?.(effect, hp, team, delta);
         if (effect.stackBehavior === 'stack' || effect.remainingMs > 0) alive.push(effect);
       }
       this.effects[team] = alive;
@@ -70,11 +67,8 @@ export class StatusEffectManager {
   getSpeedMultiplier(team: 'A' | 'B'): number {
     let mult = 1.0;
     for (const e of this.effects[team]) {
-      if (e.type === 'freeze') mult *= (1 - e.magnitude * e.stacks);
-      if (e.type === 'speedBoost') {
-        const bonus = e.magnitude * e.stacks + (e.stacks > 3 ? e.magnitude * (e.stacks - 3) : 0);
-        mult *= (1 + bonus);
-      }
+      const m = STATUS_HANDLERS[e.type].speedMult?.(e);
+      if (m !== undefined) mult *= m;
     }
     return Math.max(0.1, mult);
   }
@@ -82,8 +76,8 @@ export class StatusEffectManager {
   getOutgoingDamageMultiplier(team: 'A' | 'B'): number {
     let mult = 1.0;
     for (const e of this.effects[team]) {
-      if (e.type === 'rage')   mult *= (1 + e.magnitude);
-      if (e.type === 'weaken') mult *= (1 - e.magnitude);
+      const m = STATUS_HANDLERS[e.type].outDmgMult?.(e);
+      if (m !== undefined) mult *= m;
     }
     return Math.max(0.1, mult);
   }
@@ -91,7 +85,8 @@ export class StatusEffectManager {
   getIncomingDamageMultiplier(team: 'A' | 'B'): number {
     let mult = 1.0;
     for (const e of this.effects[team]) {
-      if (e.type === 'harden') mult *= (1 - e.magnitude);
+      const m = STATUS_HANDLERS[e.type].inDmgMult?.(e);
+      if (m !== undefined) mult *= m;
     }
     return Math.max(0.1, mult);
   }
