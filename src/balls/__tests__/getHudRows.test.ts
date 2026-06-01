@@ -34,9 +34,9 @@ describe('quickFlail.ball.ability.getHudRows', () => {
     expect(rows).toEqual([{ label: 'momentum', value: '×1.9' }]);
   });
 
-  it('shows ×2.8 at max stacks (6)', () => {
+  it('shows ×2.8 (max) at max stacks (6)', () => {
     const rows = getHudRows([makeSpeedBoostEffect(6)], 1.0);
-    expect(rows).toEqual([{ label: 'momentum', value: '×2.8' }]);
+    expect(rows).toEqual([{ label: 'momentum', value: '×2.8 (max)' }]);
   });
 
   it('ignores hpFrac — always returns one row', () => {

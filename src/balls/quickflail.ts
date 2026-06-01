@@ -71,7 +71,8 @@ export const quickFlail: BallDefinition = {
       getHudRows(effects: StatusEffect[]): StatusRow[] {
         const stacks = effects.find(e => e.type === 'speedBoost')?.stacks ?? 0;
         const mult = 1 + stacks * 0.3;
-        return [{ label: 'momentum', value: `×${mult.toFixed(1)}` }];
+        const suffix = stacks >= 6 ? ' (max)' : '';
+        return [{ label: 'momentum', value: `×${mult.toFixed(1)}${suffix}` }];
       },
     },
   },
