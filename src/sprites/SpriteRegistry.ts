@@ -14,7 +14,8 @@ export function loadAllSprites(): void {
   const keys = Object.keys(SPRITE_PAINTERS) as SpriteKey[];
   for (const key of keys) {
     const canvas = new OffscreenCanvas(SPRITE_SIZE, SPRITE_SIZE);
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error(`Failed to get 2D context for sprite: ${key}`);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     ctx.scale(SPRITE_SIZE / 24, SPRITE_SIZE / 24);

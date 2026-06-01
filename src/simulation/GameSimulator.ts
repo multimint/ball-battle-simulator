@@ -249,10 +249,8 @@ export class GameSimulator {
         this.turns++;
         this.audio.emitBallBounce(this.teamA.audioProfile.hitStyle, this.simTime);
       } else if ((isWall(bodyA) && isBallA(bodyB)) || (isWall(bodyB) && isBallA(bodyA))) {
-        this.applyBallAbility(this.teamA.ball.ability, 'A', 'onBounce', { x: this.bodyA.position.x, y: this.bodyA.position.y });
         this.audio.emitWallBounce(this.teamA.audioProfile.hitStyle, this.simTime);
       } else if ((isWall(bodyA) && isBallB(bodyB)) || (isWall(bodyB) && isBallB(bodyA))) {
-        this.applyBallAbility(this.teamB.ball.ability, 'B', 'onBounce', { x: this.bodyB.position.x, y: this.bodyB.position.y });
         this.audio.emitWallBounce(this.teamB.audioProfile.hitStyle, this.simTime);
       }
     }
@@ -302,6 +300,8 @@ export class GameSimulator {
         this.weapons.processAttacks(
           team.id, this.simTime, team.config.weapon, team.body, enemy.body,
           enemy.config.ball.radius, hitboxes[i], team.config.ball.radius,
+          this.hp[team.id] / this.maxHp[team.id],
+          team.config.ball.maxSpeed * speedMults[i],
           this.applyHit.bind(this),
           (w, atk, hr, idx, tid) => {
             this.weapons.spawnBullet(tid, w, atk, hr, idx, team.body, enemy.body, team.config.ball.radius);
@@ -314,9 +314,8 @@ export class GameSimulator {
 
     this.tickStatusEffects(scaledDelta);
 
-    // Ball ability ticks (trail, passive, onLowHP) + per-frame ambient trail
+    // Ball ability ticks (passive, onLowHP) + per-frame ambient trail
     for (const team of teams) {
-      this.applyBallAbility(team.config.ball.ability, team.id, 'trail',   { delta: scaledDelta, x: team.body.position.x, y: team.body.position.y });
       this.applyBallAbility(team.config.ball.ability, team.id, 'passive', { delta: scaledDelta });
       if (isAbilityBerserk(team.config.ball.ability, this.hp[team.id] / this.maxHp[team.id])) {
         this.applyBallAbility(team.config.ball.ability, team.id, 'onLowHP', { delta: scaledDelta });

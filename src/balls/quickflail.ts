@@ -79,7 +79,7 @@ export const quickFlail: BallDefinition = {
     name: 'Long Sword',
     range: 1.5,
     speed: 6.75,
-    trigger: 'onCollision',
+    trigger: 'onSpeed',
     hitReachMult: 1.8,
     description:
       'Long blade that orbits fast — land enough hits and momentum takes over.',

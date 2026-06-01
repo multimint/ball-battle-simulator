@@ -21,7 +21,8 @@ function makeSpeedBoostEffect(stacks: number): StatusEffect {
 // ─── Quick Flail — Momentum ───────────────────────────────────────────────────
 
 describe('quickFlail.ball.ability.getHudRows', () => {
-  const getHudRows = quickFlail.ball.ability!.getHudRows!;
+  const getHudRows = quickFlail.ball.ability?.getHudRows;
+  if (!getHudRows) throw new Error('quickFlail: getHudRows not defined');
 
   it('shows ×1.0 with no stacks', () => {
     const rows = getHudRows([], 1.0);
@@ -47,7 +48,8 @@ describe('quickFlail.ball.ability.getHudRows', () => {
 // ─── Blood Axe — Bloodrage ────────────────────────────────────────────────────
 
 describe('bloodAxe.ball.ability.getHudRows', () => {
-  const getHudRows = bloodAxe.ball.ability!.getHudRows!;
+  const getHudRows = bloodAxe.ball.ability?.getHudRows;
+  if (!getHudRows) throw new Error('bloodAxe: getHudRows not defined');
 
   it('shows "off" above threshold', () => {
     expect(getHudRows([], 0.5)).toEqual([{ label: 'berserk', value: 'off' }]);
@@ -67,7 +69,8 @@ describe('bloodAxe.ball.ability.getHudRows', () => {
 // ─── Hawkeye — Permafrost ─────────────────────────────────────────────────────
 
 describe('hawkeye.ball.ability.getHudRows', () => {
-  const getHudRows = hawkeye.ball.ability!.getHudRows!;
+  const getHudRows = hawkeye.ball.ability?.getHudRows;
+  if (!getHudRows) throw new Error('hawkeye: getHudRows not defined');
 
   it('always returns empty array', () => {
     expect(getHudRows([], 1.0)).toEqual([]);

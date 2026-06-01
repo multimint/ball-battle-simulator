@@ -23,7 +23,7 @@ export const FIGHTER_PRESETS = BALL_DEFINITIONS.map((b) => ({
   id:           b.id,
   name:         b.name,
   lore:         b.lore,
-  icon:         b.ball.icon!,
+  icon:         b.ball.icon,
   ball:         b.ball,
   weapon:       b.weapon,
   audioProfile: b.audioProfile,

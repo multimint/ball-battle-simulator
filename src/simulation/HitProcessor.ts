@@ -152,14 +152,9 @@ export function processHit(ctx: HitCtx): void {
   const sharedAbilityCtx = { statusMgr: ctx.statusMgr, particles: ctx.particles, effects: ctx.effects, audio: ctx.audio, simTime: ctx.simTime };
 
   const attackerConfig = attackerTeam === 'A' ? ctx.teamA : ctx.teamB;
-  const defenderConfig = targetTeam   === 'A' ? ctx.teamA : ctx.teamB;
   const attackerBody   = attackerTeam === 'A' ? ctx.bodyA : ctx.bodyB;
-  const defenderBody   = targetTeam   === 'A' ? ctx.bodyA : ctx.bodyB;
 
   if (attackerConfig.ball.ability?.trigger === 'onHitDealt') {
     applyAbility({ ability: attackerConfig.ball.ability, team: attackerTeam, trigger: 'onHitDealt', body: attackerBody, teamConfig: attackerConfig, ...sharedAbilityCtx });
-  }
-  if (defenderConfig.ball.ability?.trigger === 'onHitReceived') {
-    applyAbility({ ability: defenderConfig.ball.ability, team: targetTeam, trigger: 'onHitReceived', body: defenderBody, teamConfig: defenderConfig, ...sharedAbilityCtx });
   }
 }

@@ -145,12 +145,6 @@ describe('applyAbility()', () => {
       expect(audio.emitAbility).toHaveBeenCalledWith('A', expect.any(String), 'onHitDealt', 0);
     });
 
-    it('does not emit audio for trail trigger', () => {
-      const ability: BallAbility = { ...BASE_ABILITY, trigger: 'trail', params: {} as BallAbility['params'] };
-      applyAbility({ ...ctx(ability), trigger: 'trail' });
-      expect(audio.emitAbility).not.toHaveBeenCalled();
-    });
-
     it('does not emit audio for passive trigger', () => {
       const ability: BallAbility = { ...BASE_ABILITY, trigger: 'passive', params: {} as BallAbility['params'] };
       applyAbility({ ...ctx(ability), trigger: 'passive' });

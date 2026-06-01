@@ -37,6 +37,12 @@ export interface HudData {
   weaponB: WeaponStats;
 }
 
+function ctx2d(canvas: OffscreenCanvas): Ctx2D {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Failed to acquire 2D context from OffscreenCanvas');
+  return ctx;
+}
+
 export class VideoEncoder {
   private physicsCanvas: OffscreenCanvas;
   private captureCanvas: OffscreenCanvas;
@@ -64,12 +70,12 @@ export class VideoEncoder {
 
     this.physicsCanvas = new OffscreenCanvas(ARENA_SIZE, ARENA_SIZE);
     this.captureCanvas = new OffscreenCanvas(CAPTURE_CANVAS_WIDTH, CAPTURE_CANVAS_HEIGHT);
-    this.captureCtx = this.captureCanvas.getContext('2d')!;
+    this.captureCtx = ctx2d(this.captureCanvas);
 
     loadAllSprites();
 
     const physicsStaticBg = this.buildPhysicsStaticBg(teamA, teamB);
-    const physicsCtx = this.physicsCanvas.getContext('2d')!;
+    const physicsCtx = ctx2d(this.physicsCanvas);
     this.renderer = new Renderer(physicsCtx, physicsStaticBg);
 
     this.captureBg = this.buildCaptureBg(teamA, teamB);
@@ -78,7 +84,7 @@ export class VideoEncoder {
 
   private buildPhysicsStaticBg(teamA: TeamConfig, teamB: TeamConfig): OffscreenCanvas {
     const bg = new OffscreenCanvas(ARENA_SIZE, ARENA_SIZE);
-    const ctx = bg.getContext('2d')!;
+    const ctx = ctx2d(bg);
     drawBackground(ctx);
     drawArenaWalls(ctx, teamA.ball.color, teamB.ball.color);
     return bg;
@@ -86,7 +92,7 @@ export class VideoEncoder {
 
   private buildCaptureBg(teamA: TeamConfig, teamB: TeamConfig): OffscreenCanvas {
     const bg = new OffscreenCanvas(CAPTURE_CANVAS_WIDTH, CAPTURE_CANVAS_HEIGHT);
-    const ctx = bg.getContext('2d')!;
+    const ctx = ctx2d(bg);
     drawCaptureTopPanel(ctx, teamA, teamB);
 
     ctx.fillStyle = '#FFFADE';
@@ -115,7 +121,7 @@ export class VideoEncoder {
         fastStart: 'in-memory',
       });
       this.encoder = new globalThis.VideoEncoder({
-        output: (chunk, meta) => this.muxer!.addVideoChunk(chunk, meta),
+        output: (chunk, meta) => this.muxer?.addVideoChunk(chunk, meta),
         error: (e) => console.error('VideoEncoder error:', e),
       });
       this.encoder.configure({

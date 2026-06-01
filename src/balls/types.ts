@@ -1,6 +1,7 @@
 import type { BallStats, WeaponStats } from '../models/types';
 import type { SpritePainter } from '../sprites/spriteDefinitions';
 import type { AudioProfile } from '../audio/types';
+import type { SpriteKey } from '../sprites/SpriteKey';
 export type { AudioProfile } from '../audio/types';
 
 // ─── Ball Definition ──────────────────────────────────────────────────────────
@@ -17,7 +18,7 @@ export interface BallDefinition {
   name: string;
   lore: string;
   painter: SpritePainter;
-  ball: BallStats;
+  ball: BallStats & { icon: SpriteKey }; // all fighters must have a sprite icon
   weapon: WeaponStats;
   audioProfile: AudioProfile;
 }

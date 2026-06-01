@@ -3,8 +3,12 @@ import type { TeamConfig, WeaponStats, AttackConfig } from '../models/types';
 import type { Bullet } from '../models/GameState';
 import type { StatusEffectManager } from './StatusEffectManager';
 import { getWeaponHitboxRadius, getOrbitPosition } from '../rendering/drawOrbitWeapon';
-import { WEAPON_HIT_COOLDOWN_MIN, WEAPON_ORBIT_SPEED_SCALE, HITSCAN_PREFIRE_MS, BERSERK_ORBIT_SPEED_MULT } from '../constants/gameConstants';
+import {
+  WEAPON_HIT_COOLDOWN_MIN, WEAPON_ORBIT_SPEED_SCALE, HITSCAN_PREFIRE_MS, BERSERK_ORBIT_SPEED_MULT,
+  WEAPON_SPEED_TRIGGER_FRAC, WEAPON_EDGE_THRESHOLD_PX, LOW_HP_THRESHOLD, ARENA_SIZE,
+} from '../constants/gameConstants';
 import { isAbilityBerserk } from '../utils/ability';
+import type { TriggerType } from '../models/types';
 
 const { Body } = Matter;
 
@@ -18,6 +22,30 @@ interface TeamWeaponState {
 }
 
 const ORBIT_DIR: Record<'A' | 'B', 1 | -1> = { A: 1, B: -1 };
+
+function shouldWeaponFire(
+  trigger: TriggerType,
+  attacker: Matter.Body,
+  hpFrac: number,
+  effectiveMaxSpeed: number,
+): boolean {
+  switch (trigger) {
+    case 'none':    return false;
+    case 'onLowHP': return hpFrac <= LOW_HP_THRESHOLD;
+    case 'onSpeed': {
+      const speed = Math.hypot(attacker.velocity.x, attacker.velocity.y);
+      return speed >= effectiveMaxSpeed * WEAPON_SPEED_TRIGGER_FRAC;
+    }
+    case 'onEdge': {
+      const { x, y } = attacker.position;
+      return x < WEAPON_EDGE_THRESHOLD_PX
+          || x > ARENA_SIZE - WEAPON_EDGE_THRESHOLD_PX
+          || y < WEAPON_EDGE_THRESHOLD_PX
+          || y > ARENA_SIZE - WEAPON_EDGE_THRESHOLD_PX;
+    }
+    default: return true; // onCollision, onTimer — gated by existing attack logic
+  }
+}
 
 function orbitSpeed(weapon: WeaponStats): number {
   return Math.max(1.8, weapon.speed) * WEAPON_ORBIT_SPEED_SCALE;
@@ -116,9 +144,12 @@ export class WeaponController {
     defenderRadius: number,
     hitboxR: number,
     ballRadius: number,
+    hpFrac: number,
+    effectiveMaxSpeed: number,
     onHit: (weapon: WeaponStats, attack: AttackConfig, attacker: Matter.Body, defender: Matter.Body, team: 'A' | 'B') => void,
     onBulletFire: (weapon: WeaponStats, attack: AttackConfig, hitboxR: number, bulletIdx: number, team: 'A' | 'B') => void,
   ): void {
+    if (!shouldWeaponFire(weapon.trigger, attacker, hpFrac, effectiveMaxSpeed)) return;
     const ts = this.state[team];
 
     for (let i = 0; i < weapon.attacks.length; i++) {

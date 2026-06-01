@@ -107,7 +107,7 @@ export const templateBall: BallDefinition = {
     name: 'Template Weapon',
     range: 1.5,                          // orbit radius in ball-radii
     speed: 5.0,                          // orbit angular speed
-    trigger: 'onCollision',              // onCollision | onTimer | onSpeed | onEdge | none
+    trigger: 'onCollision',              // onCollision | onTimer | onSpeed | onLowHP | onEdge | none
     description: 'One-line weapon description shown in the stats panel.',
     color: '#F7C430',
     icon: 'weapon-long-sword',           // orbit-weapon sprite — pick from weaponSprites.ts keys

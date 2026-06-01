@@ -56,3 +56,6 @@ export const BERSERK_TRAIL_COLOR = '#FF3300'; // homing trail particle color
 // ── Weapon hitscan system ─────────────────────────────────────────────────────
 export const HITSCAN_PREFIRE_MS = 150;       // ms delay before hitscan fires (visual telegraph)
 export const BERSERK_ORBIT_SPEED_MULT = 2.5; // orbit speed multiplier when berserk
+// ── Weapon trigger thresholds ─────────────────────────────────────────────────
+export const WEAPON_SPEED_TRIGGER_FRAC = 0.70;  // ball must reach 70% of maxSpeed to fire onSpeed weapons
+export const WEAPON_EDGE_THRESHOLD_PX  = 80;    // within 80 px of any wall fires onEdge weapons

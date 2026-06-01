@@ -24,7 +24,7 @@ export function applyAbility(ctx: AbilityCtx): void {
   const p = ability.params;
   const enemy: 'A' | 'B' = team === 'A' ? 'B' : 'A';
 
-  if (trigger !== 'trail' && trigger !== 'passive') {
+  if (trigger !== 'passive') {
     ctx.audio.emitAbility(team, teamConfig.audioProfile.abilityStyle, trigger, ctx.simTime);
   }
 

@@ -19,13 +19,14 @@ export interface BallStats {
 
 // ─── Weapon Configuration ─────────────────────────────────────────────────────
 
+/** Controls when a weapon is allowed to fire. Checked before cooldown/range logic. */
 export type TriggerType =
-  | 'onCollision'
-  | 'onEdge'
-  | 'onTimer'
-  | 'onSpeed'
-  | 'onLowHP'
-  | 'none';
+  | 'onCollision' // standard orbit melee — fires when hitbox overlaps enemy
+  | 'onTimer'     // standard cooldown — fires on schedule regardless of position
+  | 'onSpeed'     // fires only when ball speed ≥ WEAPON_SPEED_TRIGGER_FRAC × maxSpeed
+  | 'onLowHP'     // fires only when own HP ≤ LOW_HP_THRESHOLD
+  | 'onEdge'      // fires only when ball is within WEAPON_EDGE_THRESHOLD_PX of any wall
+  | 'none';       // never fires (cosmetic / passive slot)
 
 /** A single attack mode — a weapon can have one or more of these. */
 export interface AttackConfig {
@@ -99,13 +100,9 @@ export type WinnerType = 'A' | 'B' | 'draw' | null;
 // ─── Ball Ability ─────────────────────────────────────────────────────────────
 
 export type BallAbilityType =
-  | 'trail'
-  | 'onBounce'
   | 'onHitDealt'
-  | 'onHitReceived'
   | 'onLowHP'
-  | 'passive'
-  | 'spawnUnit';
+  | 'passive';
 
 // ─── HUD Status Row ───────────────────────────────────────────────────────────
 
@@ -187,11 +184,7 @@ export interface OnLowHPParams extends CommonAbilityParams {
   threshold: number;      // HP fraction (0–1) at which berserk activates
 }
 
-/** Params for passive / bounce / hit-received abilities — same optional fields. */
-export type PassiveParams      = CommonAbilityParams;
-export type OnBounceParams     = CommonAbilityParams;
-export type OnHitReceivedParams = CommonAbilityParams;
-export type TrailParams        = CommonAbilityParams;
+export type PassiveParams = CommonAbilityParams;
 
 // ─── Ball Ability (discriminated union) ──────────────────────────────────────
 
@@ -204,13 +197,9 @@ type BallAbilityBase = {
 };
 
 export type BallAbility =
-  | (BallAbilityBase & { trigger: 'onHitDealt';    params: OnHitDealtParams })
-  | (BallAbilityBase & { trigger: 'onLowHP';       params: OnLowHPParams })
-  | (BallAbilityBase & { trigger: 'onHitReceived'; params: OnHitReceivedParams })
-  | (BallAbilityBase & { trigger: 'onBounce';      params: OnBounceParams })
-  | (BallAbilityBase & { trigger: 'passive';       params: PassiveParams })
-  | (BallAbilityBase & { trigger: 'trail';         params: TrailParams })
-  | (BallAbilityBase & { trigger: 'spawnUnit';     params: CommonAbilityParams });
+  | (BallAbilityBase & { trigger: 'onHitDealt'; params: OnHitDealtParams })
+  | (BallAbilityBase & { trigger: 'onLowHP';    params: OnLowHPParams })
+  | (BallAbilityBase & { trigger: 'passive';    params: PassiveParams });
 
 // ─── Status Effects ───────────────────────────────────────────────────────────
 
