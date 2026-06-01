@@ -1,1 +1,182 @@
-{"program":{"fileNames":["./vite.config.ts"],"fileInfos":[{"version":"26eda1f6b5fcb4171f0b2ad0b8193f534feaa37c3394b0103d329510f492e0ce","signature":false}],"options":{"composite":true,"module":99,"skipLibCheck":true,"strict":true,"target":9},"referencedMap":[],"exportedModulesMap":[],"changeFileSet":[1]},"version":"4.9.4"}
+{
+  "program": {
+    "fileNames": [
+      "./vite.config.ts",
+      "./node_modules/@types/babel__generator/index.d.ts",
+      "./node_modules/@types/babel__template/index.d.ts",
+      "./node_modules/@types/babel__traverse/index.d.ts",
+      "./node_modules/@types/babel__core/index.d.ts",
+      "./node_modules/@types/deep-eql/index.d.ts",
+      "./node_modules/@types/chai/index.d.ts",
+      "./node_modules/@types/dom-webcodecs/webcodecs.generated.d.ts",
+      "./node_modules/@types/dom-webcodecs/index.d.ts",
+      "./node_modules/@types/esrecurse/index.d.ts",
+      "./node_modules/@types/estree/index.d.ts",
+      "./node_modules/@types/howler/index.d.ts",
+      "./node_modules/@types/json-schema/index.d.ts",
+      "./node_modules/@types/matter-js/index.d.ts",
+      "./node_modules/@types/prop-types/index.d.ts",
+      "./node_modules/@types/react/ts5.0/global.d.ts",
+      "./node_modules/@types/react/ts5.0/index.d.ts",
+      "./node_modules/@types/react-dom/index.d.ts",
+      "./node_modules/@types/wicg-file-system-access/ts5.0/index.d.ts"
+    ],
+    "fileInfos": [
+      {
+        "version": "26eda1f6b5fcb4171f0b2ad0b8193f534feaa37c3394b0103d329510f492e0ce",
+        "signature": false
+      },
+      {
+        "version": "b6d03c9cfe2cf0ba4c673c209fcd7c46c815b2619fd2aad59fc4229aaef2ed43",
+        "signature": false
+      },
+      {
+        "version": "670a76db379b27c8ff42f1ba927828a22862e2ab0b0908e38b671f0e912cc5ed",
+        "signature": false
+      },
+      {
+        "version": "13b77ab19ef7aadd86a1e54f2f08ea23a6d74e102909e3c00d31f231ed040f62",
+        "signature": false
+      },
+      {
+        "version": "069bebfee29864e3955378107e243508b163e77ab10de6a5ee03ae06939f0bb9",
+        "signature": false
+      },
+      {
+        "version": "427fe2004642504828c1476d0af4270e6ad4db6de78c0b5da3e4c5ca95052a99",
+        "signature": false
+      },
+      {
+        "version": "9afb4cb864d297e4092a79ee2871b5d3143ea14153f62ef0bb04ede25f432030",
+        "signature": false,
+        "affectsGlobalScope": true
+      },
+      {
+        "version": "3deca8e91c60086bfe65325d7a29d99561df9a86ad56b7c39fb62de3dbe0ec03",
+        "signature": false,
+        "affectsGlobalScope": true
+      },
+      {
+        "version": "b7f161bf747d17d98f49d7c2a9e67da87031da2c2cbcf356698fbfc184788b20",
+        "signature": false,
+        "affectsGlobalScope": true
+      },
+      {
+        "version": "d5799bcf7fe4e6de3063abf4e321c14b051706f03cf5716d8a19f22fe1f69519",
+        "signature": false
+      },
+      {
+        "version": "751764bb94219b4ce8f5475dc35d3de2e432fea01a0c9610cd7f69ad05e398c6",
+        "signature": false
+      },
+      {
+        "version": "4a0512380946795b6abb25953d9b5463b64f828bed41b811964797bad7eccb09",
+        "signature": false,
+        "affectsGlobalScope": true
+      },
+      {
+        "version": "f3d8c757e148ad968f0d98697987db363070abada5f503da3c06aefd9d4248c1",
+        "signature": false
+      },
+      {
+        "version": "d3bd754b39bcac7e3fde598dde5d4d907c7880324b97e695a256b08b2fa92177",
+        "signature": false
+      },
+      {
+        "version": "87d9d29dbc745f182683f63187bf3d53fd8673e5fca38ad5eaab69798ed29fbc",
+        "signature": false
+      },
+      {
+        "version": "eb5b19b86227ace1d29ea4cf81387279d04bb34051e944bc53df69f58914b788",
+        "signature": false,
+        "affectsGlobalScope": true
+      },
+      {
+        "version": "51d1451ef7785ca2baf9a80e8260f3c2bf6a03be804493bde853c40b163534ba",
+        "signature": false,
+        "affectsGlobalScope": true
+      },
+      {
+        "version": "17ed71200119e86ccef2d96b73b02ce8854b76ad6bd21b5021d4269bec527b5f",
+        "signature": false
+      },
+      {
+        "version": "b4da759f807deaeac029fae56b7380b8eb8ec7c1b20fae122b58892976fb0939",
+        "signature": false,
+        "affectsGlobalScope": true
+      }
+    ],
+    "options": {
+      "composite": true,
+      "module": 99,
+      "skipLibCheck": true,
+      "strict": true,
+      "target": 9
+    },
+    "fileIdsList": [
+      [
+        2,
+        3,
+        4
+      ],
+      [
+        6
+      ],
+      [
+        8
+      ],
+      [
+        17
+      ],
+      [
+        15,
+        16
+      ]
+    ],
+    "referencedMap": [
+      [
+        5,
+        1
+      ],
+      [
+        7,
+        2
+      ],
+      [
+        9,
+        3
+      ],
+      [
+        18,
+        4
+      ],
+      [
+        17,
+        5
+      ]
+    ],
+    "exportedModulesMap": [],
+    "changeFileSet": [
+      5,
+      2,
+      3,
+      4,
+      7,
+      6,
+      9,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      18,
+      16,
+      17,
+      19,
+      1
+    ]
+  },
+  "version": "4.9.4"
+}
