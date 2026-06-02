@@ -8,7 +8,7 @@ Ground truth for the skill. Verify against the live code before writing — path
 
 A ball is one self-contained module: `src/balls/<id>.ts` exporting a `BallDefinition` (`painter`, `ball` + optional `ability`, `weapon`, `audioProfile`). Register it in `src/balls/index.ts`. **Nothing else needs to change for a compose-tier ball** — the simulator (`AbilityHandler`, `StatusEffectManager`, `ATTACK_HANDLERS`) and renderer are all generic and params-driven. There is **no switch-case to edit** (the old skill's biggest lie).
 
-Canonical, fully-commented field list lives in `src/balls/_template.ts` — read it. Real examples: `quickflail.ts`, `hawkeye.ts`, `bloodaxe.ts`.
+Canonical, fully-commented field list lives in `src/balls/_template.ts` — read it. Real examples: `quickflail.ts` (onHitDealt stacking), `hawkeye.ts` (projectile + freeze), `bloodaxe.ts` (onLowHP berserk + berserkKnockbackBonus), `revenant.ts` (summon attack + onTimer ability + DroneController).
 
 ---
 
@@ -55,11 +55,11 @@ If the mechanic fits these, it's **compose**. If not, it's **extend**.
 
 Apply via ability `params` (`statusEffect`/`statusTarget`/`statusDuration`/`statusMagnitude`/`stackBehavior`/`maxStacks`/`statusColor`/`statusIcon`) or on a weapon attack (`hitStatusEffect` + `hitStatus*`). A second simultaneous effect uses the `secondStatus*` params. No code needed.
 
-### Attack types (5) — `AttackConfig['type']`
-`melee`, `projectile` (supports `aimAtEnemy`, `hitscan`, `bulletCount`/`bulletSpread`/`bulletInterval`/`bulletSpeed`), `aoe`, `shield`, `utility` (`pull` / `push-both`). Hitscan projectile already covers "laser/beam".
+### Attack types (6) — `AttackConfig['type']`
+`melee`, `projectile` (supports `aimAtEnemy`, `hitscan`, `bulletCount`/`bulletSpread`/`bulletInterval`/`bulletSpeed`), `aoe`, `shield`, `utility` (`pull` / `push-both`), `summon` (spawns a persistent unit; config via `summon*` fields — see Revenant for full example). Hitscan projectile already covers "laser/beam".
 
-### Ability triggers (3) — `BallAbility.trigger`
-`onHitDealt` (weapon lands a hit; `rangePerStack` available), `onLowHP` (`threshold` required), `passive`. **No `onTimer`/`onHitReceived`/`onBounce`** — wanting one is the hard extend.
+### Ability triggers (4) — `BallAbility.trigger`
+`onHitDealt` (weapon lands a hit; `rangePerStack` available), `onLowHP` (`threshold` required), `passive`, `onTimer` (`intervalMs` required; `timerFrac` 0–1 passed to `getHudRows` for cooldown display). **No `onHitReceived`/`onBounce`** — wanting one is the hard extend.
 
 ### Audio styles — `src/audio/types.ts`
 `hitStyle`: `thunderous | swift | arcane`. `abilityStyle`: `berserk | sharp | frenzy`. A new style is an extend (synthesized in `fightAudioSynthesizer.ts`; no asset files).
@@ -93,9 +93,12 @@ export const myBall: BallDefinition = {
     durability: 65, color: '#RRGGBB', icon: 'my-ball-icon',
     ability: {                   // omit if no ability
       id: 'my-ability', name: 'Ability', description: '...',
-      trigger: 'onHitDealt',     // onHitDealt | onLowHP | passive
+      trigger: 'onHitDealt',     // onHitDealt | onLowHP | passive | onTimer
       params: { /* status + fx params from the catalog */ },
-      getHudRows(effects: StatusEffect[], hpFrac: number): StatusRow[] { return []; },
+      // implement based on HUD display choice — see REFERENCE.md#hud-display
+      getHudRows(effects: StatusEffect[], hpFrac: number, timerFrac = 0): StatusRow[] {
+        return [{ label: 'ability', value: '...' }];
+      },
     },
   },
   weapon: {
@@ -122,6 +125,41 @@ All procedural; 24×24 logical canvas.
 - **Ball icon** (in the ball module): draw freely with any fill/stroke colors; this is the colored emblem.
 - **Weapon sprite** (`WEAPON_SPRITE_PAINTERS`): `ctx.translate(12,12)` then draw in **pure white** (`#FFFFFF`); orbit center is (12,12); **+X is the business end** (blade tip / muzzle); the ball is toward −X. `weapon.color` is applied as a drop-shadow at render — don't hardcode it.
 - **Projectile sprite** (`PROJECTILE_SPRITE_PAINTERS`): same, white, centered.
+
+---
+
+## HUD display
+
+`getHudRows` populates the ability row in the bottom capture panel. Return `[]` to show nothing. The function receives `effects` (active status effects), `hpFrac` (0–1), and `timerFrac` (0–1, only non-zero for `onTimer` abilities).
+
+Pick the pattern that matches your ability:
+
+**None** — omit `getHudRows` entirely or return `[]`. Good for passive always-on effects.
+
+**On / Off** — fires on a condition (e.g. `onLowHP`):
+```typescript
+getHudRows(_e, hpFrac) {
+  return [{ label: 'berserk', value: hpFrac < 0.3 ? 'on' : 'off' }];
+}
+```
+
+**Cooldown %** — for `onTimer` abilities, show charge progress via `timerFrac`:
+```typescript
+getHudRows(_e, _hp, timerFrac = 0) {
+  const pct = Math.round(timerFrac * 100);
+  return [{ label: 'soul surge', value: pct >= 100 ? 'READY' : `${pct}%` }];
+}
+```
+
+**Stack count** — show active stacks from `effects`:
+```typescript
+getHudRows(effects) {
+  const stacks = effects.find(e => e.type === 'speedBoost')?.stacks ?? 0;
+  return [{ label: 'momentum', value: `${stacks}/6` }];
+}
+```
+
+**Custom label** — derive any string from the inputs. Keep it under ~8 chars so it fits the strip.
 
 ---
 

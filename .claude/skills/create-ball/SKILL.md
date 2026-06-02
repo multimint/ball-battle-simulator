@@ -26,6 +26,7 @@ Ask via `AskUserQuestion`, menus for rote fields, free text for the mechanic:
 4. **Tier** `[menu]` — S / A / B / C. The strength target (see [REFERENCE.md](REFERENCE.md#tiers--win-bands)).
 5. **Visuals** — hex color + ball-icon idea + weapon look.
 6. **Audio** `[menu]` — `hitStyle` (thunderous/swift/arcane) + `abilityStyle` (berserk/sharp/frenzy).
+7. **HUD display** `[menu]` — what should the ability show in the bottom panel? (see [REFERENCE.md](REFERENCE.md#hud-display)): none / on-off / cooldown-% / stack-count / custom label.
 
 ### 2 — Interpret & gate
 Map the mechanic onto existing primitives ([REFERENCE.md](REFERENCE.md#primitive-catalogs)). Echo back your reading: either
@@ -48,7 +49,10 @@ Sprites and audio are 100% procedural code — no asset files. Reuse before auth
 - Convention-only: trust `tsc` for key registration; no image preview.
 
 ### 6 — Write & register
-Write `src/balls/<id>.ts` ([template](REFERENCE.md#ball-module-template)) and wire all three spots in `src/balls/index.ts`. Apply any confirmed extension per the playbook.
+Write `src/balls/<id>.ts` ([template](REFERENCE.md#ball-module-template)) and wire all three spots in `src/balls/index.ts`. Apply any confirmed extension per the playbook. Implement `getHudRows` using the answer from step 1.7 (see [REFERENCE.md](REFERENCE.md#hud-display) for patterns).
+
+### 6.5 — Code review (EXTEND balls only)
+If the ball required any engine extension (new status effect, attack type, ability trigger, or spawned entity), run `/code-review` on the new and modified engine files before verifying. Fix all CONFIRMED bugs before continuing. COMPOSE-tier balls skip this step.
 
 ### 7 — Verify (headless, blocking)
 `npm run typecheck` && `npm run lint` && `npm run test`. Fix everything before continuing.
