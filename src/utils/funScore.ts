@@ -38,13 +38,39 @@ const OPENING_WINDOW_MS = 5000;
 /** tanh divisor: ~4 opening actions → 0.76, ~8 → 0.96. */
 const OPENING_ACTION_DIVISOR = 4;
 
+/** The six 0–1 factors that make up the fun score (before averaging). */
+export interface FunComponents {
+  closeness: number;
+  dmgSymmetry: number;
+  duration: number;
+  momentum: number;
+  hook: number;
+  comeback: number;
+}
+
+/** Keys in display order — shared by the CLI breakdown. */
+export const FUN_COMPONENT_KEYS: readonly (keyof FunComponents)[] = [
+  'closeness', 'dmgSymmetry', 'duration', 'momentum', 'hook', 'comeback',
+];
+
+/** Average the six factors into a single 0–100 score. */
+export function funScoreFromComponents(c: FunComponents): number {
+  const sum = c.closeness + c.dmgSymmetry + c.duration + c.momentum + c.hook + c.comeback;
+  return Math.round((sum / FUN_COMPONENT_KEYS.length) * 100);
+}
+
 /**
- * Compute a 0–100 fun score for a single fight.
- * Equal weight on six factors: closeness, damage symmetry, duration, momentum
- * shifts, the opening "hook" (action density in the first OPENING_WINDOW_MS),
- * and comeback (how close the eventual winner came to losing).
+ * Compute a 0–100 fun score for a single fight. Equal weight on six factors:
+ * closeness, damage symmetry, duration, momentum shifts, the opening "hook"
+ * (action density in the first OPENING_WINDOW_MS), and comeback (how close the
+ * eventual winner came to losing).
  */
 export function computeFunScore(i: FunScoreInput): number {
+  return funScoreFromComponents(computeFunComponents(i));
+}
+
+/** Compute the six fun-score factors individually (for diagnostics/tuning). */
+export function computeFunComponents(i: FunScoreInput): FunComponents {
   // 1. Closeness — how little HP the winner had remaining
   let closeness: number;
   const bothAlive = i.hpA > 0 && i.hpB > 0;
@@ -110,7 +136,5 @@ export function computeFunScore(i: FunScoreInput): number {
   else if (i.winner === 'draw') comeback = 1 - Math.min(minFracA, minFracB);
   else                          comeback = 0; // unresolved — no signal
 
-  return Math.round(
-    ((closeness + dmgSymmetry + duration + momentum + hook + comeback) / 6) * 100,
-  );
+  return { closeness, dmgSymmetry, duration, momentum, hook, comeback };
 }

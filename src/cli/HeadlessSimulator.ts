@@ -1,7 +1,8 @@
 import Matter from 'matter-js';
 import { SimulationCore } from '../simulation/SimulationCore';
 import { STALEMATE_TIME_MS, PHYSICS_STEP_MS } from '../constants/gameConstants';
-import { computeFunScore } from '../utils/funScore';
+import { computeFunComponents, funScoreFromComponents } from '../utils/funScore';
+import type { FunComponents, GameEvent } from '../utils/funScore';
 import type { WinnerType } from '../models/types';
 
 const { Engine, World } = Matter;
@@ -14,6 +15,9 @@ export interface FightResult {
   turnsElapsed: number;
   simTimeMs: number;
   funScore: number;
+  funComponents: FunComponents;
+  /** Full timestamped log of gameplay actions (for `--log`). */
+  gameEvents: GameEvent[];
 }
 
 export class HeadlessSimulator extends SimulationCore {
@@ -33,6 +37,19 @@ export class HeadlessSimulator extends SimulationCore {
     Engine.clear(this.engine);
     World.clear(this.engine.world, false);
 
+    const funComponents = computeFunComponents({
+      snapshots: this.hpSnapshots,
+      winner:   this.winner,
+      hpA:      this.hp.A,
+      hpB:      this.hp.B,
+      maxHpA:   this.maxHp.A,
+      maxHpB:   this.maxHp.B,
+      damageA:  this.damageDealt.A,
+      damageB:  this.damageDealt.B,
+      simTimeMs: this.simTime,
+      gameEvents: this.gameEvents,
+    });
+
     return {
       winner: this.winner,
       hpA: this.hp.A,
@@ -40,18 +57,9 @@ export class HeadlessSimulator extends SimulationCore {
       damageDealt: { ...this.damageDealt },
       turnsElapsed: this.turns,
       simTimeMs: this.simTime,
-      funScore: computeFunScore({
-        snapshots: this.hpSnapshots,
-        winner:   this.winner,
-        hpA:      this.hp.A,
-        hpB:      this.hp.B,
-        maxHpA:   this.maxHp.A,
-        maxHpB:   this.maxHp.B,
-        damageA:  this.damageDealt.A,
-        damageB:  this.damageDealt.B,
-        simTimeMs: this.simTime,
-        gameEvents: this.gameEvents,
-      }),
+      funScore: funScoreFromComponents(funComponents),
+      funComponents,
+      gameEvents: this.gameEvents,
     };
   }
 }

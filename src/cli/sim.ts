@@ -1,13 +1,15 @@
 /* eslint-disable no-console */
 /// <reference types="node" />
 import { FIGHTER_PRESETS } from '../balls';
-import { HeadlessSimulator } from './HeadlessSimulator';
+import { HeadlessSimulator, type FightResult } from './HeadlessSimulator';
 import { randomVelocity } from '../utils/physics';
 import { parseRuns, presetToTeam } from './cliUtils';
+import { FUN_COMPONENT_KEYS, type FunComponents } from '../utils/funScore';
 
 // ── Arg parsing ────────────────────────────────────────────────────────────────
 
 const args = process.argv.slice(2);
+const showLog = args.includes('--log');
 
 if (args.includes('--list') || args.includes('-l')) {
   console.log('\nAvailable balls:\n');
@@ -30,7 +32,7 @@ for (let i = 0; i < args.length; i++) {
 const [ballAId, ballBId] = positional;
 
 if (!ballAId || !ballBId) {
-  console.error('Usage: npm run sim -- <ballA-id> <ballB-id> [--runs N]');
+  console.error('Usage: npm run sim -- <ballA-id> <ballB-id> [--runs N] [--log]');
   console.error('Ball IDs:', FIGHTER_PRESETS.map((p) => p.id).join(', '));
   process.exit(1);
 }
@@ -65,6 +67,13 @@ let totalTurns = 0,
   totalFunScore = 0,
   totalFunScoreSq = 0;
 
+// Per-component sum and sum-of-squares (values scaled to 0–100).
+const compSum: Record<keyof FunComponents, number> =
+  { closeness: 0, dmgSymmetry: 0, duration: 0, momentum: 0, hook: 0, comeback: 0 };
+const compSumSq: Record<keyof FunComponents, number> = { ...compSum };
+
+let firstFight: FightResult | null = null;
+
 const wallStart = Date.now();
 
 for (let i = 0; i < runs; i++) {
@@ -73,6 +82,7 @@ for (let i = 0; i < runs; i++) {
     velB: randomVelocity(presetB.ball.maxSpeed, Math.PI),
   };
   const result = new HeadlessSimulator(teamA, teamB, vels).run();
+  if (i === 0) firstFight = result;
 
   if (result.winner === 'A') {
     winsA++;
@@ -87,6 +97,11 @@ for (let i = 0; i < runs; i++) {
   totalTimeMsSq += result.simTimeMs * result.simTimeMs;
   totalFunScore += result.funScore;
   totalFunScoreSq += result.funScore * result.funScore;
+  for (const k of FUN_COMPONENT_KEYS) {
+    const v = result.funComponents[k] * 100;
+    compSum[k] += v;
+    compSumSq[k] += v * v;
+  }
 }
 
 const wallMs = Date.now() - wallStart;
@@ -135,7 +150,44 @@ console.log(
   `  Avg fight: ${avgSimSec}s ±${sdSimSec}s  (${avgTurns} ball collisions)`,
 );
 console.log(`  Avg fun score: ${avgFun}/100 ±${sdFun}`);
+
+// Per-component breakdown (each averaged over all runs, with ± std dev) — shows
+// which factor drives or drags the fun score when tuning.
+const compLabel: Record<keyof FunComponents, string> = {
+  closeness: 'closeness',
+  dmgSymmetry: 'damage symmetry',
+  duration: 'duration',
+  momentum: 'momentum',
+  hook: 'opening hook',
+  comeback: 'comeback',
+};
+for (const k of FUN_COMPONENT_KEYS) {
+  const mean = Math.round(compSum[k] / runs);
+  const sd = Math.round(stdev(compSum[k], compSumSq[k], runs));
+  console.log(`    ${compLabel[k].padEnd(16)} ${String(mean).padStart(3)} ±${sd}`);
+}
+
 console.log(line);
 console.log(
   `  Completed ${runs} fights in ${wallMs}ms  (${(wallMs / runs).toFixed(1)}ms per fight)\n`,
 );
+
+// ── Full fight log (--log) ───────────────────────────────────────────────────────
+
+if (showLog && firstFight) {
+  const teamName = (t: 'A' | 'B') => (t === 'A' ? nameA : nameB);
+  console.log(`Fight #1 event log  (${firstFight.gameEvents.length} actions)`);
+  console.log(line);
+  for (const e of firstFight.gameEvents) {
+    const t = `${(e.timeMs / 1000).toFixed(1)}s`.padStart(6);
+    console.log(`  ${t}  ${teamName(e.team).padEnd(col)}  ${e.type}`);
+  }
+  const fc = firstFight.funComponents;
+  const fcStr = FUN_COMPONENT_KEYS.map((k) => `${k} ${Math.round(fc[k] * 100)}`).join('  ');
+  console.log(line);
+  console.log(
+    `  Result: ${firstFight.winner === 'draw' ? 'draw' : `${teamName(firstFight.winner as 'A' | 'B')} wins`}` +
+      `  (${(firstFight.simTimeMs / 1000).toFixed(1)}s, A ${firstFight.hpA} HP / B ${firstFight.hpB} HP)`,
+  );
+  console.log(`  Fun score: ${firstFight.funScore}/100   [${fcStr}]\n`);
+}

@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { computeFunScore, type FunScoreInput, type GameEvent } from '../funScore';
+import {
+  computeFunScore,
+  computeFunComponents,
+  funScoreFromComponents,
+  FUN_COMPONENT_KEYS,
+  type FunScoreInput,
+  type FunComponents,
+  type GameEvent,
+} from '../funScore';
 
 /** A neutral decisive A-win, ~35s, even damage, no snapshots/events. Override per test. */
 function input(overrides: Partial<FunScoreInput> = {}): FunScoreInput {
@@ -129,5 +137,52 @@ describe('computeFunScore()', () => {
     expect(Number.isFinite(score)).toBe(true);
     expect(score).toBeGreaterThanOrEqual(0);
     expect(score).toBeLessThanOrEqual(100);
+  });
+});
+
+describe('computeFunComponents()', () => {
+  it('returns all six factors in [0, 1]', () => {
+    const c = computeFunComponents(input({
+      snapshots: [{ hpA: 60, hpB: 50 }, { hpA: 20, hpB: 30 }],
+      gameEvents: events(5, 1_000),
+    }));
+    for (const k of FUN_COMPONENT_KEYS) {
+      expect(c[k]).toBeGreaterThanOrEqual(0);
+      expect(c[k]).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('exposes exactly the keys listed in FUN_COMPONENT_KEYS', () => {
+    const c = computeFunComponents(input());
+    expect(Object.keys(c).sort()).toEqual([...FUN_COMPONENT_KEYS].sort());
+  });
+
+  it('computeFunScore equals the averaged components', () => {
+    const i = input({
+      snapshots: [{ hpA: 60, hpB: 40 }, { hpA: 10, hpB: 40 }],
+      gameEvents: events(6, 800),
+    });
+    expect(computeFunScore(i)).toBe(funScoreFromComponents(computeFunComponents(i)));
+  });
+});
+
+describe('funScoreFromComponents()', () => {
+  const uniform = (v: number): FunComponents => ({
+    closeness: v, dmgSymmetry: v, duration: v, momentum: v, hook: v, comeback: v,
+  });
+
+  it('all-max components give 100', () => {
+    expect(funScoreFromComponents(uniform(1))).toBe(100);
+  });
+
+  it('all-zero components give 0', () => {
+    expect(funScoreFromComponents(uniform(0))).toBe(0);
+  });
+
+  it('weights the six factors equally', () => {
+    // three 1s and three 0s → mean 0.5 → 50
+    expect(funScoreFromComponents({
+      closeness: 1, dmgSymmetry: 1, duration: 1, momentum: 0, hook: 0, comeback: 0,
+    })).toBe(50);
   });
 });

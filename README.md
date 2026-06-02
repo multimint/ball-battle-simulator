@@ -59,23 +59,44 @@ npm run lint       # ESLint
 npm run balls                                  # list all ball IDs
 npm run sim -- quick-flail blood-axe           # 100 fights (default)
 npm run sim -- quick-flail blood-axe --runs 500
+npm run sim -- quick-flail blood-axe --runs 1 --log   # blow-by-blow event log of one fight
 
 npm run rank                                   # Elo ranking, all matchups (500 runs default)
 npm run rank -- --runs 100                     # quicker check
 ```
 
-`npm run sim` output — one matchup (`±` shows run-to-run spread: win-rate standard error, and standard deviation of fight time / fun score):
+`npm run sim` output — one matchup. `±` shows run-to-run spread (win-rate standard error; standard deviation for fight time, fun score, and each fun-score factor). The per-factor breakdown shows which dimension drives or drags the score when tuning:
 
 ```
 Quick Flail vs Blood Axe  (100 runs)
 ───────────────────────────────────────────────────────
-  Quick Flail  wins:   59 ( 59% ±5%)   avg HP left when winning: 13.7
-  Blood Axe    wins:   40 ( 40% ±5%)   avg HP left when winning: 10.6
-  Draw                  1 (  1%)
-  Avg fight: 24.4s ±3.6s  (9 ball collisions)
-  Avg fun score: 71/100 ±13
+  Quick Flail  wins:   65 ( 65% ±5%)   avg HP left when winning: 15.4
+  Blood Axe    wins:   35 ( 35% ±5%)   avg HP left when winning: 7.7
+  Draw                  0 (  0%)
+  Avg fight: 24.0s ±3.5s  (10 ball collisions)
+  Avg fun score: 70/100 ±12
+    closeness         81 ±15
+    damage symmetry   74 ±17
+    duration          66 ±24
+    momentum          58 ±40
+    opening hook      64 ±27
+    comeback          79 ±17
 ───────────────────────────────────────────────────────
-  Completed 100 fights in 672ms  (6.7ms per fight)
+  Completed 100 fights in 650ms  (6.5ms per fight)
+```
+
+Add `--log` to print the full timestamped action log (hits, shots, ability procs) of the first fight, plus its result and per-factor scores — useful with `--runs 1` for a single-fight trace:
+
+```
+Fight #1 event log  (28 actions)
+───────────────────────────────────────────────────────
+    4.9s  Blood Axe    hit
+    5.0s  Quick Flail  ability
+    5.0s  Quick Flail  hit
+    ...
+───────────────────────────────────────────────────────
+  Result: Quick Flail wins  (30.0s, A 36 HP / B 22 HP)
+  Fun score: 70/100   [closeness 81  dmgSymmetry 74  duration 66  momentum 58  hook 64  comeback 79]
 ```
 
 `npm run rank` output — full Elo leaderboard (a live progress bar tracks the run, then clears):
