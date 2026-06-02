@@ -4,8 +4,6 @@ Physics-based fighting game where two customizable fighters battle in an enclose
 
 **[Live demo](https://multimint.github.io/ball-battle-simulator/)**
 
-![Screenshot](docs/screenshot.png)
-
 ---
 
 ## Features
