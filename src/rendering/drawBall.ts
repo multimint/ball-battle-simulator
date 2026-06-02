@@ -8,7 +8,6 @@ export function drawBall(
   ctx: Ctx2D,
   x: number,
   y: number,
-  angle: number,
   ball: BallStats,
   hp: number,
   maxHp: number,
