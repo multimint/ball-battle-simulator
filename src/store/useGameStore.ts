@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { GamePhase, WinnerType, TeamConfig, TeamId, FighterPreset } from '../models/types';
 import { FIGHTER_PRESETS } from '../balls';
-import { PHYSICS_SPEED_SCALE } from '../constants/gameConstants';
+import { randomVelocity } from '../utils/physics';
 
 export interface InitialVelocities {
   velA: { x: number; y: number };
@@ -49,12 +49,6 @@ const defaultTeamB: TeamConfig = {
   audioProfile: FIGHTER_PRESETS[0].audioProfile,
 };
 
-function randomVelocity(maxSpeed: number, baseAngle: number): { x: number; y: number } {
-  const scaled = maxSpeed * PHYSICS_SPEED_SCALE;
-  const spd = scaled * (0.95 + Math.random() * 0.15);
-  const angle = baseAngle + (Math.random() - 0.5) * Math.PI * 0.7;
-  return { x: Math.cos(angle) * spd, y: Math.sin(angle) * spd };
-}
 
 export const useGameStore = create<GameStore>((set, get) => ({
   phase: 'setup',

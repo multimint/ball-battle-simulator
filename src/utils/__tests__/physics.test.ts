@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import Matter from 'matter-js';
-import { directionBetween, distanceBetween } from '../physics';
+import { directionBetween, distanceBetween, randomVelocity } from '../physics';
+import { PHYSICS_SPEED_SCALE } from '../../constants/gameConstants';
 
 function makeBody(x: number, y: number): Matter.Body {
   return Matter.Bodies.circle(x, y, 10);
@@ -44,5 +45,49 @@ describe('distanceBetween()', () => {
     const a = makeBody(10, 20);
     const b = makeBody(40, 60);
     expect(distanceBetween(a, b)).toBeCloseTo(distanceBetween(b, a));
+  });
+});
+
+describe('randomVelocity()', () => {
+  it('speed is within [0.95, 1.10] × maxSpeed × PHYSICS_SPEED_SCALE', () => {
+    const maxSpeed = 5;
+    const scaled = maxSpeed * PHYSICS_SPEED_SCALE;
+    for (let i = 0; i < 20; i++) {
+      const v = randomVelocity(maxSpeed, 0);
+      const speed = Math.hypot(v.x, v.y);
+      expect(speed).toBeGreaterThanOrEqual(scaled * 0.95 - 1e-9);
+      expect(speed).toBeLessThanOrEqual(scaled * 1.10 + 1e-9);
+    }
+  });
+
+  it('angle stays within ±63° of baseAngle', () => {
+    const maxAngleDiff = Math.PI * 0.35 + 1e-9; // half of 0.7π spread
+    for (let i = 0; i < 20; i++) {
+      const v = randomVelocity(5, 0);
+      const angle = Math.atan2(v.y, v.x);
+      expect(Math.abs(angle)).toBeLessThanOrEqual(maxAngleDiff);
+    }
+  });
+
+  it('leftward base angle (π) produces a leftward velocity', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // neutral random → exact base angle
+    const v = randomVelocity(5, Math.PI);
+    expect(v.x).toBeLessThan(0); // moving left
+    vi.restoreAllMocks();
+  });
+
+  it('rightward base angle (0) produces a rightward velocity', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5); // neutral random → exact base angle
+    const v = randomVelocity(5, 0);
+    expect(v.x).toBeGreaterThan(0); // moving right
+    vi.restoreAllMocks();
+  });
+
+  it('does not produce NaN', () => {
+    for (let i = 0; i < 20; i++) {
+      const v = randomVelocity(5, 0);
+      expect(Number.isNaN(v.x)).toBe(false);
+      expect(Number.isNaN(v.y)).toBe(false);
+    }
   });
 });

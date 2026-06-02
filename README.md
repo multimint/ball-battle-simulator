@@ -16,6 +16,7 @@ Physics-based fighting game where two customizable fighters battle in an enclose
 - **MP4 export** — intro card → fight → result card encoded in real time via Web Codecs API + MP4-Muxer; 1080×1920 portrait format
 - **Procedural audio** — no sample files; all sounds synthesized from per-ball audio profiles via AudioEncoder
 - **Deterministic replay** — identical fighters + velocities produce identical matches
+- **Headless CLI** — run hundreds of fights without rendering for fast balance testing
 
 ### Fighters
 
@@ -54,6 +55,26 @@ npm run typecheck  # tsc -b
 npm run lint       # ESLint
 ```
 
+```bash
+# Balance testing CLI — no browser, no video, ~5ms per fight
+npm run balls                                  # list all ball IDs
+npm run sim -- quick-flail blood-axe           # 100 fights (default)
+npm run sim -- quick-flail blood-axe --runs 500
+```
+
+Example output:
+
+```
+Quick Flail vs Blood Axe  (100 runs)
+──────────────────────────────────────────────────────
+  Quick Flail  wins:   52 ( 52%)   avg HP left when winning: 13.4
+  Blood Axe    wins:   47 ( 47%)   avg HP left when winning: 8.1
+  Draw                  1 (  1%)
+  Avg fight: 23.2s  (10 ball collisions)
+──────────────────────────────────────────────────────
+  Completed 100 fights in 520ms  (5.2ms per fight)
+```
+
 ---
 
 ## Architecture
@@ -63,19 +84,26 @@ Setup screen → SimulatingScreen → PlaybackScreen
                      │
               simulator.worker.ts          ← physics off main thread
                      │
-              GameSimulator.ts             ← 60 Hz tick loop
+              GameSimulator.ts             ← extends SimulationCore; drives MP4 encoding
+                     │
+              SimulationCore.ts            ← shared 60 Hz tick loop
               ├── WeaponController         ← orbit, fire, hitbox
               ├── HitProcessor             ← damage, knockback
               ├── StatusEffectManager      ← apply, tick, expire
               ├── AbilityHandler           ← trigger conditions
               ├── ParticleController       ← trail & burst particles
               ├── AudioEmitter             ← queue audio events
-              └── VideoEncoder             ← MP4 encode per frame
+              └── VideoEncoder             ← MP4 encode per frame (GameSimulator only)
                      │
               Renderer.ts                  ← Canvas 2D draw calls
+
+              HeadlessSimulator.ts         ← extends SimulationCore; no rendering/video
+              (used by CLI: src/cli/sim.ts)
 ```
 
 **Simulation loop** — the Web Worker runs a fixed 60 Hz physics tick. Each tick: resolve collisions → apply weapon attacks → tick status effects → check ability triggers → emit audio events → encode video frame. The main thread receives the final MP4 blob and hands it to the PlaybackScreen.
+
+**Headless mode** — `HeadlessSimulator` extends the same `SimulationCore` tick loop but skips all rendering and video encoding. Used by `npm run sim` for balance testing at ~200× real-time speed.
 
 **Rendering** — purely Canvas 2D, no WebGL. Each frame draws: background → balls (with HP rings and status icons) → orbit weapons → projectiles → particles → floating damage numbers → HUD panels.
 
@@ -87,9 +115,14 @@ Setup screen → SimulatingScreen → PlaybackScreen
 
 1. Copy `src/balls/_template.ts` to `src/balls/yourball.ts`
 2. Fill in `BallDefinition`: stats, weapon config, ability, audio profile, and the 24×24 canvas painter
-3. Import and register it in `src/balls/index.ts`
-4. Add a fighter preset in `src/constants/fighterPresets.ts`
+3. Import and append it to `BALL_DEFINITIONS` in `src/balls/index.ts` — it auto-registers everywhere
 
 The template has inline comments for every field. The existing fighters (`bloodaxe.ts`, `hawkeye.ts`, `quickflail.ts`) are the best reference for non-trivial ability and weapon configs.
 
 Key types: `BallDefinition` (`src/balls/types.ts`), `WeaponStats`, `BallAbility`, `StatusEffectType` (`src/models/types.ts`).
+
+After adding a ball, use the CLI to check balance before watching a full video:
+
+```bash
+npm run sim -- your-ball-id existing-ball-id --runs 200
+```

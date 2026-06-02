@@ -1,5 +1,6 @@
 import Matter from 'matter-js';
 import type { BallStats } from '../models/types';
+import { PHYSICS_SPEED_SCALE } from '../constants/gameConstants';
 
 const { Body, Vector } = Matter;
 
@@ -66,6 +67,14 @@ export function bodyOptionsFromBall(ball: BallStats): Matter.IBodyDefinition {
     density: ball.mass / (Math.PI * ball.radius * ball.radius),
     label: 'ball',
   };
+}
+
+/** Random spawn velocity aimed roughly toward the opponent. */
+export function randomVelocity(maxSpeed: number, baseAngle: number): { x: number; y: number } {
+  const scaled = maxSpeed * PHYSICS_SPEED_SCALE;
+  const spd    = scaled * (0.95 + Math.random() * 0.15);
+  const angle  = baseAngle + (Math.random() - 0.5) * Math.PI * 0.7;
+  return { x: Math.cos(angle) * spd, y: Math.sin(angle) * spd };
 }
 
 /** Give a body an initial velocity aimed roughly at the arena center. */

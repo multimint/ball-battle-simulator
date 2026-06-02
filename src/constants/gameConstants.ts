@@ -8,6 +8,7 @@ export const CAPTURE_ARENA_PAD = 75;         // padding around fight area on all
 export const WALL_THICKNESS = 20;       // static wall body thickness
 export const MAX_PARTICLES = 50;        // hard cap on simultaneous particles
 export const STALEMATE_TIME_MS = 30_000; // 30 seconds → force end
+export const PHYSICS_STEP_MS = 1000 / 60; // physics loop step: 60 Hz
 // ── Speed system ──────────────────────────────────────────────────────────────
 // Multiplier applied on top of each ball's maxSpeed when setting initial velocity.
 // Raising this makes the whole match feel faster without touching individual presets.
