@@ -48,10 +48,11 @@ export const bloodAxe: BallDefinition = {
       id: 'bloodrage-fury',
       name: 'Bloodrage',
       description:
-        'Goes berserk below 30% HP — +50% damage, +70% speed, and charges toward the enemy.',
+        'Goes berserk below 30% HP — +50% damage, +70% speed, charges toward the enemy, and hits with +80 bonus knockback.',
       trigger: 'onLowHP',
       params: {
         threshold: 0.3,
+        berserkKnockbackBonus: 80,
         statusEffect: 'rage',
         statusTarget: 'self',
         statusDuration: 3000,

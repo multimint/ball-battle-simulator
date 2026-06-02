@@ -14,6 +14,8 @@ export interface AttackHandlerCtx {
   damage: (team: 'A' | 'B', amount: number) => number;
   particles: ParticleController;
   effects: EffectsController;
+  /** Spawns a drone for the attacker's team at the given owner body position. */
+  spawnUnit: (ownerBody: Matter.Body) => void;
 }
 
 export interface AttackHandler {

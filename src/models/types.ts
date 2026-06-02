@@ -30,7 +30,7 @@ export type TriggerType =
 
 /** A single attack mode — a weapon can have one or more of these. */
 export interface AttackConfig {
-  type: 'melee' | 'projectile' | 'aoe' | 'shield' | 'utility';
+  type: 'melee' | 'projectile' | 'aoe' | 'shield' | 'utility' | 'summon';
   cooldown: number;     // seconds between uses
   damage: number;       // damage dealt on hit
   knockback: number;    // knockback force
@@ -46,6 +46,29 @@ export interface AttackConfig {
   hitStatusMagnitude?: number;        // strength (0–1)
   hitStatusColor?: string;            // ring/icon tint
   hitStatusIcon?: SpriteKey;          // sprite shown above target when effect is applied
+  // Summon attack fields (type: 'summon' only) — spawns a unit at the weapon tip
+  summonHp?: number;              // unit starting HP (default 30)
+  summonRadius?: number;          // unit radius in px (default 10)
+  summonSpeed?: number;           // unit initial speed on spawn (default 3.5)
+  summonMaxCount?: number;        // max units alive per team (default 3)
+  summonMass?: number;            // unit physics mass (default 0.8)
+  summonNormalColor?: string;     // unit normal-state fill color
+  summonContactDamage?: number;   // damage dealt on enemy contact in normal state (default 4)
+  summonContactCooldownMs?: number; // ms between contact hits in normal state (default 600)
+  summonChargedColor?: string;    // unit charged-state fill color
+  summonChargedSpeed?: number;    // unit speed when launched in charged state (default summonSpeed × 4)
+  summonChargedDamage?: number;   // damage dealt on enemy contact in charged state (default 10)
+  // Status effects applied on drone hit (same field naming as hitStatus* on regular attacks)
+  summonContactStatusEffect?: StatusEffectType;  // applied on normal-state contact hit
+  summonContactStatusDuration?: number;          // ms (default 2000)
+  summonContactStatusMagnitude?: number;         // strength 0–1 (default 0.3)
+  summonContactStatusColor?: string;             // ring tint
+  summonContactStatusIcon?: SpriteKey;
+  summonChargedStatusEffect?: StatusEffectType;  // applied on charged-state hit
+  summonChargedStatusDuration?: number;
+  summonChargedStatusMagnitude?: number;
+  summonChargedStatusColor?: string;
+  summonChargedStatusIcon?: SpriteKey;
 }
 
 export interface WeaponStats {
@@ -102,7 +125,8 @@ export type WinnerType = 'A' | 'B' | 'draw' | null;
 export type BallAbilityType =
   | 'onHitDealt'
   | 'onLowHP'
-  | 'passive';
+  | 'passive'
+  | 'onTimer';
 
 // ─── HUD Status Row ───────────────────────────────────────────────────────────
 
@@ -181,10 +205,21 @@ export interface OnHitDealtParams extends CommonAbilityParams {
 
 /** Params for `onLowHP` abilities (e.g. Blood Axe Bloodrage). */
 export interface OnLowHPParams extends CommonAbilityParams {
-  threshold: number;      // HP fraction (0–1) at which berserk activates
+  threshold: number;             // HP fraction (0–1) at which berserk activates
+  berserkKnockbackBonus?: number; // extra knockback applied on every hit while berserk
 }
 
 export type PassiveParams = CommonAbilityParams;
+
+/** Params for `onTimer` abilities (e.g. Revenant Soul Surge). */
+export interface OnTimerParams extends CommonAbilityParams {
+  intervalMs: number;  // ms between each Soul Surge launch
+}
+
+// ─── Drone (summoner sub-unit) ────────────────────────────────────────────────
+
+/** State of a spawned unit. 'normal' = passive/wandering; 'charged' = launched toward enemy. */
+export type UnitState = 'normal' | 'charged';
 
 // ─── Ball Ability (discriminated union) ──────────────────────────────────────
 
@@ -193,13 +228,14 @@ type BallAbilityBase = {
   name: string;
   description: string;
   /** Returns HUD rows for this ability's live state. Return [] for no display. */
-  getHudRows?: (effects: StatusEffect[], hpFrac: number) => StatusRow[];
+  getHudRows?: (effects: StatusEffect[], hpFrac: number, timerFrac?: number) => StatusRow[];
 };
 
 export type BallAbility =
   | (BallAbilityBase & { trigger: 'onHitDealt'; params: OnHitDealtParams })
   | (BallAbilityBase & { trigger: 'onLowHP';    params: OnLowHPParams })
-  | (BallAbilityBase & { trigger: 'passive';    params: PassiveParams });
+  | (BallAbilityBase & { trigger: 'passive';    params: PassiveParams })
+  | (BallAbilityBase & { trigger: 'onTimer';    params: OnTimerParams });
 
 // ─── Status Effects ───────────────────────────────────────────────────────────
 

@@ -1,12 +1,12 @@
 import Matter from 'matter-js';
-import type { WeaponStats, AttackConfig, TeamConfig, BallAbilityType } from '../models/types';
+import type { WeaponStats, AttackConfig, TeamConfig, BallAbilityType, OnLowHPParams } from '../models/types';
 import type { StatusEffectManager } from './StatusEffectManager';
 import type { ParticleController } from './ParticleController';
 import type { EffectsController } from './EffectsController';
 import type { AudioEmitter } from './AudioEmitter';
 import { applyAbility } from './AbilityHandler';
 import { ATTACK_HANDLERS } from './attackHandlers';
-import { directionBetween } from '../utils/physics';
+import { directionBetween, applyKnockback } from '../utils/physics';
 import { isAbilityBerserk } from '../utils/ability';
 import { BERSERK_BURST_MULT } from '../constants/gameConstants';
 
@@ -31,6 +31,7 @@ export interface HitCtx {
   audio: AudioEmitter;
   simTime: number;
   recordAbilityProc?: (team: 'A' | 'B', trigger: BallAbilityType) => void;
+  spawnUnit: (ownerBody: Matter.Body) => void;
 }
 
 export function processHit(ctx: HitCtx): void {
@@ -66,7 +67,7 @@ export function processHit(ctx: HitCtx): void {
   };
 
   const handler = ATTACK_HANDLERS[attack.type];
-  handler.resolve({ weapon, attack, attacker, defender, targetTeam, dir, hitAngle, damage, particles: ctx.particles, effects: ctx.effects });
+  handler.resolve({ weapon, attack, attacker, defender, targetTeam, dir, hitAngle, damage, particles: ctx.particles, effects: ctx.effects, spawnUnit: ctx.spawnUnit });
 
   if (attack.hitStatusEffect && lastDmg > 0) {
     ctx.statusMgr.apply({ team: targetTeam, type: attack.hitStatusEffect, durationMs: attack.hitStatusDuration ?? 2000, magnitude: attack.hitStatusMagnitude ?? 0.3, stackBehavior: 'refresh', maxStacks: 1, color: attack.hitStatusColor ?? '#88CCFF', icon: attack.hitStatusIcon ?? 'burst', simTime: ctx.simTime });
@@ -92,6 +93,10 @@ export function processHit(ctx: HitCtx): void {
     const boostMag = attackerBerserk ? Math.min(1.2, lastDmg * 0.018) : Math.min(0.7, lastDmg * 0.01);
     const boostDur = Math.round(attackerBerserk ? Math.min(1000, lastDmg * 18) : Math.min(700, lastDmg * 12));
     ctx.statusMgr.apply({ team: targetTeam, type: 'speedBoost', durationMs: boostDur, magnitude: boostMag, stackBehavior: 'refresh', maxStacks: 1, color: '#FF6600', icon: 'burst', simTime: ctx.simTime });
+    if (attackerBerserk) {
+      const kbBonus = (attackerConfig.ball.ability?.params as OnLowHPParams | undefined)?.berserkKnockbackBonus ?? 0;
+      if (kbBonus > 0) applyKnockback(defender, dir.x, dir.y, kbBonus);
+    }
   }
 
   const sharedAbilityCtx = { statusMgr: ctx.statusMgr, particles: ctx.particles, effects: ctx.effects, audio: ctx.audio, simTime: ctx.simTime };

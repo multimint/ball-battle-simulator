@@ -9,7 +9,8 @@ Physics-based fighting game where two customizable fighters battle in an enclose
 ## Features
 
 - **Physics simulation** — Matter.js rigid-body engine with velocity clamping, collision impulses, and soft attraction to keep fighters engaged
-- **Orbiting weapon system** — melee, projectile, AOE, and laser attack types; trigger conditions include collision, timer, speed threshold, low HP, and arena edge
+- **Orbiting weapon system** — melee, projectile, AOE, laser, and summon attack types; trigger conditions include collision, timer, speed threshold, low HP, and arena edge
+- **Spawned units** — summon attacks spawn persistent units (wisps) that harass the enemy and can be launched as high-speed charged projectiles via ability triggers
 - **Status effects** — burn, poison, freeze, rage, harden, speedBoost, weaken, lifesteal, shield; each with configurable stacking and duration
 - **MP4 export** — intro card → fight → result card encoded in real time via Web Codecs API + MP4-Muxer; 1080×1920 portrait format
 - **Procedural audio** — no sample files; all sounds synthesized from per-ball audio profiles via AudioEncoder
@@ -23,7 +24,8 @@ Physics-based fighting game where two customizable fighters battle in an enclose
 |---|---|---|
 | Quick Flail | 60 | Momentum — stacking speedBoost up to 6× on hits |
 | Hawkeye | 60 | Permafrost — laser hits apply freeze |
-| Blood Axe | 70 | Bloodrage — berserk at <30% HP (+50% dmg, +70% speed) |
+| Blood Axe | 70 | Bloodrage — berserk at <30% HP (+50% dmg, +70% speed, +80 knockback) |
+| Revenant | 66 | Soul Surge — every 16 s converts Wisps to Banshees that hurl toward the enemy |
 
 ---
 
@@ -148,6 +150,7 @@ Setup screen → SimulatingScreen → PlaybackScreen
                      │
               SimulationCore.ts            ← shared 60 Hz tick loop
               ├── WeaponController         ← orbit, fire, hitbox
+              ├── DroneController          ← spawned unit lifecycle (wisp/charged states)
               ├── HitProcessor             ← damage, knockback
               ├── StatusEffectManager      ← apply, tick, expire
               ├── AbilityHandler           ← trigger conditions
@@ -177,9 +180,21 @@ Setup screen → SimulatingScreen → PlaybackScreen
 2. Fill in `BallDefinition`: stats, weapon config, ability, audio profile, and the 24×24 canvas painter
 3. Import and append it to `BALL_DEFINITIONS` in `src/balls/index.ts` — it auto-registers everywhere
 
-The template has inline comments for every field. The existing fighters (`bloodaxe.ts`, `hawkeye.ts`, `quickflail.ts`) are the best reference for non-trivial ability and weapon configs.
+The template has inline comments for every field. The existing fighters are the best reference for non-trivial configs:
 
-Key types: `BallDefinition` (`src/balls/types.ts`), `WeaponStats`, `BallAbility`, `StatusEffectType` (`src/models/types.ts`).
+| Reference | Good for |
+|---|---|
+| `bloodaxe.ts` | `onLowHP` berserk ability, melee weapon |
+| `hawkeye.ts` | projectile weapon, `onHitDealt` status effect |
+| `quickflail.ts` | `onHitDealt` stacking ability |
+| `revenant.ts` | `summon` attack type, spawned units (wisp/banshee), `onTimer` ability |
+
+**Weapon attack types:** `melee`, `projectile` (supports hitscan, burst fire), `aoe`, `shield`, `utility` (push/pull), `summon` (spawns persistent units that can enter a charged state via ability trigger).
+
+**Summon attack config fields** — all optional with sensible defaults:
+`summonHp`, `summonRadius`, `summonSpeed`, `summonMaxCount`, `summonMass`, `summonNormalColor`, `summonContactDamage`, `summonContactCooldownMs`, `summonChargedColor`, `summonChargedSpeed`, `summonChargedDamage`, plus `summonContact/ChargedStatus*` for applying status effects on drone hit.
+
+Key types: `BallDefinition` (`src/balls/types.ts`), `WeaponStats`, `BallAbility`, `AttackConfig`, `StatusEffectType` (`src/models/types.ts`).
 
 After adding a ball, use the CLI to check balance before watching a full video:
 

@@ -32,6 +32,9 @@ export function drawWeaponEffects(ctx: Ctx2D, effects: WeaponEffect[]): void {
       case 'shockwave':
         drawShockwaveEffect(ctx, e);
         break;
+      case 'caster-aura':
+        drawCasterAura(ctx, e);
+        break;
       case 'flail':
         drawFlailEffect(ctx, e);
         break;
@@ -188,6 +191,52 @@ function drawShockwaveEffect(ctx: Ctx2D, e: WeaponEffect): void {
   ctx.strokeStyle = e.color;
   ctx.lineWidth = 6 * (1 - progress);
   ctx.stroke();
+}
+
+function drawCasterAura(ctx: Ctx2D, e: WeaponEffect): void {
+  // Advances at 1 progress/frame independent of slowMotion — always animates during freeze.
+  const t     = e.progress / e.maxProgress;
+  const baseR = e.radius ?? 24;
+  const pulse = (Math.sin(t * Math.PI * 8) + 1) * 0.5; // 4 pulses over 33 frames
+
+  // Solid filled glow circle behind the ball — makes the caster "light up"
+  ctx.globalAlpha = 0.28 + 0.18 * pulse;
+  ctx.fillStyle   = e.color;
+  ctx.shadowColor = e.color;
+  ctx.shadowBlur  = 40 + pulse * 40;
+  ctx.beginPath();
+  ctx.arc(e.x, e.y, baseR * 1.5 + pulse * 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Strong pulsing stroke ring hugging the ball
+  ctx.globalAlpha = 0.8 + 0.2 * pulse;
+  ctx.strokeStyle = e.color;
+  ctx.lineWidth   = 6 + pulse * 7;
+  ctx.shadowColor = e.color;
+  ctx.shadowBlur  = 35 + pulse * 30;
+  ctx.beginPath();
+  ctx.arc(e.x, e.y, baseR + 6 + pulse * 6, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // 6 expanding rings sweeping to the full arena edge
+  const RINGS      = 6;
+  const MAX_RADIUS = 650;
+  for (let i = 0; i < RINGS; i++) {
+    const phase = ((t * 2.0 + i / RINGS) % 1.0);
+    const ringR = baseR + 12 + phase * MAX_RADIUS;
+    ctx.globalAlpha = (1 - phase) * 0.85;
+    ctx.strokeStyle = e.color;
+    ctx.lineWidth   = 7 * (1 - phase * 0.75);
+    ctx.shadowColor = e.color;
+    ctx.shadowBlur  = 22 * (1 - phase);
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, ringR, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.shadowBlur  = 0;
+  ctx.globalAlpha = 1;
 }
 
 function drawFlailEffect(ctx: Ctx2D, e: WeaponEffect): void {

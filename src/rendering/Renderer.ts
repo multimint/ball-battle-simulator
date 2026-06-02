@@ -1,4 +1,6 @@
 import type { BallStats, WeaponStats, BallAbility, StatusEffect } from '../models/types';
+import type { UnitState } from '../models/types';
+import { drawDrone } from './drawDrone';
 import type { Particle, WeaponEffect, FloatingDamage, ScreenShake, ScreenFlash, HitFlash, TrailSegment, Bullet } from '../models/GameState';
 import type { Ctx2D } from './ctx';
 import { drawBackground, drawArenaWalls } from './drawBackground';
@@ -48,6 +50,8 @@ export interface RenderState {
   effectsB?: StatusEffect[];
   rangeMultA?: number;
   rangeMultB?: number;
+  drones?: Array<{ x: number; y: number; radius: number; state: UnitState; color: string; chargedColor: string; hp: number; maxHp: number }>;
+  castingOverlay?: number;
 }
 
 export class Renderer {
@@ -83,6 +87,15 @@ export class Renderer {
       drawArenaWalls(ctx, state.colorA, state.colorB);
     }
 
+    // 1.5 Casting overlay — semi-transparent green fill during Soul Surge freeze
+    if (state.castingOverlay && state.castingOverlay > 0.005) {
+      ctx.save();
+      ctx.globalAlpha = state.castingOverlay;
+      ctx.fillStyle = '#22CC55';
+      ctx.fillRect(0, 0, ARENA_SIZE, ARENA_SIZE);
+      ctx.restore();
+    }
+
     // 2. Ability trail segments (drawn under shields and balls)
     for (const seg of state.trailSegments ?? []) {
       ctx.globalAlpha = Math.max(0, seg.alpha);
@@ -93,7 +106,12 @@ export class Renderer {
     }
     ctx.globalAlpha = 1;
 
-    // 3. Shield-type weapon effects (drawn behind balls so ball sits in front of shield)
+    // 3. Drones — drawn before shields so they appear behind main balls
+    if (state.drones) {
+      for (const drone of state.drones) drawDrone(ctx, drone);
+    }
+
+    // 4. Shield-type weapon effects (drawn behind balls so ball sits in front of shield)
     drawWeaponEffects(ctx, state.weaponEffects.filter((e) => e.type === 'shield'));
 
     // 4. Balls

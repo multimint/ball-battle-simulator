@@ -11,6 +11,7 @@ const HITBOX_BY_CATEGORY: Record<string, number> = {
   projectile: 17,   // was  9 — spinning blade feel
   aoe:        24,   // was 15 — large shockwave presence
   utility:    18,   // was 11 — magnet / repulsor field
+  summon:     18,   // orbit staff visual size
 };
 
 export function getWeaponHitboxRadius(weapon: WeaponStats, rangeMult = 1): number {
@@ -73,6 +74,9 @@ export function drawOrbitWeapon(
       break;
     case 'utility':
       drawUtilityShape(ctx, weapon, color, hitboxR);
+      break;
+    case 'summon':
+      drawSummonShape(ctx, color, hitboxR);
       break;
   }
 
@@ -181,6 +185,63 @@ function drawAoeShape(
   ctx.arc(0, 0, r * 0.32, 0, Math.PI * 2);
   ctx.fill();
   ctx.shadowBlur = 0;
+}
+
+function drawSummonShape(ctx: Ctx2D, color: string, r: number): void {
+  const GREEN  = '#44FF88';
+  const rodX   = -r * 0.92;
+  const rodLen =  r * 1.34;
+  const rodH   =  r * 0.16;
+
+  // ── Dark straight rod ────────────────────────────────────────────────────
+  ctx.shadowColor = color;
+  ctx.shadowBlur  = 10;
+  // Very dark base
+  ctx.fillStyle = '#0A0018';
+  ctx.fillRect(rodX, -rodH / 2, rodLen, rodH);
+  // Thin purple colour overlay
+  ctx.globalAlpha = 0.38;
+  ctx.fillStyle   = color;
+  ctx.fillRect(rodX, -rodH / 2, rodLen, rodH);
+  ctx.globalAlpha = 1;
+  // Fine edge outline in the weapon colour
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = 0.8;
+  ctx.strokeRect(rodX, -rodH / 2, rodLen, rodH);
+  ctx.shadowBlur  = 0;
+
+  // ── Green glowing orb at tip ─────────────────────────────────────────────
+  ctx.shadowColor = GREEN;
+  ctx.shadowBlur  = 28;
+  // Outer diffuse glow
+  ctx.globalAlpha = 0.32;
+  ctx.fillStyle   = GREEN;
+  ctx.beginPath();
+  ctx.arc(r * 0.72, 0, r * 0.42, 0, Math.PI * 2);
+  ctx.fill();
+  // Solid orb body
+  ctx.globalAlpha = 1.0;
+  ctx.fillStyle   = '#22CC66';
+  ctx.beginPath();
+  ctx.arc(r * 0.72, 0, r * 0.27, 0, Math.PI * 2);
+  ctx.fill();
+  // Bright rim
+  ctx.strokeStyle = GREEN;
+  ctx.lineWidth   = 1.5;
+  ctx.shadowBlur  = 14;
+  ctx.beginPath();
+  ctx.arc(r * 0.72, 0, r * 0.27, 0, Math.PI * 2);
+  ctx.stroke();
+  // Specular
+  ctx.shadowBlur  = 0;
+  ctx.globalAlpha = 0.7;
+  ctx.fillStyle   = '#AAFFCC';
+  ctx.beginPath();
+  ctx.arc(r * 0.67, -r * 0.09, r * 0.11, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur  = 0;
 }
 
 function drawUtilityShape(ctx: Ctx2D, weapon: WeaponStats, color: string, r: number): void {

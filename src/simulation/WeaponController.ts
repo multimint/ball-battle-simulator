@@ -183,6 +183,12 @@ export class WeaponController {
             }
           }
         }
+      } else if (attack.type === 'summon') {
+        // Summon fires on pure cooldown — no proximity check needed.
+        if (simTime - ts.lastHitTimes[i] >= cd) {
+          ts.lastHitTimes[i] = simTime;
+          onHit(weapon, attack, attacker, defender, team);
+        }
       } else {
         const baseHitboxR = getWeaponHitboxRadius(weapon);
         const pos = getOrbitPosition(attacker.position.x, attacker.position.y, ballRadius, ts.orbitAngle, baseHitboxR);

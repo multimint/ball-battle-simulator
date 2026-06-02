@@ -248,6 +248,43 @@ export const WEAPON_SPRITE_PAINTERS = {
     ctx.restore();
   },
 
+  // Solid tapered staff + green orb
+  'weapon-spirit-staff'(ctx: Ctx) {
+    ctx.save();
+    ctx.translate(12, 12);
+    // Solid shaft
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.moveTo(-10,  2.2);
+    ctx.lineTo(  5,  1.0);
+    ctx.lineTo(  5, -1.0);
+    ctx.lineTo(-10, -2.2);
+    ctx.closePath();
+    ctx.fill();
+    // Highlight stripe
+    ctx.globalAlpha = 0.4;
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 0.8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-9, -1.2);
+    ctx.lineTo( 4, -0.6);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    // Green orb (drawn in white for sprite system; color tinted at render time)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(8, 0, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+    // Specular
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(6.8, -1, 1.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  },
+
 } satisfies Record<string, SpritePainter>;
 
 // ── Traveling projectile painters ─────────────────────────────────────────────

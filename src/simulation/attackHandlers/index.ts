@@ -5,6 +5,7 @@ import { shieldHandler }     from './shield';
 import { projectileHandler } from './projectile';
 import { aoeHandler }        from './aoe';
 import { utilityHandler }    from './utility';
+import { summonHandler }     from './summon';
 
 export type { AttackHandler, AttackHandlerCtx } from './types';
 
@@ -14,4 +15,5 @@ export const ATTACK_HANDLERS: Record<AttackConfig['type'], AttackHandler> = {
   projectile: projectileHandler,
   aoe:        aoeHandler,
   utility:    utilityHandler,
+  summon:     summonHandler,
 };

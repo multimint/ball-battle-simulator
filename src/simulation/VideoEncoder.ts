@@ -35,6 +35,8 @@ export interface HudData {
   chargeB: number;
   weaponA: WeaponStats;
   weaponB: WeaponStats;
+  timerFracA: number;
+  timerFracB: number;
 }
 
 function ctx2d(canvas: OffscreenCanvas): Ctx2D {
@@ -157,6 +159,7 @@ export class VideoEncoder {
       hud.hpFracA, hud.hpFracB,
       hud.chargeA, hud.chargeB,
       hud.weaponA, hud.weaponB,
+      hud.timerFracA, hud.timerFracB,
     );
   }
 

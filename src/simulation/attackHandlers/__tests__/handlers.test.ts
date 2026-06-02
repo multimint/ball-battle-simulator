@@ -4,6 +4,7 @@ import { shieldHandler }     from '../shield';
 import { projectileHandler } from '../projectile';
 import { aoeHandler }        from '../aoe';
 import { utilityHandler }    from '../utility';
+import { summonHandler }     from '../summon';
 import { makeBody, makeParticles, makeEffects } from '../../__tests__/fixtures';
 import type { AttackHandlerCtx } from '../types';
 import type { WeaponStats, AttackConfig } from '../../../models/types';
@@ -28,6 +29,7 @@ function makeCtx(overrides: Partial<AttackHandlerCtx> = {}): AttackHandlerCtx {
     damage:      vi.fn().mockReturnValue(10),
     particles:   makeParticles(),
     effects:     makeEffects(),
+    spawnUnit:   vi.fn(),
     ...overrides,
   };
 }
@@ -217,5 +219,31 @@ describe('utilityHandler', () => {
         0, expect.any(String), expect.any(Number), expect.any(Object)
       );
     });
+  });
+});
+
+// ─── summon ───────────────────────────────────────────────────────────────────
+
+describe('summonHandler', () => {
+  it('calls spawnUnit with the attacker body', () => {
+    const ctx = makeCtx({ attack: baseAttack({ type: 'summon', damage: 0, knockback: 0 }) });
+    summonHandler.resolve(ctx);
+    expect(ctx.spawnUnit).toHaveBeenCalledWith(ctx.attacker);
+  });
+
+  it('applies knockback to defender when knockback > 0', () => {
+    const ctx = makeCtx({ attack: baseAttack({ type: 'summon', damage: 0, knockback: 60 }) });
+    summonHandler.resolve(ctx);
+    expect(ctx.defender.force.x).toBeGreaterThan(0);
+  });
+
+  it('does NOT apply knockback when knockback === 0', () => {
+    const ctx = makeCtx({ attack: baseAttack({ type: 'summon', damage: 0, knockback: 0 }) });
+    summonHandler.resolve(ctx);
+    expect(ctx.defender.force.x).toBe(0);
+  });
+
+  it('emitsAudio is false', () => {
+    expect(summonHandler.emitsAudio).toBe(false);
   });
 });

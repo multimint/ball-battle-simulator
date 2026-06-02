@@ -60,3 +60,8 @@ export const BERSERK_ORBIT_SPEED_MULT = 2.5; // orbit speed multiplier when bers
 // ── Weapon trigger thresholds ─────────────────────────────────────────────────
 export const WEAPON_SPEED_TRIGGER_FRAC = 0.70;  // ball must reach 70% of maxSpeed to fire onSpeed weapons
 export const WEAPON_EDGE_THRESHOLD_PX  = 80;    // within 80 px of any wall fires onEdge weapons
+// ── Physics collision categories (Matter.js bitmasks) ────────────────────────
+// Kept out of the default 0x0001 bucket so drones, balls, and walls
+// can each opt in/out of collisions selectively.
+export const DRONE_CATEGORY = { A: 0x0004, B: 0x0008 } as const;
+export const BALL_CATEGORY  = { A: 0x0010, B: 0x0020 } as const;

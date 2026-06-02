@@ -29,6 +29,7 @@ function getStatusRows(
   effects: StatusEffect[],
   hpFrac: number,
   charge: number,
+  timerFrac = 0,
 ): StatusRow[] {
   const rows: StatusRow[] = [];
 
@@ -41,7 +42,7 @@ function getStatusRows(
 
   // Ability rows — each ball owns its own display logic via getHudRows
   if (ability?.getHudRows) {
-    rows.push(...ability.getHudRows(effects, hpFrac));
+    rows.push(...ability.getHudRows(effects, hpFrac, timerFrac));
   }
 
   if (rows.length === 0) rows.push({ label: '—', value: '' });
@@ -116,6 +117,8 @@ export function drawCaptureBottomPanel(
   chargeB = 0,
   weaponA?: WeaponStats,
   weaponB?: WeaponStats,
+  timerFracA = 0,
+  timerFracB = 0,
 ): void {
   const W      = CAPTURE_CANVAS_WIDTH;
   const panelY = CAPTURE_TOP_HEIGHT + CAPTURE_CANVAS_WIDTH;
@@ -128,8 +131,8 @@ export function drawCaptureBottomPanel(
   const stripY = panelY + 36;
   const stripH = 180;
 
-  const rowsA = getStatusRows(abilityA, weaponA, effectsA, hpFracA, chargeA);
-  const rowsB = getStatusRows(abilityB, weaponB, effectsB, hpFracB, chargeB);
+  const rowsA = getStatusRows(abilityA, weaponA, effectsA, hpFracA, chargeA, timerFracA);
+  const rowsB = getStatusRows(abilityB, weaponB, effectsB, hpFracB, chargeB, timerFracB);
 
   drawTeamStrip(ctx, rowsA, colorA, 0,     halfW, stripY, stripH);
   drawTeamStrip(ctx, rowsB, colorB, halfW, halfW, stripY, stripH);

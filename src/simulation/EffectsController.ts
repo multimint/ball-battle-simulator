@@ -13,9 +13,32 @@ export class EffectsController {
   hitFlashB: HitFlash = { alpha: 0, color: '#FFFFFF', ttl: 0 };
   slowMotion = 1.0;
   weaponEffects: WeaponEffect[] = [];
+  private freezeFramesRemaining = 0;
+  /** Alpha of the full-arena green overlay drawn during a casting freeze. */
+  castingOverlay = 0;
+  private castingOverlayFrame = 0;
+
+  /** Freeze physics for N frames (weapon-effect animations still play at full speed). */
+  applyFreeze(frames: number): void {
+    this.freezeFramesRemaining = Math.max(this.freezeFramesRemaining, frames);
+    this.slowMotion = 0;
+    this.castingOverlayFrame = 0;
+    this.castingOverlay = 0.22;
+  }
 
   step(): void {
-    if (this.slowMotion < 1.0) this.slowMotion = Math.min(1.0, this.slowMotion + SLOW_MOTION_RECOVERY);
+    if (this.freezeFramesRemaining > 0) {
+      this.freezeFramesRemaining--;
+      this.castingOverlayFrame++;
+      // Pulse the overlay gently while frozen
+      this.castingOverlay = 0.16 + 0.09 * Math.abs(Math.sin(this.castingOverlayFrame * 0.22));
+      this.slowMotion = 0;           // hold frozen
+    } else {
+      this.castingOverlay = Math.max(0, this.castingOverlay - 0.018); // fade out after freeze
+      if (this.slowMotion < 1.0) {
+        this.slowMotion = Math.min(1.0, this.slowMotion + SLOW_MOTION_RECOVERY);
+      }
+    }
     if (this.screenShake.ttl > 0) this.screenShake.ttl--;
     if (this.screenFlash.ttl > 0) { this.screenFlash.ttl--; this.screenFlash.alpha *= 0.72; }
     if (this.hitFlashA.ttl > 0) { this.hitFlashA.ttl--; this.hitFlashA.alpha *= 0.68; }

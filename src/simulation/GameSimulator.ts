@@ -157,6 +157,8 @@ export class GameSimulator extends SimulationCore {
       colorB: this.teamB.ball.color,
       trailSegments: this.particles.trailSegments,
       bullets:  this.weapons.bullets,
+      drones:   this.drones.map(d => ({ x: d.body.position.x, y: d.body.position.y, radius: d.radius, state: d.state, color: d.color, chargedColor: d.charged?.color ?? d.color, hp: d.hp, maxHp: d.maxHp })),
+      castingOverlay: this.effects.castingOverlay,
       abilityA: this.teamA.ball.ability,
       abilityB: this.teamB.ball.ability,
       effectsA: this.statusMgr.getEffects('A'),
@@ -177,6 +179,8 @@ export class GameSimulator extends SimulationCore {
       chargeB:  this.weapons.chargeB,
       weaponA:  this.teamA.weapon,
       weaponB:  this.teamB.weapon,
+      timerFracA: this.getAbilityTimerFrac('A'),
+      timerFracB: this.getAbilityTimerFrac('B'),
     });
     this.video.commitFrame(frameIdx);
   }

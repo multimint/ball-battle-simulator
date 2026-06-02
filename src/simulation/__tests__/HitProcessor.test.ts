@@ -35,6 +35,7 @@ describe('processHit()', () => {
       bodyA: attacker, bodyB: defender,
       statusMgr, particles: makeParticles(), effects: makeEffects(), audio: makeAudio(),
       simTime: 0,
+      spawnUnit: () => {},
     };
   }
 
@@ -161,6 +162,97 @@ describe('processHit()', () => {
       const aoeAttack: AttackConfig = { type: 'aoe', cooldown: 5, damage: 6, knockback: 100 };
       processHit(ctx(aoeAttack));
       expect(hp.B).toBe(94);
+    });
+  });
+
+  describe('berserkKnockbackBonus', () => {
+    function berserkTeam(bonus: number) {
+      const t = makeTeam();
+      t.ball = {
+        ...t.ball,
+        ability: {
+          id: 'rage', name: 'Rage', description: '',
+          trigger: 'onLowHP',
+          params: { threshold: 0.3, berserkKnockbackBonus: bonus },
+        },
+      };
+      return t;
+    }
+
+    it('applies extra knockback to defender when attacker is berserk and has berserkKnockbackBonus', () => {
+      const berserkAttacker = makeBody(100, 240);
+      const normalDefender  = makeBody(380, 240);
+      const berserkAttacker2 = makeBody(100, 240);
+      const normalDefender2  = makeBody(380, 240);
+
+      // Berserk team with bonus
+      const hpBerserk: { A: number; B: number } = { A: 20, B: 100 }; // 20% < 30% threshold → berserk
+      const ctxBerserk = {
+        weapon: SWORD, attack: SWORD.attacks[0],
+        attacker: berserkAttacker, defender: normalDefender,
+        attackerTeam: 'A' as const,
+        hp: hpBerserk, maxHp: { A: 100, B: 100 }, damageDealt: { A: 0, B: 0 },
+        teamA: berserkTeam(80), teamB: makeTeam(),
+        bodyA: berserkAttacker, bodyB: normalDefender,
+        statusMgr: new StatusEffectManager(), particles: makeParticles(), effects: makeEffects(), audio: makeAudio(),
+        simTime: 0, spawnUnit: () => {},
+      };
+      processHit(ctxBerserk);
+
+      // Normal team without bonus
+      const hpNormal: { A: number; B: number } = { A: 20, B: 100 };
+      const ctxNormal = {
+        weapon: SWORD, attack: SWORD.attacks[0],
+        attacker: berserkAttacker2, defender: normalDefender2,
+        attackerTeam: 'A' as const,
+        hp: hpNormal, maxHp: { A: 100, B: 100 }, damageDealt: { A: 0, B: 0 },
+        teamA: makeTeam(), teamB: makeTeam(),
+        bodyA: berserkAttacker2, bodyB: normalDefender2,
+        statusMgr: new StatusEffectManager(), particles: makeParticles(), effects: makeEffects(), audio: makeAudio(),
+        simTime: 0, spawnUnit: () => {},
+      };
+      processHit(ctxNormal);
+
+      // Berserk+bonus defender should have received more force
+      expect(normalDefender.force.x).toBeGreaterThan(normalDefender2.force.x);
+    });
+
+    it('does not apply extra knockback when attacker HP is above berserk threshold', () => {
+      const attackerBody  = makeBody(100, 240);
+      const defenderBody1 = makeBody(380, 240);
+      const defenderBody2 = makeBody(380, 240);
+
+      // Above threshold (70% > 30%) — not berserk, even though team has bonus
+      const hpAbove: { A: number; B: number } = { A: 70, B: 100 };
+      const ctxAbove = {
+        weapon: SWORD, attack: SWORD.attacks[0],
+        attacker: attackerBody, defender: defenderBody1,
+        attackerTeam: 'A' as const,
+        hp: hpAbove, maxHp: { A: 100, B: 100 }, damageDealt: { A: 0, B: 0 },
+        teamA: berserkTeam(80), teamB: makeTeam(),
+        bodyA: attackerBody, bodyB: defenderBody1,
+        statusMgr: new StatusEffectManager(), particles: makeParticles(), effects: makeEffects(), audio: makeAudio(),
+        simTime: 0, spawnUnit: () => {},
+      };
+      processHit(ctxAbove);
+
+      // Normal team — same HP, no bonus
+      const attackerBody2  = makeBody(100, 240);
+      const hpNormal: { A: number; B: number } = { A: 70, B: 100 };
+      const ctxNormal = {
+        weapon: SWORD, attack: SWORD.attacks[0],
+        attacker: attackerBody2, defender: defenderBody2,
+        attackerTeam: 'A' as const,
+        hp: hpNormal, maxHp: { A: 100, B: 100 }, damageDealt: { A: 0, B: 0 },
+        teamA: makeTeam(), teamB: makeTeam(),
+        bodyA: attackerBody2, bodyB: defenderBody2,
+        statusMgr: new StatusEffectManager(), particles: makeParticles(), effects: makeEffects(), audio: makeAudio(),
+        simTime: 0, spawnUnit: () => {},
+      };
+      processHit(ctxNormal);
+
+      // Both defenders should receive the same force — no bonus applied
+      expect(defenderBody1.force.x).toBeCloseTo(defenderBody2.force.x, 10);
     });
   });
 });
