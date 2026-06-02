@@ -58,9 +58,12 @@ npm run lint       # ESLint
 npm run balls                                  # list all ball IDs
 npm run sim -- quick-flail blood-axe           # 100 fights (default)
 npm run sim -- quick-flail blood-axe --runs 500
+
+npm run rank                                   # Elo ranking, all matchups (500 runs default)
+npm run rank -- --runs 100                     # quicker check
 ```
 
-Example output:
+`npm run sim` output — one matchup:
 
 ```
 Quick Flail vs Blood Axe  (100 runs)
@@ -71,6 +74,24 @@ Quick Flail vs Blood Axe  (100 runs)
   Avg fight: 23.2s  (10 ball collisions)
 ──────────────────────────────────────────────────────
   Completed 100 fights in 520ms  (5.2ms per fight)
+```
+
+`npm run rank` output — full Elo leaderboard:
+
+```
+Ball Rankings  (3 balls × 500 runs, 1500 fights total)
+─────────────────────────────────────────────────
+  #1  Quick Flail  1107 Elo   ████████████
+  #2  Hawkeye       960 Elo   ██
+  #3  Blood Axe     933 Elo   █
+
+Head-to-head win rates (row vs column):
+                 Quick  Hawke  Blood
+  Quick Flail      —    50%    63%
+  Hawkeye        49%      —    78%
+  Blood Axe      37%    22%      —
+─────────────────────────────────────────────────
+  Completed in 7723ms  (5.1ms per fight)
 ```
 
 ---

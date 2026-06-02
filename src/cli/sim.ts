@@ -3,6 +3,7 @@
 import { FIGHTER_PRESETS } from '../balls';
 import { HeadlessSimulator } from './HeadlessSimulator';
 import { randomVelocity } from '../utils/physics';
+import { parseRuns, presetToTeam } from './cliUtils';
 
 // ── Arg parsing ────────────────────────────────────────────────────────────────
 
@@ -16,9 +17,7 @@ if (args.includes('--list') || args.includes('-l')) {
   console.log();
   process.exit(0);
 }
-const runsIdx = args.indexOf('--runs');
-const runs =
-  runsIdx !== -1 && args[runsIdx + 1] ? parseInt(args[runsIdx + 1], 10) : 100;
+const runs = parseRuns(args, 100);
 
 const positional: string[] = [];
 for (let i = 0; i < args.length; i++) {
@@ -36,11 +35,6 @@ if (!ballAId || !ballBId) {
   process.exit(1);
 }
 
-if (isNaN(runs) || runs < 1) {
-  console.error('--runs must be a positive integer');
-  process.exit(1);
-}
-
 const presetA = FIGHTER_PRESETS.find((p) => p.id === ballAId);
 const presetB = FIGHTER_PRESETS.find((p) => p.id === ballBId);
 
@@ -53,20 +47,8 @@ if (!presetA || !presetB) {
   process.exit(1);
 }
 
-const teamA = {
-  fighterId: presetA.id,
-  name: presetA.name,
-  ball: presetA.ball,
-  weapon: presetA.weapon,
-  audioProfile: presetA.audioProfile,
-};
-const teamB = {
-  fighterId: presetB.id,
-  name: presetB.name,
-  ball: presetB.ball,
-  weapon: presetB.weapon,
-  audioProfile: presetB.audioProfile,
-};
+const teamA = presetToTeam(presetA);
+const teamB = presetToTeam(presetB);
 
 // ── Simulation loop ────────────────────────────────────────────────────────────
 
