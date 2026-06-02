@@ -1,6 +1,7 @@
 import Matter from 'matter-js';
 import { SimulationCore } from '../simulation/SimulationCore';
 import { STALEMATE_TIME_MS, PHYSICS_STEP_MS } from '../constants/gameConstants';
+import { computeFunScore } from '../utils/funScore';
 import type { WinnerType } from '../models/types';
 
 const { Engine, World } = Matter;
@@ -12,6 +13,7 @@ export interface FightResult {
   damageDealt: { A: number; B: number };
   turnsElapsed: number;
   simTimeMs: number;
+  funScore: number;
 }
 
 export class HeadlessSimulator extends SimulationCore {
@@ -38,6 +40,18 @@ export class HeadlessSimulator extends SimulationCore {
       damageDealt: { ...this.damageDealt },
       turnsElapsed: this.turns,
       simTimeMs: this.simTime,
+      funScore: computeFunScore({
+        snapshots: this.hpSnapshots,
+        winner:   this.winner,
+        hpA:      this.hp.A,
+        hpB:      this.hp.B,
+        maxHpA:   this.maxHp.A,
+        maxHpB:   this.maxHp.B,
+        damageA:  this.damageDealt.A,
+        damageB:  this.damageDealt.B,
+        simTimeMs: this.simTime,
+        gameEvents: this.gameEvents,
+      }),
     };
   }
 }

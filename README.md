@@ -15,6 +15,7 @@ Physics-based fighting game where two customizable fighters battle in an enclose
 - **Procedural audio** — no sample files; all sounds synthesized from per-ball audio profiles via AudioEncoder
 - **Deterministic replay** — identical fighters + velocities produce identical matches
 - **Headless CLI** — run hundreds of fights without rendering for fast balance testing
+- **Fun score** — every fight is rated 0–100 on how entertaining it was (closeness, comebacks, pacing, and more) for balance tuning
 
 ### Fighters
 
@@ -63,36 +64,55 @@ npm run rank                                   # Elo ranking, all matchups (500 
 npm run rank -- --runs 100                     # quicker check
 ```
 
-`npm run sim` output — one matchup:
+`npm run sim` output — one matchup (`±` shows run-to-run spread: win-rate standard error, and standard deviation of fight time / fun score):
 
 ```
 Quick Flail vs Blood Axe  (100 runs)
-──────────────────────────────────────────────────────
-  Quick Flail  wins:   52 ( 52%)   avg HP left when winning: 13.4
-  Blood Axe    wins:   47 ( 47%)   avg HP left when winning: 8.1
+───────────────────────────────────────────────────────
+  Quick Flail  wins:   59 ( 59% ±5%)   avg HP left when winning: 13.7
+  Blood Axe    wins:   40 ( 40% ±5%)   avg HP left when winning: 10.6
   Draw                  1 (  1%)
-  Avg fight: 23.2s  (10 ball collisions)
-──────────────────────────────────────────────────────
-  Completed 100 fights in 520ms  (5.2ms per fight)
+  Avg fight: 24.4s ±3.6s  (9 ball collisions)
+  Avg fun score: 71/100 ±13
+───────────────────────────────────────────────────────
+  Completed 100 fights in 672ms  (6.7ms per fight)
 ```
 
-`npm run rank` output — full Elo leaderboard:
+`npm run rank` output — full Elo leaderboard (a live progress bar tracks the run, then clears):
 
 ```
-Ball Rankings  (3 balls × 500 runs, 1500 fights total)
+Ranking 3 balls — 3 matchups × 200 runs = 600 fights
+  [████████████████████████] 100%
+
+Ball Rankings  (3 balls × 200 runs, 600 fights total)
 ─────────────────────────────────────────────────
-  #1  Quick Flail  1107 Elo   ████████████
-  #2  Hawkeye       960 Elo   ██
-  #3  Blood Axe     933 Elo   █
+  #1  Quick Flail  1090 Elo   ████████████
+  #2  Hawkeye      1030 Elo   █████████
+  #3  Blood Axe     880 Elo   █
 
-Head-to-head win rates (row vs column):
-                 Quick  Hawke  Blood
-  Quick Flail      —    50%    63%
-  Hawkeye        49%      —    78%
-  Blood Axe      37%    22%      —
+Head-to-head decisive win % (draws excluded):
+                 Quic  Hawk  Bloo
+  Quick Flail     —   54%   60%
+  Hawkeye       47%     —   72%
+  Blood Axe     40%   28%     —
 ─────────────────────────────────────────────────
-  Completed in 7723ms  (5.1ms per fight)
+  Completed in 3523ms  (5.9ms per fight)
 ```
+
+### Fun score
+
+Each fight gets a 0–100 **fun score** ([`src/utils/funScore.ts`](src/utils/funScore.ts)) — a heuristic for how entertaining the match was to watch, surfaced in both the CLI and the in-app result card. It is the equal-weighted average of six factors:
+
+| Factor | Rewards |
+|---|---|
+| **Closeness** | The winner finishing with little HP to spare (a draw scores max) |
+| **Damage symmetry** | Both fighters dealing similar total damage |
+| **Duration** | Fights landing in a 30–40s sweet spot (Gaussian falloff outside) |
+| **Momentum** | The HP-fraction lead changing hands repeatedly |
+| **Opening hook** | Lots of action (hits, shots, ability procs) in the first 5 seconds |
+| **Comeback** | The eventual winner having been close to death before winning |
+
+Momentum and comeback compare HP **fractions** (`hp / maxHp`), not absolute HP, so they stay meaningful for matchups between fighters with very different durability. The factors are derived from per-fight `gameEvents` (a gameplay action log) and periodic HP snapshots recorded by `SimulationCore`.
 
 ---
 

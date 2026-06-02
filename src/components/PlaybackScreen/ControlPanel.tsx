@@ -204,6 +204,12 @@ export default function ControlPanel({ videoRef, isEnded: _isEnded, onReplay, is
                 <p style={{ fontFamily: RETRO, fontSize: 8, color: 'rgba(1,0,107,0.3)' }}>DMG</p>
               </div>
             </div>
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(1,0,107,0.08)', textAlign: 'center' }}>
+              <p style={{ fontFamily: RETRO, fontSize: 8, color: 'rgba(1,0,107,0.35)', marginBottom: 4 }}>FUN SCORE</p>
+              <p style={{ fontFamily: RETRO, fontSize: 16, color: funScoreColor(simulationResult.funScore) }}>
+                {simulationResult.funScore}<span style={{ fontSize: 9, color: 'rgba(1,0,107,0.3)', marginLeft: 3 }}>/100</span>
+              </p>
+            </div>
           </div>
           <div style={divider} />
         </>
@@ -286,6 +292,12 @@ export default function ControlPanel({ videoRef, isEnded: _isEnded, onReplay, is
       </button>
     </div>
   );
+}
+
+function funScoreColor(score: number): string {
+  if (score >= 70) return '#1a7a1a';
+  if (score >= 45) return '#B97C1C';
+  return 'rgba(1,0,107,0.45)';
 }
 
 function mobileBtn(bg: string): React.CSSProperties {

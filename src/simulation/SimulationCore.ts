@@ -33,6 +33,8 @@ import {
 } from '../constants/gameConstants';
 import type { InitialVelocities } from '../store/useGameStore';
 import type { ApplyEffectOptions } from './StatusEffectManager';
+import { HP_SNAPSHOT_INTERVAL_MS } from '../utils/funScore';
+import type { GameEvent, GameEventType } from '../utils/funScore';
 
 const { Engine, Bodies, Composite, Body, Events } = Matter;
 
@@ -87,6 +89,29 @@ export abstract class SimulationCore {
   protected audio: AudioEmitter;
   protected weapons: WeaponController;
   private boundApplyHit!: (weapon: WeaponStats, attack: AttackConfig, attacker: Matter.Body, defender: Matter.Body, attackerTeam: 'A' | 'B') => void;
+  protected hpSnapshots: { hpA: number; hpB: number }[] = [];
+  private nextSnapshotMs = HP_SNAPSHOT_INTERVAL_MS;
+
+  /** Single source of truth for discrete gameplay actions (see funScore). */
+  protected gameEvents: GameEvent[] = [];
+  private onLowHPProcRecorded = { A: false, B: false };
+
+  protected recordGameEvent(type: GameEventType, team: 'A' | 'B'): void {
+    this.gameEvents.push({ timeMs: this.simTime, type, team });
+  }
+
+  /**
+   * Records a discrete ability proc. Bound so it can be passed into the ability
+   * pipeline. onLowHP is a once-per-fight activation, so it is deduped here
+   * (the trigger fires every tick while berserk).
+   */
+  protected recordAbilityProc = (team: 'A' | 'B', trigger: BallAbilityType): void => {
+    if (trigger === 'onLowHP') {
+      if (this.onLowHPProcRecorded[team]) return;
+      this.onLowHPProcRecorded[team] = true;
+    }
+    this.recordGameEvent('ability', team);
+  };
 
   constructor(teamA: TeamConfig, teamB: TeamConfig, initialVelocities: InitialVelocities) {
     this.teamA = teamA;
@@ -196,7 +221,10 @@ export abstract class SimulationCore {
           this.boundApplyHit,
           (w, atk, hr, idx, tid) => {
             this.weapons.spawnBullet(tid, w, atk, hr, idx, team.body, enemy.body, team.config.ball.radius);
-            if (idx === 0) this.audio.emitBulletFire(team.config.audioProfile.hitStyle, this.simTime);
+            if (idx === 0) {
+              this.audio.emitBulletFire(team.config.audioProfile.hitStyle, this.simTime);
+              this.recordGameEvent('fire', team.id);
+            }
           },
         );
       }
@@ -236,6 +264,10 @@ export abstract class SimulationCore {
     }
 
     this.simTime += delta;
+    while (this.simTime >= this.nextSnapshotMs) {
+      this.hpSnapshots.push({ hpA: this.hp.A, hpB: this.hp.B });
+      this.nextSnapshotMs += HP_SNAPSHOT_INTERVAL_MS;
+    }
   }
 
   private applyBerserkHoming(active: boolean, self: Matter.Body, enemy: Matter.Body, radius: number): void {
@@ -286,7 +318,9 @@ export abstract class SimulationCore {
       effects: this.effects,
       audio: this.audio,
       simTime: this.simTime,
+      recordAbilityProc: this.recordAbilityProc,
     });
+    this.recordGameEvent('hit', attackerTeam);
   }
 
   private applyBallAbility(
@@ -305,6 +339,7 @@ export abstract class SimulationCore {
       effects: this.effects,
       audio: this.audio,
       simTime: this.simTime,
+      recordProc: () => this.recordAbilityProc(team, trigger),
     });
   }
 

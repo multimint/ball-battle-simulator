@@ -3,6 +3,7 @@ import type { TeamConfig } from '../models/types';
 import { SimulationCore } from './SimulationCore';
 import { VideoEncoder } from './VideoEncoder';
 import { PHYSICS_STEP_MS } from '../constants/gameConstants';
+import { computeFunScore } from '../utils/funScore';
 import type { InitialVelocities, SimulationResult } from '../store/useGameStore';
 
 const { Engine, World } = Matter;
@@ -112,9 +113,21 @@ export class GameSimulator extends SimulationCore {
       blob,
       vels: this.initialVelocities,
       result: {
-        winner: this.winner,
+        winner:      this.winner,
         damageDealt: { ...this.damageDealt },
         turnsElapsed: this.turns,
+        funScore: computeFunScore({
+          snapshots: this.hpSnapshots,
+          winner:   this.winner,
+          hpA:      this.hp.A,
+          hpB:      this.hp.B,
+          maxHpA:   this.maxHp.A,
+          maxHpB:   this.maxHp.B,
+          damageA:  this.damageDealt.A,
+          damageB:  this.damageDealt.B,
+          simTimeMs: this.simTime,
+          gameEvents: this.gameEvents,
+        }),
       },
     };
   }

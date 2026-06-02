@@ -60,7 +60,10 @@ let winsA = 0,
 let hpSumWinA = 0,
   hpSumWinB = 0;
 let totalTurns = 0,
-  totalTimeMs = 0;
+  totalTimeMs = 0,
+  totalTimeMsSq = 0,
+  totalFunScore = 0,
+  totalFunScoreSq = 0;
 
 const wallStart = Date.now();
 
@@ -81,16 +84,34 @@ for (let i = 0; i < runs; i++) {
 
   totalTurns += result.turnsElapsed;
   totalTimeMs += result.simTimeMs;
+  totalTimeMsSq += result.simTimeMs * result.simTimeMs;
+  totalFunScore += result.funScore;
+  totalFunScoreSq += result.funScore * result.funScore;
 }
 
 const wallMs = Date.now() - wallStart;
+
+/** Population standard deviation from running sum and sum-of-squares. */
+const stdev = (sum: number, sumSq: number, n: number): number =>
+  Math.sqrt(Math.max(0, sumSq / n - (sum / n) ** 2));
+/** Standard error of a proportion (the ± noise on a measured win rate), in %. */
+const propStdErrPct = (wins: number, n: number): number => {
+  const p = wins / n;
+  return Math.sqrt((p * (1 - p)) / n) * 100;
+};
+
 const avgTurns = (totalTurns / runs).toFixed(0);
 const avgSimSec = (totalTimeMs / runs / 1000).toFixed(1);
+const sdSimSec = (stdev(totalTimeMs, totalTimeMsSq, runs) / 1000).toFixed(1);
+const sdFun = Math.round(stdev(totalFunScore, totalFunScoreSq, runs));
+const seA = Math.round(propStdErrPct(winsA, runs));
+const seB = Math.round(propStdErrPct(winsB, runs));
 const avgHpA = winsA > 0 ? (hpSumWinA / winsA).toFixed(1) : '—';
 const avgHpB = winsB > 0 ? (hpSumWinB / winsB).toFixed(1) : '—';
 const pctA = Math.round((winsA / runs) * 100);
 const pctB = Math.round((winsB / runs) * 100);
 const pctD = Math.round((draws / runs) * 100);
+const avgFun = Math.round(totalFunScore / runs);
 
 // ── Output ─────────────────────────────────────────────────────────────────────
 
@@ -102,15 +123,18 @@ const line = '─'.repeat(col + 44);
 console.log(`\n${nameA} vs ${nameB}  (${runs} runs)`);
 console.log(line);
 console.log(
-  `  ${nameA.padEnd(col)}  wins: ${String(winsA).padStart(4)} (${String(pctA).padStart(3)}%)   avg HP left when winning: ${avgHpA}`,
+  `  ${nameA.padEnd(col)}  wins: ${String(winsA).padStart(4)} (${String(pctA).padStart(3)}% ±${seA}%)   avg HP left when winning: ${avgHpA}`,
 );
 console.log(
-  `  ${nameB.padEnd(col)}  wins: ${String(winsB).padStart(4)} (${String(pctB).padStart(3)}%)   avg HP left when winning: ${avgHpB}`,
+  `  ${nameB.padEnd(col)}  wins: ${String(winsB).padStart(4)} (${String(pctB).padStart(3)}% ±${seB}%)   avg HP left when winning: ${avgHpB}`,
 );
 console.log(
   `  ${'Draw'.padEnd(col)}        ${String(draws).padStart(4)} (${String(pctD).padStart(3)}%)`,
 );
-console.log(`  Avg fight: ${avgSimSec}s  (${avgTurns} ball collisions)`);
+console.log(
+  `  Avg fight: ${avgSimSec}s ±${sdSimSec}s  (${avgTurns} ball collisions)`,
+);
+console.log(`  Avg fun score: ${avgFun}/100 ±${sdFun}`);
 console.log(line);
 console.log(
   `  Completed ${runs} fights in ${wallMs}ms  (${(wallMs / runs).toFixed(1)}ms per fight)\n`,

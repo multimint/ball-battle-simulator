@@ -1,5 +1,5 @@
 import Matter from 'matter-js';
-import type { WeaponStats, AttackConfig, TeamConfig } from '../models/types';
+import type { WeaponStats, AttackConfig, TeamConfig, BallAbilityType } from '../models/types';
 import type { StatusEffectManager } from './StatusEffectManager';
 import type { ParticleController } from './ParticleController';
 import type { EffectsController } from './EffectsController';
@@ -30,6 +30,7 @@ export interface HitCtx {
   effects: EffectsController;
   audio: AudioEmitter;
   simTime: number;
+  recordAbilityProc?: (team: 'A' | 'B', trigger: BallAbilityType) => void;
 }
 
 export function processHit(ctx: HitCtx): void {
@@ -99,6 +100,6 @@ export function processHit(ctx: HitCtx): void {
   const attackerBody   = attackerTeam === 'A' ? ctx.bodyA : ctx.bodyB;
 
   if (attackerConfig.ball.ability?.trigger === 'onHitDealt') {
-    applyAbility({ ability: attackerConfig.ball.ability, team: attackerTeam, trigger: 'onHitDealt', body: attackerBody, teamConfig: attackerConfig, ...sharedAbilityCtx });
+    applyAbility({ ability: attackerConfig.ball.ability, team: attackerTeam, trigger: 'onHitDealt', body: attackerBody, teamConfig: attackerConfig, ...sharedAbilityCtx, recordProc: () => ctx.recordAbilityProc?.(attackerTeam, 'onHitDealt') });
   }
 }

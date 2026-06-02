@@ -41,7 +41,25 @@ const ratings = new Array<number>(N).fill(ELO_START);
 const wins = Array.from({ length: N }, () => new Array<number>(N).fill(0));
 const teams = presets.map(presetToTeam);
 
+// ── Progress bar ────────────────────────────────────────────────────────────────
+
+const PROGRESS_BAR_W = 24;
+const isTTY = process.stdout.isTTY ?? false;
+let lastPctShown = -1;
+
+function renderProgress(done: number, total: number): void {
+  const pct = Math.min(100, Math.floor((done / total) * 100));
+  if (pct === lastPctShown) return;
+  lastPctShown = pct;
+  const filled = Math.round((pct / 100) * PROGRESS_BAR_W);
+  const bar = '█'.repeat(filled) + '░'.repeat(PROGRESS_BAR_W - filled);
+  // On a TTY redraw one line in place; otherwise log a milestone so piped output stays readable.
+  if (isTTY) process.stdout.write(`\r  [${bar}] ${String(pct).padStart(3)}%`);
+  else if (pct % 25 === 0) console.log(`  [${bar}] ${pct}%`);
+}
+
 const wallStart = Date.now();
+let fightsDone = 0;
 
 // Interleave fights across all matchups each round — improves Elo convergence.
 for (let round = 0; round < runs; round++) {
@@ -58,11 +76,10 @@ for (let round = 0; round < runs; round++) {
     else                            { scoreA = 0.5; }
 
     applyElo(ratings, i, j, scoreA, ELO_K);
+    renderProgress(++fightsDone, totalFights);
   }
-  // Progress dot every 50 rounds so the terminal doesn't look frozen.
-  if ((round + 1) % 50 === 0) process.stdout.write('.');
 }
-if (runs >= 50) process.stdout.write('\n');
+if (isTTY) process.stdout.write('\n');
 
 const wallMs = Date.now() - wallStart;
 

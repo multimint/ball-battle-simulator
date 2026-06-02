@@ -17,6 +17,8 @@ export interface AbilityCtx {
   effects: EffectsController;
   audio: AudioEmitter;
   simTime: number;
+  /** Records this proc as a gameplay action (non-passive triggers only). */
+  recordProc?: () => void;
 }
 
 export function applyAbility(ctx: AbilityCtx): void {
@@ -26,6 +28,7 @@ export function applyAbility(ctx: AbilityCtx): void {
 
   if (trigger !== 'passive') {
     ctx.audio.emitAbility(team, teamConfig.audioProfile.abilityStyle, trigger, ctx.simTime);
+    ctx.recordProc?.();
   }
 
   if (p.statusEffect) {

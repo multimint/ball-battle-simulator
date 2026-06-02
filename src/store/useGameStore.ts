@@ -12,6 +12,7 @@ export interface SimulationResult {
   winner: WinnerType;
   damageDealt: { A: number; B: number };
   turnsElapsed: number;
+  funScore: number;
 }
 
 interface GameStore {
