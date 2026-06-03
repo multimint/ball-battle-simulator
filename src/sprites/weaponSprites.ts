@@ -26,6 +26,28 @@ export const WEAPON_SPRITE_PAINTERS = {
     ctx.restore();
   },
 
+  // 4-pointed throwing star (orbit weapon version, tip at +X)
+  'weapon-shuriken'(ctx: Ctx) {
+    ctx.save();
+    ctx.translate(12, 12);
+    ctx.fillStyle = '#FFFFFF';
+    const outerR = 8, innerR = 2.8;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const r = i % 2 === 0 ? outerR : innerR;
+      if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath();
+    ctx.arc(0, 0, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  },
+
   // Slim filled diamond
   'weapon-swift-sword'(ctx: Ctx) {
     ctx.save();
@@ -334,6 +356,26 @@ export const PROJECTILE_SPRITE_PAINTERS = {
     ctx.moveTo(0, -5);
     ctx.lineTo(2.5, -9);
     ctx.stroke();
+    ctx.restore();
+  },
+
+  // 4-pointed throwing star
+  'proj-shuriken'(ctx: Ctx) {
+    ctx.save();
+    ctx.translate(12, 12);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      const aNext = ((i + 0.5) / 4) * Math.PI * 2;
+      const aAfter = ((i + 1) / 4) * Math.PI * 2;
+      if (i === 0) ctx.moveTo(Math.cos(a) * 6, Math.sin(a) * 6);
+      else ctx.lineTo(Math.cos(a) * 6, Math.sin(a) * 6);
+      ctx.lineTo(Math.cos(aNext) * 2, Math.sin(aNext) * 2);
+      ctx.lineTo(Math.cos(aAfter) * 6, Math.sin(aAfter) * 6);
+    }
+    ctx.closePath();
+    ctx.fill();
     ctx.restore();
   },
 

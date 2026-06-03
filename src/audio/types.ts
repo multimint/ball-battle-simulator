@@ -2,7 +2,7 @@
 // Both models/types.ts and balls/types.ts import from here.
 
 export type HitSoundKey = 'thunderous' | 'swift' | 'arcane';
-export type AbilitySoundKey = 'berserk' | 'sharp' | 'frenzy' | 'forge';
+export type AbilitySoundKey = 'berserk' | 'sharp' | 'frenzy' | 'forge' | 'shadowslash';
 
 export interface AudioProfile {
   hitStyle: HitSoundKey;

@@ -5,7 +5,7 @@ import type { StatusEffectManager } from './StatusEffectManager';
 import { getWeaponHitboxRadius, getOrbitPosition } from '../rendering/drawOrbitWeapon';
 import {
   WEAPON_HIT_COOLDOWN_MIN, WEAPON_ORBIT_SPEED_SCALE, HITSCAN_PREFIRE_MS, BERSERK_ORBIT_SPEED_MULT,
-  WEAPON_SPEED_TRIGGER_FRAC, WEAPON_EDGE_THRESHOLD_PX, LOW_HP_THRESHOLD, ARENA_SIZE,
+  WEAPON_SPEED_TRIGGER_FRAC, WEAPON_EDGE_THRESHOLD_PX, LOW_HP_THRESHOLD, ARENA_SIZE, WALL_THICKNESS,
 } from '../constants/gameConstants';
 import { isAbilityBerserk } from '../utils/ability';
 import type { TriggerType } from '../models/types';
@@ -64,20 +64,23 @@ export class WeaponController {
   get rangeMultB()  { return this.state.B.rangeMult; }
 
   constructor(teamA: TeamConfig, teamB: TeamConfig) {
+    const initLastHit = (attacks: typeof teamA.weapon.attacks) =>
+      attacks.map((a) => (a.type === 'projectile' && !a.aimAtEnemy ? -1_000_000 : 0));
+
     this.state = {
       A: {
         orbitAngle: Math.PI * 0.25,
-        lastHitTimes:    new Array(teamA.weapon.attacks.length).fill(0),
+        lastHitTimes:    initLastHit(teamA.weapon.attacks),
         burstCounts:     new Array(teamA.weapon.attacks.length).fill(0),
         lastBulletTimes: new Array(teamA.weapon.attacks.length).fill(0),
-        charge: 0, rangeMult: 1,
+        charge: 100, rangeMult: 1,
       },
       B: {
         orbitAngle: Math.PI * 1.25,
-        lastHitTimes:    new Array(teamB.weapon.attacks.length).fill(0),
+        lastHitTimes:    initLastHit(teamB.weapon.attacks),
         burstCounts:     new Array(teamB.weapon.attacks.length).fill(0),
         lastBulletTimes: new Array(teamB.weapon.attacks.length).fill(0),
-        charge: 0, rangeMult: 1,
+        charge: 100, rangeMult: 1,
       },
     };
   }
@@ -122,12 +125,19 @@ export class WeaponController {
       }
       ts.rangeMult = this.getRangeMult(team, teamA, teamB, statusMgr);
 
-      // Charge tracking for aimed (laser/cannon) weapons
+      // Charge tracking for aimed (laser/cannon) weapons, or orbit-direction projectiles
       const laser = config.weapon.attacks.filter(a => a.aimAtEnemy).sort((a, b) => b.cooldown - a.cooldown)[0];
       if (laser) {
         const idx = config.weapon.attacks.indexOf(laser);
         const cd = Math.max(WEAPON_HIT_COOLDOWN_MIN, laser.cooldown * 1000);
         ts.charge = Math.min(100, ((simTime - ts.lastHitTimes[idx]) / (cd + (laser.hitscan ? HITSCAN_PREFIRE_MS : 0))) * 100);
+      } else {
+        const orbitProj = config.weapon.attacks.find(a => a.type === 'projectile' && !a.aimAtEnemy);
+        if (orbitProj) {
+          const idx = config.weapon.attacks.indexOf(orbitProj);
+          const cd = Math.max(WEAPON_HIT_COOLDOWN_MIN, orbitProj.cooldown * 1000);
+          ts.charge = Math.min(100, ((simTime - ts.lastHitTimes[idx]) / cd) * 100);
+        }
       }
     }
 
@@ -185,6 +195,15 @@ export class WeaponController {
             }
           }
         }
+      } else if (attack.type === 'projectile') {
+        // Orbit-direction projectile: fires on cooldown in the weapon's current orbit angle.
+        if (simTime - ts.lastHitTimes[i] >= cd) {
+          ts.lastHitTimes[i] = simTime;
+          const count = attack.bulletCount ?? 1;
+          for (let j = 0; j < count; j++) {
+            onBulletFire(weapon, attack, hitboxR, j, team);
+          }
+        }
       } else if (attack.type === 'summon') {
         // Summon fires on pure cooldown — no proximity check needed.
         if (simTime - ts.lastHitTimes[i] >= cd) {
@@ -227,7 +246,9 @@ export class WeaponController {
     const dx = opponent.position.x - start.x;
     const dy = opponent.position.y - start.y;
     const dist = Math.hypot(dx, dy);
-    const baseAngle = dist > 0 ? Math.atan2(dy, dx) : 0;
+    const baseAngle = attack.aimAtEnemy
+      ? (dist > 0 ? Math.atan2(dy, dx) : orbitAngle)
+      : orbitAngle;
     const speed = (attack.bulletSpeed ?? 2.0) * (2 / 3);
     const count = attack.bulletCount ?? 1;
     const spread = attack.bulletSpread ?? 0.40;
@@ -242,9 +263,10 @@ export class WeaponController {
       owner: team,
       radius: 5,
       color: weapon.color ?? '#4488CC',
-      ttl: 2000,
+      ttl: attack.bulletTtl ?? 2000,
       attack,
       spriteKey: weapon.projectileIcon,
+      bouncesLeft: attack.maxBounces,
     });
   }
 
@@ -256,20 +278,99 @@ export class WeaponController {
     bodyA: Matter.Body,
     bodyB: Matter.Body,
     onHit: (weapon: WeaponStats, attack: AttackConfig, attacker: Matter.Body, defender: Matter.Body, team: 'A' | 'B') => void,
+    onBulletRemove?: (b: Bullet) => void,
+    onBulletParry?: (b: Bullet, px: number, py: number, parryingTeam: 'A' | 'B') => void,
   ): void {
-    const teams = { A: { body: bodyA, enemyBody: bodyB, enemyBall: teamB.ball, weapon: teamA.weapon },
-                    B: { body: bodyB, enemyBody: bodyA, enemyBall: teamA.ball, weapon: teamB.weapon } };
+    const teams = {
+      A: { body: bodyA, enemyBody: bodyB, enemyBall: teamB.ball, weapon: teamA.weapon, enemyWeapon: teamB.weapon },
+      B: { body: bodyB, enemyBody: bodyA, enemyBall: teamA.ball, weapon: teamB.weapon, enemyWeapon: teamA.weapon },
+    };
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const b = this.bullets[i];
       b.x  += b.vx * scaledDelta;
       b.y  += b.vy * scaledDelta;
       b.ttl -= scaledDelta;
-      if (b.ttl <= 0) { this.bullets.splice(i, 1); continue; }
-      const { body, enemyBody, enemyBall, weapon } = teams[b.owner];
-      const dist = Math.hypot(enemyBody.position.x - b.x, enemyBody.position.y - b.y);
+      if (b.ttl <= 0) { onBulletRemove?.(b); this.bullets.splice(i, 1); continue; }
+
+      if (b.bouncesLeft !== undefined) {
+        // Wall reflections never consume bouncesLeft — only enemy contacts do.
+        // TTL governs how long the shuriken flies; bouncesLeft tracks enemy hits.
+        const minB = WALL_THICKNESS + b.radius;
+        const maxB = ARENA_SIZE - WALL_THICKNESS - b.radius;
+        if (b.x < minB) { b.x = minB; b.vx = Math.abs(b.vx); }
+        else if (b.x > maxB) { b.x = maxB; b.vx = -Math.abs(b.vx); }
+        if (b.y < minB) { b.y = minB; b.vy = Math.abs(b.vy); }
+        else if (b.y > maxB) { b.y = maxB; b.vy = -Math.abs(b.vy); }
+      }
+
+      const { body, enemyBody, enemyBall, weapon, enemyWeapon } = teams[b.owner];
+      const enemyTeam: 'A' | 'B' = b.owner === 'A' ? 'B' : 'A';
+
+      // ── Weapon parry check (bouncing bullets only) ─────────────────────────
+      if (b.bouncesLeft !== undefined && b.bouncesLeft > 0 && hp.A > 0 && hp.B > 0) {
+        const eOrbit  = this.state[enemyTeam].orbitAngle;
+        const eHitboxR = getWeaponHitboxRadius(enemyWeapon);
+        const wCenter = getOrbitPosition(
+          enemyBody.position.x, enemyBody.position.y,
+          enemyBall.radius, eOrbit, eHitboxR,
+        );
+        const wpDx   = wCenter.x - b.x;
+        const wpDy   = wCenter.y - b.y;
+        const wpDist = Math.hypot(wpDx, wpDy);
+        // Only parry if bullet is approaching the weapon (dot product > 0)
+        const approaching = b.vx * wpDx + b.vy * wpDy > 0;
+        if (approaching && wpDist < eHitboxR * 0.6 + b.radius) {
+          // Reflect off weapon face (radial normal from ball to weapon tip)
+          const nx = Math.cos(eOrbit);
+          const ny = Math.sin(eOrbit);
+          const dot = b.vx * nx + b.vy * ny;
+          b.vx -= 2 * dot * nx;
+          b.vy -= 2 * dot * ny;
+          // Add weapon-spin kick: tangential velocity of the orbiting weapon
+          const spinDir = ORBIT_DIR[enemyTeam];
+          const tx = -Math.sin(eOrbit) * spinDir;
+          const ty =  Math.cos(eOrbit) * spinDir;
+          const bSpeed = Math.hypot(b.vx, b.vy);
+          b.vx += tx * bSpeed * 0.45;
+          b.vy += ty * bSpeed * 0.45;
+          // Re-normalise to keep bullet speed consistent
+          const newSpeed = Math.hypot(b.vx, b.vy);
+          if (newSpeed > 0.01) { b.vx = (b.vx / newSpeed) * bSpeed; b.vy = (b.vy / newSpeed) * bSpeed; }
+          // Push bullet outside weapon zone (fall back to orbit direction if bullet is at dead-center)
+          const safe  = eHitboxR * 0.6 + b.radius + 3;
+          const pushNx = wpDist > 0.01 ? wpDx / wpDist : Math.cos(eOrbit);
+          const pushNy = wpDist > 0.01 ? wpDy / wpDist : Math.sin(eOrbit);
+          b.x = wCenter.x - pushNx * safe;
+          b.y = wCenter.y - pushNy * safe;
+          // Count as a bounce
+          if (--b.bouncesLeft <= 0) { onBulletRemove?.(b); this.bullets.splice(i, 1); continue; }
+          onBulletParry?.(b, wCenter.x, wCenter.y, enemyTeam);
+          continue;
+        }
+      }
+
+      // ── Enemy ball hit check ────────────────────────────────────────────────
+      const eDx = enemyBody.position.x - b.x;
+      const eDy = enemyBody.position.y - b.y;
+      const dist = Math.hypot(eDx, eDy);
       if (dist < enemyBall.radius + b.radius && hp.A > 0 && hp.B > 0) {
         onHit(weapon, b.attack, body, enemyBody, b.owner);
-        this.bullets.splice(i, 1);
+
+        if (b.bouncesLeft !== undefined && b.bouncesLeft > 0) {
+          // Bounce off enemy ball — reflect velocity, push outside enemy radius
+          const nx = dist > 0 ? eDx / dist : 1;
+          const ny = dist > 0 ? eDy / dist : 0;
+          const dot = b.vx * nx + b.vy * ny;
+          b.vx -= 2 * dot * nx;
+          b.vy -= 2 * dot * ny;
+          const clearance = enemyBall.radius + b.radius + 3;
+          b.x = enemyBody.position.x - nx * clearance;
+          b.y = enemyBody.position.y - ny * clearance;
+          if (--b.bouncesLeft <= 0) { onBulletRemove?.(b); this.bullets.splice(i, 1); }
+        } else {
+          onBulletRemove?.(b);
+          this.bullets.splice(i, 1);
+        }
       }
     }
   }

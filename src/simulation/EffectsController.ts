@@ -19,15 +19,24 @@ export class EffectsController {
   castingOverlayColor = '#22CC55';
   castingOverlayPeakAlpha = 0.22;
   private castingOverlayFrame = 0;
+  /** Which team is currently casting — used by the renderer for the spotlight. */
+  castingTeam: 'A' | 'B' | null = null;
 
   /** Freeze physics for N frames (weapon-effect animations still play at full speed). */
-  applyFreeze(frames: number, color = '#22CC55', peakAlpha = 0.22): void {
+  applyFreeze(frames: number, color = '#22CC55', peakAlpha = 0.22, team: 'A' | 'B' | null = null): void {
     this.freezeFramesRemaining = Math.max(this.freezeFramesRemaining, frames);
     this.castingOverlayColor = color;
     this.castingOverlayPeakAlpha = peakAlpha;
     this.slowMotion = 0;
     this.castingOverlayFrame = 0;
     this.castingOverlay = peakAlpha;
+    if (team !== null) this.castingTeam = team;
+  }
+
+  /** Extend an already-running freeze by N frames without resetting the overlay animation. */
+  extendFreeze(frames: number): void {
+    this.freezeFramesRemaining = Math.max(this.freezeFramesRemaining, frames);
+    this.slowMotion = 0;
   }
 
   step(): void {
@@ -38,7 +47,8 @@ export class EffectsController {
       this.castingOverlay = p * (0.75 + 0.25 * Math.abs(Math.sin(this.castingOverlayFrame * 0.28)));
       this.slowMotion = 0;           // hold frozen
     } else {
-      this.castingOverlay = Math.max(0, this.castingOverlay - 0.032); // fade out after freeze
+      this.castingOverlay = Math.max(0, this.castingOverlay - 0.032);
+      if (this.castingOverlay <= 0) this.castingTeam = null;
       if (this.slowMotion < 1.0) {
         this.slowMotion = Math.min(1.0, this.slowMotion + SLOW_MOTION_RECOVERY);
       }

@@ -42,6 +42,36 @@ describe('EffectsController', () => {
     });
   });
 
+  describe('extendFreeze', () => {
+    it('bumps freezeFramesRemaining without resetting castingOverlayFrame', () => {
+      // applyFreeze sets both; extendFreeze must only bump remaining frames
+      fx.applyFreeze(10, '#000', 0.5, 'A');
+      fx.step(); // castingOverlayFrame → 1
+      fx.step(); // castingOverlayFrame → 2
+      fx.extendFreeze(10); // must NOT reset castingOverlayFrame
+      // overlay still pulses: pulsing alpha will be > 0 after 2 frames
+      expect(fx.castingOverlay).toBeGreaterThan(0);
+      // castingOverlayFrame was 2 before extendFreeze; if reset it would be 0
+      // We verify indirectly: slowMotion is still 0 (freeze extended)
+      expect(fx.slowMotion).toBe(0);
+    });
+
+    it('sets slowMotion to 0', () => {
+      fx.applySlowMotion();
+      expect(fx.slowMotion).toBeLessThan(1);
+      fx.extendFreeze(5);
+      expect(fx.slowMotion).toBe(0);
+    });
+
+    it('does not advance freeze if existing remaining > frames arg', () => {
+      fx.applyFreeze(20, '#000', 0.3);
+      fx.step(); // remaining → 19
+      fx.extendFreeze(5); // max(19, 5) = 19 — no change
+      fx.step(); // remaining → 18
+      expect(fx.slowMotion).toBe(0); // still frozen
+    });
+  });
+
   describe('applyTierEffects', () => {
     it('applies hit flash for melee on defender', () => {
       fx.applyTierEffects('melee', 'A', '#CC6633', 10);

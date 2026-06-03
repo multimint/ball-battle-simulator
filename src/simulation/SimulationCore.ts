@@ -396,6 +396,16 @@ export abstract class SimulationCore {
       this.bodyA,
       this.bodyB,
       this.boundApplyHit,
+      (b) => {
+        if (b.spriteKey === 'proj-shuriken') {
+          this.particles.spawnBurst(b.x, b.y, b.color, 14);
+        }
+      },
+      (_b, px, py, _parryingTeam) => {
+        this.particles.spawnBurst(px, py, '#FFFFFF', 10);
+        this.particles.spawnBurst(px, py, '#5C6BC0', 6);
+        this.audio.emitParry(this.simTime);
+      },
     );
 
     this.statusMgr.tick(scaledDelta, this.hp);

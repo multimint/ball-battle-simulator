@@ -50,15 +50,19 @@ export interface RenderState {
   effectsB?: StatusEffect[];
   rangeMultA?: number;
   rangeMultB?: number;
+  weaponChargeA?: number;
+  weaponChargeB?: number;
   drones?: Array<{ x: number; y: number; radius: number; state: UnitState; color: string; chargedColor: string; hp: number; maxHp: number }>;
   castingOverlay?: number;
   castingOverlayColor?: string;
   castingOverlayPeakAlpha?: number;
+  castingTeam?: 'A' | 'B' | null;
 }
 
 export class Renderer {
   private ctx: Ctx2D;
   private staticBg: OffscreenCanvas | null;
+  private overlayCanvas: OffscreenCanvas | null = null;
 
   constructor(ctx: Ctx2D, staticBg?: OffscreenCanvas) {
     this.ctx = ctx;
@@ -97,15 +101,20 @@ export class Renderer {
       // For high-alpha overlays (dark focus effect), use offscreen compositing
       // to punch a transparent spotlight hole over the forging ball.
       if (peakAlpha > 0.4) {
-        // Which ball is forging?
-        const forgingPos =
-          (state.effectsA ?? []).some(e => e.type === 'forgeHeat') ? state.ballAPos :
-          (state.effectsB ?? []).some(e => e.type === 'forgeHeat') ? state.ballBPos : null;
-        const forgingR = (state.effectsA ?? []).some(e => e.type === 'forgeHeat')
-          ? state.ballA.radius : state.ballB.radius;
+        // Which ball is casting? castingTeam takes priority over forgeHeat.
+        const castingTeam =
+          state.castingTeam ??
+          ((state.effectsA ?? []).some(e => e.type === 'forgeHeat') ? 'A' :
+           (state.effectsB ?? []).some(e => e.type === 'forgeHeat') ? 'B' : null);
+        const forgingPos = castingTeam === 'A' ? state.ballAPos : castingTeam === 'B' ? state.ballBPos : null;
+        const forgingR   = castingTeam === 'B' ? state.ballB.radius : state.ballA.radius;
 
-        const off = new OffscreenCanvas(ARENA_SIZE, ARENA_SIZE);
+        if (!this.overlayCanvas) this.overlayCanvas = new OffscreenCanvas(ARENA_SIZE, ARENA_SIZE);
+        const off = this.overlayCanvas;
         const offCtx = off.getContext('2d')!;
+        offCtx.globalCompositeOperation = 'source-over';
+        offCtx.globalAlpha = 1;
+        offCtx.clearRect(0, 0, ARENA_SIZE, ARENA_SIZE);
 
         // Fill dark overlay
         offCtx.globalAlpha = state.castingOverlay;
@@ -197,6 +206,7 @@ export class Renderer {
       'A',
       state.rangeMultA ?? 1,
       forgeStacksA,
+      state.weaponChargeA ?? 100,
     );
     drawOrbitWeapon(
       ctx,
@@ -208,6 +218,7 @@ export class Renderer {
       'B',
       state.rangeMultB ?? 1,
       forgeStacksB,
+      state.weaponChargeB ?? 100,
     );
 
     // 6. Traveling bullets (drawn over weapons, under hit effects)

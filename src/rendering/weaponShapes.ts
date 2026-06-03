@@ -12,6 +12,43 @@ export function registerWeaponShape(name: string, fn: DrawFn): void {
   registry[name] = fn;
 }
 
+// ── Projectile icon shapes ────────────────────────────────────────────────────
+// Keyed by weapon.icon (SpriteKey string). Looked up by drawOrbitWeapon when
+// weapon.projectileOrbitFixed is true — the caller cancels the orbit rotation
+// before invoking the shape so it renders in a fixed world orientation.
+
+const iconRegistry: Record<string, DrawFn> = {};
+
+export function getProjectileIconShape(icon: string): DrawFn | undefined {
+  return iconRegistry[icon];
+}
+
+export function registerProjectileIconShape(icon: string, fn: DrawFn): void {
+  iconRegistry[icon] = fn;
+}
+
+registerProjectileIconShape('weapon-shuriken', (ctx, color, r) => {
+  const outerR = r * 0.85;
+  const innerR = r * 0.28;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a   = (i / 8) * Math.PI * 2;
+    const rad = i % 2 === 0 ? outerR : innerR;
+    if (i === 0) ctx.moveTo(Math.cos(a) * rad, Math.sin(a) * rad);
+    else         ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.13, 0, Math.PI * 2);
+  ctx.fill();
+});
+
 // ── Active fighter weapons ────────────────────────────────────────────────────
 
 registry['Long Sword'] = (ctx, color, r) => {

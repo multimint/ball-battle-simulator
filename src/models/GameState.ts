@@ -98,6 +98,7 @@ export interface Bullet {
   ttl: number;          // ms remaining
   attack: AttackConfig; // which attack config fired this bullet
   spriteKey?: SpriteKey; // traveling bullet sprite (from weapon.projectileIcon)
+  bouncesLeft?: number; // wall reflections remaining (undefined = no bounce)
 }
 
 // ─── Ability Trail Segments ───────────────────────────────────────────────────

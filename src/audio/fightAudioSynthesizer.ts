@@ -3,7 +3,7 @@ export type { HitSoundKey, AbilitySoundKey } from './types';
 
 export interface AudioEvent {
   timeMs: number;
-  type: 'hit' | 'bulletFire' | 'laserFire' | 'laserHit' | 'ability' | 'ko' | 'bounce';
+  type: 'hit' | 'bulletFire' | 'laserFire' | 'laserHit' | 'ability' | 'ko' | 'bounce' | 'parry';
   hitStyle?: HitSoundKey;
   abilityStyle?: AbilitySoundKey;
   /** 0–1: normalized intensity (damage / reference max for hits; always 1.0 for KO) */
@@ -358,6 +358,69 @@ function synthForge(): Float32Array {
   return out;
 }
 
+function synthShadowslash(): Float32Array {
+  // Shinobi dash-impact: air-cut whoosh → crack → katana ring + sub thump
+  const dur = 0.38;
+  const out = makeBuffer(dur);
+  const IMPACT_S = 0.055; // offset where the blade connects
+
+  // Whoosh — Shinobi moving through air (high-pass noise swell)
+  const whoosh = oscillator('noise', 0, 0, 0.20, { attackS: 0.006, decayS: 0.194, peak: 0.52 });
+  highpass(whoosh, 900);
+  lowpass(whoosh, 5000);
+  mix(out, whoosh, 0);
+
+  // Impact crack — hard high-freq transient at the moment of contact
+  const crack = oscillator('noise', 0, 0, 0.018, { attackS: 0.001, decayS: 0.017, peak: 0.90 });
+  highpass(crack, 4200);
+  mix(out, crack, Math.round(IMPACT_S * AUDIO_SAMPLE_RATE));
+
+  // Sub thump — body mass of the hit
+  const thump = oscillator('sine', 155, 45, 0.14, { attackS: 0.001, decayS: 0.139, peak: 0.65 });
+  mix(out, thump, Math.round(IMPACT_S * AUDIO_SAMPLE_RATE));
+
+  // Katana ring — bright metallic resonance of the blade
+  const ring = oscillator('sine', 2750, 980, 0.28, { attackS: 0.001, decayS: 0.279, peak: 0.58 });
+  mix(out, ring, Math.round(IMPACT_S * AUDIO_SAMPLE_RATE));
+
+  // Second harmonic — adds blade character
+  const ring2 = oscillator('sine', 4100, 1600, 0.18, { attackS: 0.001, decayS: 0.179, peak: 0.22 });
+  mix(out, ring2, Math.round(IMPACT_S * AUDIO_SAMPLE_RATE));
+
+  // Supernatural shimmer — eerie high sweep (time-stop magic dissipating)
+  const shimmer = oscillator('sine', 3800, 600, 0.32, { attackS: 0.012, decayS: 0.308, peak: 0.18 });
+  mix(out, shimmer, 0);
+
+  clampBuf(out);
+  return out;
+}
+
+function synthParry(): Float32Array {
+  // Shuriken deflected off a sword edge: sharp impact crack + bright metallic ring
+  const dur = 0.20;
+  const out = makeBuffer(dur);
+
+  // Hard impact transient — the moment of contact
+  const crack = oscillator('noise', 0, 0, 0.014, { attackS: 0.001, decayS: 0.013, peak: 0.75 });
+  highpass(crack, 4500);
+  mix(out, crack, 0);
+
+  // Bright ring — primary metallic resonance (shuriken star spinning off blade)
+  const ring1 = oscillator('sine', 2400, 1200, dur, { attackS: 0.001, decayS: dur - 0.001, peak: 0.62 });
+  mix(out, ring1, 0);
+
+  // Second harmonic for blade character
+  const ring2 = oscillator('sine', 3600, 1800, dur * 0.55, { attackS: 0.001, decayS: dur * 0.55 - 0.001, peak: 0.25 });
+  mix(out, ring2, 0);
+
+  // Low body thud — mass behind the parry
+  const thud = oscillator('sine', 260, 100, 0.07, { attackS: 0.001, decayS: 0.069, peak: 0.40 });
+  mix(out, thud, 0);
+
+  clampBuf(out);
+  return out;
+}
+
 function synthBounce(intensity: number): Float32Array {
   const vol = 1.30 + intensity * 0.60; // intentionally >1 — clampBuf saturates for punch
   const dur = 0.06 + intensity * 0.02;
@@ -417,10 +480,11 @@ const HIT_SOUNDS: Record<HitSoundKey, (intensity: number) => Float32Array> = {
 };
 
 const ABILITY_SOUNDS: Record<AbilitySoundKey, () => Float32Array> = {
-  berserk: synthBerserk,
-  sharp:   synthSharp,
-  forge:   synthForge,
-  frenzy:  synthFrenzy,
+  berserk:     synthBerserk,
+  sharp:       synthSharp,
+  forge:       synthForge,
+  frenzy:      synthFrenzy,
+  shadowslash: synthShadowslash,
 };
 
 // Bullet-fire sounds keyed by hitStyle — only styles that fire bullets need an entry.
@@ -462,6 +526,8 @@ export function synthesizeFightAudio(
       signal = synthKO();
     } else if (ev.type === 'bounce') {
       signal = synthBounce(ev.intensity);
+    } else if (ev.type === 'parry') {
+      signal = synthParry();
     }
 
     if (signal) mix(out, signal, startSample);

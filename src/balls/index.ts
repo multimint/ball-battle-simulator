@@ -4,6 +4,7 @@ import { hawkeye } from './hawkeye';
 import { bloodAxe } from './bloodaxe';
 import { revenant } from './revenant';
 import { ironwright } from './ironwright';
+import { shinobi } from './shinobi';
 
 export type { BallDefinition } from './types';
 
@@ -11,7 +12,7 @@ export type { BallDefinition } from './types';
  * All registered balls. To add a new ball: import its module and append it here.
  * Order determines the display order in the fighter selector.
  */
-export const BALL_DEFINITIONS = [quickFlail, hawkeye, bloodAxe, revenant, ironwright] as const;
+export const BALL_DEFINITIONS = [quickFlail, hawkeye, bloodAxe, revenant, ironwright, shinobi] as const;
 
 // Guard against accidental duplicate IDs at startup.
 const ids = BALL_DEFINITIONS.map((b) => b.id);
@@ -26,6 +27,7 @@ export const BALL_SPRITE_PAINTERS = {
   flame:              bloodAxe.painter,
   specter:            revenant.painter,
   'ironwright-anvil': ironwright.painter,
+  'shinobi-icon':     shinobi.painter,
 } satisfies Record<string, SpritePainter>;
 
 /** Flat fighter preset objects derived from ball definitions — used by UI and store. */

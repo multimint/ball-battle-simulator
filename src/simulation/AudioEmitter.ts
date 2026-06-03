@@ -1,4 +1,5 @@
-import type { AudioEvent, HitSoundKey, AbilitySoundKey } from '../audio/fightAudioSynthesizer';
+import type { AudioEvent, HitSoundKey } from '../audio/fightAudioSynthesizer';
+import type { AbilitySoundKey } from '../audio/types';
 import { BOUNCE_COOLDOWN_MS, ABILITY_AUDIO_COOLDOWN_MS } from '../constants/gameConstants';
 
 export class AudioEmitter {
@@ -11,6 +12,7 @@ export class AudioEmitter {
   onLowHPAudioFiredB = false;
   private ballBounceCooldown = -Infinity;
   private wallBounceCooldown = -Infinity;
+  private parryCooldown = -Infinity;
 
   getEvents(): AudioEvent[] {
     return this.events;
@@ -59,6 +61,17 @@ export class AudioEmitter {
     this.events.push({ timeMs, type: 'bounce', hitStyle, intensity: 0.3 });
     this.wallBounceCooldown = timeMs;
     return true;
+  }
+
+  /** Emits an ability-hit sound with no cooldown — for mid-ability impact moments. */
+  emitAbilityHit(abilityStyle: AbilitySoundKey, timeMs: number): void {
+    this.events.push({ timeMs, type: 'ability', abilityStyle, intensity: 1.0 });
+  }
+
+  emitParry(timeMs: number): void {
+    if (timeMs - this.parryCooldown < 80) return;
+    this.events.push({ timeMs, type: 'parry', intensity: 1.0 });
+    this.parryCooldown = timeMs;
   }
 
   emitKO(timeMs: number): void {

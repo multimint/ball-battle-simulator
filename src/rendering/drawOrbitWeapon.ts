@@ -1,7 +1,7 @@
 import type { WeaponStats } from '../models/types';
 import { WEAPON_ORBIT_GAP } from '../constants/gameConstants';
 import type { Ctx2D } from './ctx';
-import { getWeaponShape } from './weaponShapes';
+import { getWeaponShape, getProjectileIconShape } from './weaponShapes';
 
 // ── Hitbox radius per weapon category ────────────────────────────────────────
 // These define both hit-detection radius AND the visual size of the drawn shape.
@@ -49,13 +49,24 @@ export function drawOrbitWeapon(
   team: 'A' | 'B',
   rangeMult = 1,
   forgeStacks = 0,
+  charge = 100,
 ): void {
+  const hideBelow = weapon.chargeHideBelow ?? 30;
+  const fadeUpTo  = weapon.chargeFadeUpTo  ?? 60;
+
+  // Hide orbit weapon while it's on cooldown (recently fired / reloading)
+  if (charge < hideBelow) return;
+
   const baseHitboxR = getWeaponHitboxRadius(weapon);          // orbit distance never scales
   const hitboxR     = getWeaponHitboxRadius(weapon, rangeMult); // shape scales with stacks
   const pos = getOrbitPosition(ballX, ballY, ballRadius, angle, baseHitboxR);
   const color = weapon.color ?? (team === 'A' ? '#E47D79' : '#4A90E2');
 
+  // Fade in as weapon reappears
+  const alpha = charge < fadeUpTo ? (charge - hideBelow) / (fadeUpTo - hideBelow) : 1;
+
   ctx.save();
+  if (alpha < 1) ctx.globalAlpha = alpha;
   ctx.translate(pos.x, pos.y);
   // Rotate so the weapon's local +X axis points radially outward
   ctx.rotate(angle);
@@ -68,7 +79,7 @@ export function drawOrbitWeapon(
       drawShieldShape(ctx, color, hitboxR);
       break;
     case 'projectile':
-      drawProjectileShape(ctx, weapon, color, hitboxR);
+      drawProjectileShape(ctx, weapon, color, hitboxR, angle);
       break;
     case 'aoe':
       drawAoeShape(ctx, color, hitboxR);
@@ -145,9 +156,20 @@ function drawShieldShape(
   ctx.shadowBlur = 0;
 }
 
-function drawProjectileShape(ctx: Ctx2D, weapon: WeaponStats, color: string, r: number): void {
+function drawProjectileShape(ctx: Ctx2D, weapon: WeaponStats, color: string, r: number, orbitAngle = 0): void {
   const shape = getWeaponShape(weapon.name);
   if (shape) { shape(ctx, color, r); return; }
+
+  // Icon-keyed shape with fixed world orientation (orbit rotation cancelled before drawing)
+  if (weapon.projectileOrbitFixed && weapon.icon) {
+    const iconShape = getProjectileIconShape(weapon.icon);
+    if (iconShape) {
+      ctx.rotate(-orbitAngle);
+      iconShape(ctx, color, r);
+      return;
+    }
+  }
+
   // Generic projectile fallback — glowing diamond/bullet, tip at +X
   ctx.shadowColor = color;
   ctx.shadowBlur = 10;

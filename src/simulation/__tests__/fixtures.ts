@@ -40,9 +40,14 @@ export function makeEffects(): EffectsController {
   vi.spyOn(fx, 'applyHitFlash');
   vi.spyOn(fx, 'applySlowMotion');
   vi.spyOn(fx, 'applyTierEffects');
+  vi.spyOn(fx, 'applyFreeze');
+  vi.spyOn(fx, 'extendFreeze');
   return fx;
 }
 
 export function makeAudio(): AudioEmitter {
-  return { emitHit: vi.fn(), emitLaser: vi.fn(), emitAbility: vi.fn() } as unknown as AudioEmitter;
+  return {
+    emitHit: vi.fn(), emitLaser: vi.fn(), emitAbility: vi.fn(),
+    emitAbilityHit: vi.fn(), emitParry: vi.fn(),
+  } as unknown as AudioEmitter;
 }

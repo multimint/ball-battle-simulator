@@ -4,8 +4,8 @@ import { DroneController } from '../DroneController';
 import type { DroneControllerDeps } from '../DroneController';
 import { StatusEffectManager } from '../StatusEffectManager';
 import type { WeaponController } from '../WeaponController';
-import type { AttackConfig, WeaponStats } from '../../models/types';
-import { makeBody, makeTeam, makeParticles, makeEffects, makeAudio } from './fixtures';
+import type { AttackConfig, BallAbility, WeaponStats } from '../../models/types';
+import { makeBody, makeTeam, makeParticles, makeEffects, makeAudio, SWORD } from './fixtures';
 
 // ── Weapon used in all tests ──────────────────────────────────────────────────
 
@@ -196,6 +196,86 @@ describe('DroneController', () => {
       const drone = ctrl.drones[0];
       ctrl.handleCollision(drone.body, deps.bodyB, 0);
       expect(ctrl.drones).toHaveLength(1);
+    });
+  });
+
+  describe('dash-through ability', () => {
+    const DASH_ABILITY: BallAbility = {
+      id: 'dash', name: 'Dash', description: '',
+      trigger: 'onTimer',
+      params: {
+        intervalMs: 100,
+        dashThroughEnemy: true,
+        dashDamage: 12,
+        dashStartHold: 1,
+        dashMoveFrames: 2,
+        dashTotalFrames: 10,
+      },
+    };
+
+    function makeDashDeps(): DroneControllerDeps {
+      const deps = makeDeps();
+      const dashTeam = { ...deps.teamA, ball: { ...deps.teamA.ball, ability: DASH_ABILITY } };
+      deps.teamA = dashTeam;
+      return deps;
+    }
+
+    it('calls applyFreeze when ability fires', () => {
+      const deps = makeDashDeps();
+      const ctrl = new DroneController(deps);
+      ctrl.tick(101, 100, false); // timer 0→101, fires (intervalMs=100), timer→1
+      expect(deps.effects.applyFreeze).toHaveBeenCalled();
+    });
+
+    it('deals dashDamage to enemy at the correct midpoint frame', () => {
+      const deps = makeDashDeps();
+      const ctrl = new DroneController(deps);
+      // Tick 1: ability fires, frame→1 (startHold), no damage yet
+      ctrl.tick(101, 100, false);
+      expect(deps.hp.B).toBe(100);
+      // Tick 2: frame→2, mf=1=ceil(moveFrames/2), impact fires
+      ctrl.tick(0, 116, false);
+      expect(deps.hp.B).toBe(88); // 100 - 12
+    });
+
+    it('calls emitAbilityHit at the impact frame', () => {
+      const deps = makeDashDeps();
+      const ctrl = new DroneController(deps);
+      ctrl.tick(101, 100, false);
+      ctrl.tick(0, 116, false); // impact frame
+      expect(deps.audio.emitAbilityHit).toHaveBeenCalledOnce();
+    });
+
+    it('calls extendFreeze on frames after ability fires (keeping freeze alive)', () => {
+      const deps = makeDashDeps();
+      const ctrl = new DroneController(deps);
+      ctrl.tick(101, 100, false); // fires ability
+      ctrl.tick(0, 116, false);   // second tick — extendFreeze must be called
+      expect(deps.effects.extendFreeze).toHaveBeenCalled();
+    });
+
+    it('does not deal damage a second time on subsequent ticks', () => {
+      const deps = makeDashDeps();
+      const ctrl = new DroneController(deps);
+      ctrl.tick(101, 100, false); // fires
+      ctrl.tick(0, 116, false);   // impact (hp=88)
+      ctrl.tick(0, 132, false);   // past impact
+      ctrl.tick(0, 148, false);
+      expect(deps.hp.B).toBe(88); // no further damage
+    });
+
+    it('reads dashDamage and dashTotalFrames from ability params, not hardcoded constants', () => {
+      const deps = makeDashDeps();
+      // Override with custom values
+      const customAbility: BallAbility = {
+        ...DASH_ABILITY,
+        params: { ...DASH_ABILITY.params, dashDamage: 7, dashTotalFrames: 3 },
+      };
+      deps.teamA = { ...deps.teamA, ball: { ...deps.teamA.ball, ability: customAbility } };
+      const ctrl = new DroneController(deps);
+      ctrl.tick(101, 100, false); // fires
+      ctrl.tick(0, 116, false);   // impact
+      expect(deps.hp.B).toBe(93); // 100 - 7
     });
   });
 

@@ -26,6 +26,8 @@ Physics-based fighting game where two customizable fighters battle in an enclose
 | Hawkeye | 60 | Permafrost — laser hits apply freeze |
 | Blood Axe | 70 | Bloodrage — berserk at <30% HP (+50% dmg, +70% speed, +80 knockback) |
 | Revenant | 66 | Soul Surge — every 16 s converts Wisps to Banshees that hurl toward the enemy |
+| Ironwright | 65 | Forge Cycle — hammer strikes build forgeHeat stacks for escalating damage |
+| Shinobi | 60 | Shadowstep — every 7.5 s: time stops (1 s), Shinobi dashes through the enemy dealing 10 damage with katana slash effects |
 
 ---
 
@@ -188,8 +190,33 @@ The template has inline comments for every field. The existing fighters are the 
 | `hawkeye.ts` | projectile weapon, `onHitDealt` status effect |
 | `quickflail.ts` | `onHitDealt` stacking ability |
 | `revenant.ts` | `summon` attack type, spawned units (wisp/banshee), `onTimer` ability |
+| `ironwright.ts` | stacking status effect (`forgeHeat`), tiered weapon sprites per stack |
+| `shinobi.ts` | `dashThroughEnemy` ability, bouncing projectiles, world-fixed orbit weapon |
 
-**Weapon attack types:** `melee`, `projectile` (supports hitscan, burst fire), `aoe`, `shield`, `utility` (push/pull), `summon` (spawns persistent units that can enter a charged state via ability trigger).
+**Weapon attack types:** `melee`, `projectile` (supports hitscan, burst fire, wall-bouncing), `aoe`, `shield`, `utility` (push/pull), `summon` (spawns persistent units that can enter a charged state via ability trigger).
+
+**Bouncing projectiles** — set `maxBounces` on a projectile attack to make the bullet ricochet off walls and enemy weapons (parry). Combine with `bulletTtl` to control flight time. Set `projectileIcon` to a registered sprite key for custom bullet visuals.
+
+**Dash-through ability** — add `dashThroughEnemy: true` to any `onTimer` ability's params to trigger the 60-frame (1 s) time-stop dash. All visual and timing params are configurable per ball:
+
+| Param | Default | Effect |
+|---|---|---|
+| `dashDamage` | 10 | HP dealt on impact |
+| `dashColor` | `'#3F51B5'` | Dash trail particle colour |
+| `dashSlashColor` | `'#90CAF9'` | Primary slash mark colour |
+| `dashSecondarySlashColor` | `'#5C6BC0'` | Secondary slash mark colour |
+| `dashAbilityHitStyle` | `'shadowslash'` | `AbilitySoundKey` played at impact |
+| `dashStartHold` | 6 | Freeze frames before movement starts |
+| `dashMoveFrames` | 12 | Frames for the lerp through enemy |
+| `dashTotalFrames` | 60 | Total freeze duration (frames @ 60 Hz) |
+| `dashFreezeColor` | `'#080820'` | Casting overlay colour |
+| `dashFreezeAlpha` | 0.72 | Casting overlay peak alpha |
+
+**Custom orbit-weapon shapes** — set `projectileOrbitFixed: true` and `icon: 'my-icon'` on the weapon, then call `registerProjectileIconShape('my-icon', painter)` in `src/rendering/weaponShapes.ts`. The orbit rotation is cancelled before drawing so the shape keeps a fixed world orientation (like a shuriken).
+
+**Custom bullet visuals** — call `registerBulletPainter('my-proj-key', (ctx, bullet) => { ... })` in `src/rendering/drawBullets.ts` and set `projectileIcon: 'my-proj-key'` on the weapon. The painter receives the full `Bullet` object (including `ttl` for spin/animation).
+
+**Charge fade thresholds** — set `chargeHideBelow` (default 30%) and `chargeFadeUpTo` (default 60%) on `WeaponStats` to control when the orbit weapon disappears and fades back in after firing.
 
 **Summon attack config fields** — all optional with sensible defaults:
 `summonHp`, `summonRadius`, `summonSpeed`, `summonMaxCount`, `summonMass`, `summonNormalColor`, `summonContactDamage`, `summonContactCooldownMs`, `summonChargedColor`, `summonChargedSpeed`, `summonChargedDamage`, plus `summonContact/ChargedStatus*` for applying status effects on drone hit.

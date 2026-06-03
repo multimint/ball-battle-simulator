@@ -1,5 +1,5 @@
 import type { SpriteKey } from '../sprites/SpriteKey';
-import type { AudioProfile } from '../audio/types';
+import type { AudioProfile, AbilitySoundKey } from '../audio/types';
 
 // ─── Ball Configuration ───────────────────────────────────────────────────────
 
@@ -40,6 +40,8 @@ export interface AttackConfig {
   bulletSpread?: number;  // radians between bullets (default 0.40)
   bulletInterval?: number;// seconds between each bullet in a burst; omit = fire all at once
   bulletSpeed?: number;   // travel speed multiplier (default 2.0; lower = slower)
+  maxBounces?: number;    // wall reflections; bullet is removed after this many bounces (undefined = no bounce)
+  bulletTtl?: number;     // time-to-live in ms (default 2000)
   audioHint?: 'laser';    // triggers weapon-specific audio instead of the ball's default hit sound
   hitStatusEffect?: StatusEffectType; // status effect applied to target on hit
   hitStatusDuration?: number;         // ms
@@ -91,6 +93,9 @@ export interface WeaponStats {
   hitEffectRadius?: number;          // radius for explosion effects (px)
   utilityBehavior?: 'pull' | 'push-both'; // utility weapon mode
   selfKnockbackFrac?: number;        // recoil fraction for push-both (default 0.4)
+  projectileOrbitFixed?: boolean;    // cancel orbit rotation so projectile keeps world-fixed orientation
+  chargeHideBelow?: number;          // hide orbit weapon when charge % < this (default 30)
+  chargeFadeUpTo?: number;           // fade orbit weapon in from chargeHideBelow to this % (default 60)
 }
 
 // ─── Fighter Preset (ball + weapon bundled) ───────────────────────────────────
@@ -188,6 +193,19 @@ export interface CommonAbilityParams {
   trailCount?: number;            // trail segments per burst
   trailScatterFrac?: number;      // scatter radius fraction
   trailSpawnChance?: number;      // 0–1
+
+  // Dash-through: frame-by-frame animation that passes self through enemy
+  dashThroughEnemy?: boolean;
+  dashDamage?: number;
+  dashColor?: string;               // trail particle color (default '#3F51B5')
+  dashSlashColor?: string;          // primary slash color (default '#90CAF9')
+  dashSecondarySlashColor?: string; // secondary slash color (default '#5C6BC0')
+  dashAbilityHitStyle?: AbilitySoundKey; // impact audio key (default 'shadowslash')
+  dashStartHold?: number;           // freeze frames of initial hold before movement (default 6)
+  dashMoveFrames?: number;          // frames for position lerp through enemy (default 12)
+  dashTotalFrames?: number;         // total freeze duration in frames (default 60 = 1 s)
+  dashFreezeColor?: string;         // casting-overlay color (default '#080820')
+  dashFreezeAlpha?: number;         // casting-overlay peak alpha (default 0.72)
 
   // Per-frame tick trail while ability condition is met
   tickTrailEnabled?: boolean;
