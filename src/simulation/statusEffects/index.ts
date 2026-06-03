@@ -1,4 +1,3 @@
-import type { StatusEffectType } from '../../models/types';
 import type { StatusEffectHandler } from './types';
 import { burnHandler }       from './burn';
 import { poisonHandler }     from './poison';
@@ -13,7 +12,12 @@ import { forgeHeatHandler }  from './forgeHeat';
 
 export type { StatusEffectHandler } from './types';
 
-export const STATUS_HANDLERS: Record<StatusEffectType, StatusEffectHandler> = {
+/**
+ * Open runtime registry. New balls add a custom effect without editing this file:
+ *   import { registerStatusEffect } from '../simulation/statusEffects';
+ *   registerStatusEffect('myEffect', { speedMult: (e) => 1 - e.magnitude });
+ */
+export const STATUS_HANDLERS: Record<string, StatusEffectHandler> = {
   burn:       burnHandler,
   poison:     poisonHandler,
   freeze:     freezeHandler,
@@ -21,7 +25,11 @@ export const STATUS_HANDLERS: Record<StatusEffectType, StatusEffectHandler> = {
   harden:     hardenHandler,
   speedBoost: speedBoostHandler,
   weaken:     weakenHandler,
-  lifesteal:  lifestealHandler,  // consumed in HitProcessor damage() closure
-  shield:     shieldHandler,     // consumed in StatusEffectManager.consumeShield()
-  forgeHeat:  forgeHeatHandler,  // stacking outgoing damage for Ironwright
+  lifesteal:  lifestealHandler,
+  shield:     shieldHandler,
+  forgeHeat:  forgeHeatHandler,
 };
+
+export function registerStatusEffect(key: string, handler: StatusEffectHandler): void {
+  STATUS_HANDLERS[key] = handler;
+}

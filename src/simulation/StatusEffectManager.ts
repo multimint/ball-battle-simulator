@@ -49,7 +49,7 @@ export class StatusEffectManager {
         if (effect.stackBehavior !== 'stack') {
           effect.remainingMs -= delta;
         }
-        STATUS_HANDLERS[effect.type].tick?.(effect, hp, team, delta);
+        STATUS_HANDLERS[effect.type]?.tick?.(effect, hp, team, delta);
         if (effect.stackBehavior === 'stack' || effect.remainingMs > 0) alive.push(effect);
       }
       this.effects[team] = alive;
@@ -67,7 +67,7 @@ export class StatusEffectManager {
   getSpeedMultiplier(team: 'A' | 'B'): number {
     let mult = 1.0;
     for (const e of this.effects[team]) {
-      const m = STATUS_HANDLERS[e.type].speedMult?.(e);
+      const m = STATUS_HANDLERS[e.type]?.speedMult?.(e);
       if (m !== undefined) mult *= m;
     }
     return Math.max(0.1, mult);
@@ -76,7 +76,7 @@ export class StatusEffectManager {
   getOutgoingDamageMultiplier(team: 'A' | 'B'): number {
     let mult = 1.0;
     for (const e of this.effects[team]) {
-      const m = STATUS_HANDLERS[e.type].outDmgMult?.(e);
+      const m = STATUS_HANDLERS[e.type]?.outDmgMult?.(e);
       if (m !== undefined) mult *= m;
     }
     return Math.max(0.1, mult);
@@ -85,7 +85,7 @@ export class StatusEffectManager {
   getIncomingDamageMultiplier(team: 'A' | 'B'): number {
     let mult = 1.0;
     for (const e of this.effects[team]) {
-      const m = STATUS_HANDLERS[e.type].inDmgMult?.(e);
+      const m = STATUS_HANDLERS[e.type]?.inDmgMult?.(e);
       if (m !== undefined) mult *= m;
     }
     return Math.max(0.1, mult);

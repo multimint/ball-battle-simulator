@@ -1,6 +1,5 @@
 import Matter from 'matter-js';
 import type { TeamConfig, BallAbilityType, OnTimerParams, UnitState, StatusEffectType } from '../models/types';
-import type { AbilitySoundKey } from '../audio/types';
 import type { SpriteKey } from '../sprites/SpriteKey';
 import type { StatusEffectManager } from './StatusEffectManager';
 import type { ParticleController } from './ParticleController';
@@ -17,35 +16,6 @@ import {
 import type { GameEventType } from '../utils/funScore';
 
 const { Bodies, Composite, Body } = Matter;
-
-// ── Dash-through animation state ──────────────────────────────────────────────
-
-interface DashState {
-  team: 'A' | 'B';
-  enemyTeam: 'A' | 'B';
-  fromX: number; fromY: number;   // caster start
-  midX:  number; midY:  number;   // enemy position (impact)
-  toX:   number; toY:   number;   // random landing spot
-  nx: number;    ny: number;      // caster→enemy unit vector (for slash angle)
-  frame: number;
-  damage: number;
-  damageApplied: boolean;
-  // Resolved from ability params — lets any dashThroughEnemy ball customise visuals/audio
-  startHold:       number;
-  moveFrames:      number;
-  totalFrames:     number;
-  trailColor:      string;
-  slashColor:      string;
-  slashColor2:     string;
-  abilityHitStyle: AbilitySoundKey;
-}
-
-// Defaults used when a ball doesn't specify a dash param
-const DASH_START_HOLD  = 6;
-const DASH_MOVE_FRAMES = 12;
-const DASH_TOTAL       = 60;
-const DASH_COLOR       = '#080820';
-const DASH_ALPHA       = 0.72;
 
 // ── Spawned unit ──────────────────────────────────────────────────────────────
 
@@ -102,6 +72,8 @@ export interface DroneControllerDeps {
   weapons: WeaponController;
   recordGameEvent: (type: GameEventType, team: 'A' | 'B') => void;
   recordAbilityProc: (team: 'A' | 'B', trigger: BallAbilityType) => void;
+  /** Called when an onTimer ability fires so AbilityAnimationController can pick it up. */
+  onAnimationTrigger?: (team: 'A' | 'B', params: OnTimerParams) => void;
 }
 
 // ── Controller ────────────────────────────────────────────────────────────────
@@ -109,7 +81,6 @@ export interface DroneControllerDeps {
 export class DroneController {
   readonly drones: DroneBody[] = [];
   private abilityTimers: { A: number; B: number } = { A: 0, B: 0 };
-  private dashState: DashState | null = null;
 
   private readonly d: DroneControllerDeps;
 
@@ -290,7 +261,6 @@ export class DroneController {
   tick(scaledDelta: number, simTime: number, matchEnded: boolean): void {
     this.tickOnTimerAbility('A', this.d.teamA, scaledDelta, simTime, matchEnded);
     this.tickOnTimerAbility('B', this.d.teamB, scaledDelta, simTime, matchEnded);
-    this.tickDash(simTime);
     this.tickDrones(simTime);
     if (this.drones.length > 0) {
       this.processWeaponDroneDamage('A', this.d.weapons.orbitAngleA, this.d.bodyA, this.d.teamA, simTime);
@@ -328,147 +298,10 @@ export class DroneController {
       if (config.weapon.attacks.some((a) => a.type === 'summon')) {
         this.launchCharged(team, simTime);
       }
-      if ((ability.params as OnTimerParams).dashThroughEnemy) {
-        this.initiateDash(team, ability.params as OnTimerParams);
-      }
+      this.d.onAnimationTrigger?.(team, ability.params as OnTimerParams);
     }
   }
 
-  // ── Dash-through state machine ─────────────────────────────────────────────
-
-  private initiateDash(team: 'A' | 'B', params: OnTimerParams): void {
-    const enemyTeam: 'A' | 'B' = team === 'A' ? 'B' : 'A';
-    const selfBody   = team === 'A' ? this.d.bodyA : this.d.bodyB;
-    const enemyBody  = team === 'A' ? this.d.bodyB : this.d.bodyA;
-    const config     = team === 'A' ? this.d.teamA : this.d.teamB;
-
-    const dx   = enemyBody.position.x - selfBody.position.x;
-    const dy   = enemyBody.position.y - selfBody.position.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist < 1) return;
-
-    const nx = dx / dist;
-    const ny = dy / dist;
-
-    const margin = config.ball.radius + 5;
-    const toX = margin + Math.random() * (ARENA_SIZE - 2 * margin);
-    const toY = margin + Math.random() * (ARENA_SIZE - 2 * margin);
-
-    Body.setVelocity(selfBody,  { x: 0, y: 0 });
-    Body.setVelocity(enemyBody, { x: 0, y: 0 });
-
-    this.dashState = {
-      team, enemyTeam,
-      fromX: selfBody.position.x, fromY: selfBody.position.y,
-      midX:  enemyBody.position.x, midY: enemyBody.position.y,
-      toX, toY, nx, ny,
-      frame: 0,
-      damage:        params.dashDamage              ?? 10,
-      damageApplied: false,
-      startHold:     params.dashStartHold           ?? DASH_START_HOLD,
-      moveFrames:    params.dashMoveFrames           ?? DASH_MOVE_FRAMES,
-      totalFrames:   params.dashTotalFrames          ?? DASH_TOTAL,
-      trailColor:    params.dashColor                ?? '#3F51B5',
-      slashColor:    params.dashSlashColor           ?? '#90CAF9',
-      slashColor2:   params.dashSecondarySlashColor  ?? '#5C6BC0',
-      abilityHitStyle: params.dashAbilityHitStyle   ?? 'shadowslash',
-    };
-
-    this.d.effects.applyFreeze(
-      2,
-      params.dashFreezeColor ?? DASH_COLOR,
-      params.dashFreezeAlpha ?? DASH_ALPHA,
-      team,
-    );
-  }
-
-  private tickDash(simTime: number): void {
-    if (!this.dashState) return;
-    const ds        = this.dashState;
-    const selfBody  = ds.team      === 'A' ? this.d.bodyA : this.d.bodyB;
-    const enemyBody = ds.enemyTeam === 'A' ? this.d.bodyA : this.d.bodyB;
-    const config    = ds.team      === 'A' ? this.d.teamA : this.d.teamB;
-
-    ds.frame++;
-    const isDone = ds.frame >= ds.totalFrames;
-
-    if (!isDone) this.d.effects.extendFreeze(2);
-
-    // Keep enemy pinned (enforceMinSpeed runs before us and may give it a tiny velocity)
-    Body.setVelocity(enemyBody, { x: 0, y: 0 });
-
-    // ── Movement phase ────────────────────────────────────────────────────────
-    const inMove = ds.frame > ds.startHold && ds.frame <= ds.startHold + ds.moveFrames;
-    if (inMove) {
-      const mf   = ds.frame - ds.startHold;
-      const half = ds.moveFrames / 2;
-      let cx: number, cy: number;
-
-      if (mf <= half) {
-        const t = mf / half;
-        cx = ds.fromX + (ds.midX - ds.fromX) * t;
-        cy = ds.fromY + (ds.midY - ds.fromY) * t;
-      } else {
-        const t = (mf - half) / half;
-        cx = ds.midX + (ds.toX - ds.midX) * t;
-        cy = ds.midY + (ds.toY - ds.midY) * t;
-      }
-
-      Body.setPosition(selfBody, { x: cx, y: cy });
-
-      // Trail particle streaking along the dash path
-      this.d.particles.pushTrail({
-        x: cx, y: cy,
-        radius: config.ball.radius * 0.55,
-        color: ds.trailColor,
-        alpha: 0.78,
-        ttl: 22,
-        maxTtl: 22,
-      });
-
-      // ── Impact at the midpoint ──────────────────────────────────────────────
-      if (mf === Math.ceil(half) && !ds.damageApplied) {
-        ds.damageApplied = true;
-
-        const actualDmg = Math.min(ds.damage, this.d.hp[ds.enemyTeam]);
-        if (actualDmg > 0) {
-          this.d.hp[ds.enemyTeam] = Math.max(0, this.d.hp[ds.enemyTeam] - actualDmg);
-          this.d.damageDealt[ds.team] += actualDmg;
-          this.d.recordGameEvent('hit', ds.team);
-        }
-
-        const slashAngle = Math.atan2(ds.ny, ds.nx) - Math.PI * 0.5;
-        this.d.effects.pushWeaponEffect('sword', ds.midX, ds.midY, slashAngle,                  ds.slashColor,  75);
-        this.d.effects.pushWeaponEffect('sword', ds.midX, ds.midY, slashAngle + Math.PI * 0.5, ds.slashColor2, 75);
-
-        this.d.particles.pushFloater(
-          String(actualDmg),
-          enemyBody.position.x + (Math.random() - 0.5) * 20,
-          enemyBody.position.y - (enemyBody.circleRadius ?? 25) - 8,
-          '#90CAF9',
-        );
-        this.d.particles.spawnBurst(ds.midX, ds.midY, ds.slashColor, 16);
-        this.d.effects.applyHitFlash(ds.enemyTeam, 0.85, ds.slashColor, 10);
-        this.d.audio.emitAbilityHit(ds.abilityHitStyle, simTime);
-        this.d.audio.emitHit(config.audioProfile.hitStyle, 1.0, simTime);
-      }
-    }
-
-    // ── End of dash ───────────────────────────────────────────────────────────
-    if (isDone) {
-      Body.setPosition(selfBody, { x: ds.toX, y: ds.toY });
-      // Exit velocity: away from the enemy toward the random landing spot
-      const exitDx   = ds.toX - ds.midX;
-      const exitDy   = ds.toY - ds.midY;
-      const exitDist = Math.hypot(exitDx, exitDy);
-      const enx = exitDist > 0 ? exitDx / exitDist : ds.nx;
-      const eny = exitDist > 0 ? exitDy / exitDist : ds.ny;
-      const dashSpeed = config.ball.maxSpeed * 1.4;
-      Body.setVelocity(selfBody, { x: enx * dashSpeed, y: eny * dashSpeed });
-      Body.setVelocity(enemyBody, { x: 0, y: 0 });
-      this.dashState = null;
-    }
-  }
 
   private launchCharged(team: 'A' | 'B', _simTime: number): void {
     const enemyBody = team === 'A' ? this.d.bodyB : this.d.bodyA;

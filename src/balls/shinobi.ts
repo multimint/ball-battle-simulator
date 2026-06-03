@@ -126,6 +126,7 @@ export const shinobi: BallDefinition = {
         bulletCount: 1,
         bulletSpeed: 1.5,
         maxBounces: 10,
+        expireBurstCount: 14,
         bulletTtl: 10000,
       },
       {

@@ -9,6 +9,7 @@ import type {
 } from '../models/types';
 import { DroneController } from './DroneController';
 export type { DroneBody } from './DroneController';
+import { AbilityAnimationController } from './AbilityAnimationController';
 import { StatusEffectManager } from './StatusEffectManager';
 import { isAbilityBerserk } from '../utils/ability';
 import { getCollisionImpulse, getCollisionPoint } from '../utils/collision';
@@ -108,6 +109,7 @@ export abstract class SimulationCore {
   protected particles: ParticleController;
   protected audio: AudioEmitter;
   protected weapons: WeaponController;
+  protected animCtrl!: AbilityAnimationController;
   private boundApplyHit!: (
     weapon: WeaponStats,
     attack: AttackConfig,
@@ -229,6 +231,13 @@ export abstract class SimulationCore {
     this.audio = new AudioEmitter();
     this.weapons = new WeaponController(teamA, teamB);
     this.boundApplyHit = this.applyHit.bind(this);
+    this.animCtrl = new AbilityAnimationController({
+      teamA, teamB,
+      bodyA: this.bodyA, bodyB: this.bodyB,
+      hp: this.hp, damageDealt: this.damageDealt,
+      effects: this.effects, particles: this.particles, audio: this.audio,
+      recordGameEvent: (type, team) => this.recordGameEvent(type, team),
+    });
     this.droneCtrl = new DroneController({
       teamA, teamB,
       bodyA: this.bodyA, bodyB: this.bodyB,
@@ -238,6 +247,7 @@ export abstract class SimulationCore {
       statusMgr: this.statusMgr, weapons: this.weapons,
       recordGameEvent: (type, team) => this.recordGameEvent(type, team),
       recordAbilityProc: this.recordAbilityProc,
+      onAnimationTrigger: (team, params) => this.animCtrl.trigger(team, params),
     });
   }
 
@@ -397,13 +407,12 @@ export abstract class SimulationCore {
       this.bodyB,
       this.boundApplyHit,
       (b) => {
-        if (b.spriteKey === 'proj-shuriken') {
-          this.particles.spawnBurst(b.x, b.y, b.color, 14);
-        }
+        const n = b.attack.expireBurstCount;
+        if (n) this.particles.spawnBurst(b.x, b.y, b.color, n);
       },
-      (_b, px, py, _parryingTeam) => {
+      (b, px, py, _parryingTeam) => {
         this.particles.spawnBurst(px, py, '#FFFFFF', 10);
-        this.particles.spawnBurst(px, py, '#5C6BC0', 6);
+        this.particles.spawnBurst(px, py, b.color, 6);
         this.audio.emitParry(this.simTime);
       },
     );
@@ -428,6 +437,7 @@ export abstract class SimulationCore {
     }
 
     this.droneCtrl.tick(scaledDelta, this.simTime, this.matchEnded);
+    this.animCtrl.tick(this.simTime);
 
     const adx = this.bodyB.position.x - this.bodyA.position.x;
     const ady = this.bodyB.position.y - this.bodyA.position.y;

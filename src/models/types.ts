@@ -42,6 +42,7 @@ export interface AttackConfig {
   bulletSpeed?: number;   // travel speed multiplier (default 2.0; lower = slower)
   maxBounces?: number;    // wall reflections; bullet is removed after this many bounces (undefined = no bounce)
   bulletTtl?: number;     // time-to-live in ms (default 2000)
+  expireBurstCount?: number; // particle burst count when bullet expires or hits (default 0 = none)
   audioHint?: 'laser';    // triggers weapon-specific audio instead of the ball's default hit sound
   hitStatusEffect?: StatusEffectType; // status effect applied to target on hit
   hitStatusDuration?: number;         // ms
@@ -261,6 +262,7 @@ export type BallAbility =
 
 // ─── Status Effects ───────────────────────────────────────────────────────────
 
+/** Built-in effect types. Add custom effects via registerStatusEffect() — no union edit needed. */
 export type StatusEffectType =
   | 'burn'       // damage over time (stacks intensity)
   | 'poison'     // slower damage over time (no stack)
@@ -271,7 +273,8 @@ export type StatusEffectType =
   | 'weaken'     // reduce target outgoing damage
   | 'lifesteal'  // restore HP on each weapon hit
   | 'shield'     // absorb flat incoming damage
-  | 'forgeHeat'; // stacking outgoing damage (scales with .stacks × magnitude)
+  | 'forgeHeat'  // stacking outgoing damage (scales with .stacks × magnitude)
+  | (string & {}); // extensible — register handler via registerStatusEffect()
 
 export interface StatusEffect {
   id: string;

@@ -468,29 +468,37 @@ function synthKO(): Float32Array {
 }
 
 
-// ── Sound registries — add a new key here to support a new ball sound ────────
-//
-// To add a new hit sound:   add a key to HitSoundKey above + entry here.
-// To add a new ability sound: add a key to AbilitySoundKey above + entry here.
+// ── Open sound registries ─────────────────────────────────────────────────────
+// Ball authors add custom sounds without editing this file:
+//   registerHitSound('myHit', (intensity) => synth(intensity));
+//   registerAbilitySound('myAbility', () => synth());
 
-const HIT_SOUNDS: Record<HitSoundKey, (intensity: number) => Float32Array> = {
-  thunderous: synthThunderous,
-  swift:      synthSwift,
-  arcane:     synthArcane,
-};
+const HIT_SOUNDS     = new Map<string, (intensity: number) => Float32Array>();
+const ABILITY_SOUNDS = new Map<string, () => Float32Array>();
+const BULLET_FIRE_SOUNDS = new Map<string, () => Float32Array>();
 
-const ABILITY_SOUNDS: Record<AbilitySoundKey, () => Float32Array> = {
-  berserk:     synthBerserk,
-  sharp:       synthSharp,
-  forge:       synthForge,
-  frenzy:      synthFrenzy,
-  shadowslash: synthShadowslash,
-};
+export function registerHitSound(key: string, fn: (intensity: number) => Float32Array): void {
+  HIT_SOUNDS.set(key, fn);
+}
+export function registerAbilitySound(key: string, fn: () => Float32Array): void {
+  ABILITY_SOUNDS.set(key, fn);
+}
+export function registerBulletFireSound(key: string, fn: () => Float32Array): void {
+  BULLET_FIRE_SOUNDS.set(key, fn);
+}
 
-// Bullet-fire sounds keyed by hitStyle — only styles that fire bullets need an entry.
-const BULLET_FIRE_SOUNDS: Partial<Record<HitSoundKey, () => Float32Array>> = {
-  arcane: synthArcaneFire,
-};
+// Register built-in sounds
+registerHitSound('thunderous', synthThunderous);
+registerHitSound('swift',      synthSwift);
+registerHitSound('arcane',     synthArcane);
+
+registerAbilitySound('berserk',     synthBerserk);
+registerAbilitySound('sharp',       synthSharp);
+registerAbilitySound('forge',       synthForge);
+registerAbilitySound('frenzy',      synthFrenzy);
+registerAbilitySound('shadowslash', synthShadowslash);
+
+registerBulletFireSound('arcane', synthArcaneFire);
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -513,15 +521,15 @@ export function synthesizeFightAudio(
     let signal: Float32Array | null = null;
 
     if (ev.type === 'hit' && ev.hitStyle) {
-      signal = HIT_SOUNDS[ev.hitStyle]?.(ev.intensity) ?? null;
+      signal = HIT_SOUNDS.get(ev.hitStyle)?.(ev.intensity) ?? null;
     } else if (ev.type === 'bulletFire' && ev.hitStyle) {
-      signal = BULLET_FIRE_SOUNDS[ev.hitStyle]?.() ?? null;
+      signal = BULLET_FIRE_SOUNDS.get(ev.hitStyle)?.() ?? null;
     } else if (ev.type === 'laserFire') {
       signal = synthArcaneLaserFire();
     } else if (ev.type === 'laserHit') {
       signal = synthArcaneLaserHit();
     } else if (ev.type === 'ability' && ev.abilityStyle) {
-      signal = ABILITY_SOUNDS[ev.abilityStyle]?.() ?? null;
+      signal = ABILITY_SOUNDS.get(ev.abilityStyle)?.() ?? null;
     } else if (ev.type === 'ko') {
       signal = synthKO();
     } else if (ev.type === 'bounce') {
