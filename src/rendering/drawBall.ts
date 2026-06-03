@@ -82,12 +82,14 @@ export function drawBall(
 
   // ── Status effect icons ───────────────────────────────────────────────
   if (effects && effects.length > 0) {
+    // forgeHeat is shown in the HUD tier strip — skip the floating icon above the ball
+    const visibleEffects = effects.filter(e => e.type !== 'forgeHeat');
     const sz = Math.max(8, r * 0.9);
     const iconSpacing = Math.max(12, r * 0.6);
     const iconY = -(r + 10) - sz;
-    const startX = -((effects.length - 1) * iconSpacing) / 2;
+    const startX = -((visibleEffects.length - 1) * iconSpacing) / 2;
     const sprites = spriteRegistry();
-    effects.forEach((effect, i) => {
+    visibleEffects.forEach((effect, i) => {
       const img = sprites[effect.icon];
       if (img) {
         ctx.drawImage(img, startX + i * iconSpacing - sz / 2, iconY, sz, sz);

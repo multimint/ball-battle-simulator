@@ -43,6 +43,7 @@ export function applyAbility(ctx: AbilityCtx): void {
   if (p.hitShakeMagnitude) ctx.effects.applyScreenShake(p.hitShakeMagnitude, SCREEN_SHAKE_TTL);
   if (p.hitSlowMo)         ctx.effects.applySlowMotion();
   if (p.hitScreenFlash)    ctx.effects.applyScreenFlash(p.hitScreenFlashAlpha ?? 0.3, p.hitScreenFlashColor ?? '#FFFFFF', Math.round(p.hitScreenFlashTtl ?? 5));
+  if (p.hitFreezeFrames)   ctx.effects.applyFreeze(p.hitFreezeFrames, p.hitFreezeColor ?? '#22CC55', p.hitFreezeAlpha ?? 0.22);
 
   if (p.secondStatusEffect) {
     const target2 = p.secondStatusTarget === 'enemy' ? enemy : team;

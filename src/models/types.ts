@@ -46,6 +46,8 @@ export interface AttackConfig {
   hitStatusMagnitude?: number;        // strength (0–1)
   hitStatusColor?: string;            // ring/icon tint
   hitStatusIcon?: SpriteKey;          // sprite shown above target when effect is applied
+  hitStatusMinSelfEffect?: StatusEffectType; // only apply if attacker has this self-effect…
+  hitStatusMinSelfStacks?: number;           // …with at least this many stacks
   // Summon attack fields (type: 'summon' only) — spawns a unit at the weapon tip
   summonHp?: number;              // unit starting HP (default 30)
   summonRadius?: number;          // unit radius in px (default 10)
@@ -140,6 +142,7 @@ export interface StatusRow {
 
 /** Shared optional fields available to any ability trigger. */
 export interface CommonAbilityParams {
+  rangePerStack?: number; // weapon range multiplier added per status stack (reads statusEffect type)
   // Primary status effect applied on trigger
   statusEffect?: StatusEffectType;
   statusTarget?: 'self' | 'enemy';
@@ -165,13 +168,16 @@ export interface CommonAbilityParams {
   hitFlashColor?: string;
   hitFlashTarget?: 'self' | 'enemy';
 
-  // Screen shake / flash / slow-motion on trigger
+  // Screen shake / flash / slow-motion / freeze on trigger
   hitShakeMagnitude?: number;
   hitSlowMo?: boolean;
   hitScreenFlash?: boolean;
   hitScreenFlashAlpha?: number;
   hitScreenFlashColor?: string;
   hitScreenFlashTtl?: number;
+  hitFreezeFrames?: number;  // physics freeze duration (frames ≈ 1/60 s each)
+  hitFreezeColor?: string;   // casting overlay color during freeze
+  hitFreezeAlpha?: number;   // peak overlay alpha (0–1, default 0.22)
 
   // Trail burst spawned at ball position when ability fires
   trailOnTrigger?: boolean;
@@ -199,9 +205,7 @@ export interface CommonAbilityParams {
 }
 
 /** Params for `onHitDealt` abilities (e.g. Quick Flail Momentum). */
-export interface OnHitDealtParams extends CommonAbilityParams {
-  rangePerStack?: number; // weapon range multiplier added per status stack
-}
+export type OnHitDealtParams = CommonAbilityParams;
 
 /** Params for `onLowHP` abilities (e.g. Blood Axe Bloodrage). */
 export interface OnLowHPParams extends CommonAbilityParams {
@@ -248,7 +252,8 @@ export type StatusEffectType =
   | 'speedBoost' // increase own speed
   | 'weaken'     // reduce target outgoing damage
   | 'lifesteal'  // restore HP on each weapon hit
-  | 'shield';    // absorb flat incoming damage
+  | 'shield'     // absorb flat incoming damage
+  | 'forgeHeat'; // stacking outgoing damage (scales with .stacks × magnitude)
 
 export interface StatusEffect {
   id: string;

@@ -8,6 +8,10 @@ export function getWeaponShape(name: string): DrawFn | undefined {
   return registry[name];
 }
 
+export function registerWeaponShape(name: string, fn: DrawFn): void {
+  registry[name] = fn;
+}
+
 // ── Active fighter weapons ────────────────────────────────────────────────────
 
 registry['Long Sword'] = (ctx, color, r) => {

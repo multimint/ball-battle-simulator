@@ -52,6 +52,8 @@ export interface RenderState {
   rangeMultB?: number;
   drones?: Array<{ x: number; y: number; radius: number; state: UnitState; color: string; chargedColor: string; hp: number; maxHp: number }>;
   castingOverlay?: number;
+  castingOverlayColor?: string;
+  castingOverlayPeakAlpha?: number;
 }
 
 export class Renderer {
@@ -87,13 +89,55 @@ export class Renderer {
       drawArenaWalls(ctx, state.colorA, state.colorB);
     }
 
-    // 1.5 Casting overlay — semi-transparent green fill during Soul Surge freeze
+    // 1.5 Casting overlay — dark background + spotlight on forging ball
     if (state.castingOverlay && state.castingOverlay > 0.005) {
-      ctx.save();
-      ctx.globalAlpha = state.castingOverlay;
-      ctx.fillStyle = '#22CC55';
-      ctx.fillRect(0, 0, ARENA_SIZE, ARENA_SIZE);
-      ctx.restore();
+      const peakAlpha = state.castingOverlayPeakAlpha ?? 0.22;
+      const overlayColor = state.castingOverlayColor ?? '#22CC55';
+
+      // For high-alpha overlays (dark focus effect), use offscreen compositing
+      // to punch a transparent spotlight hole over the forging ball.
+      if (peakAlpha > 0.4) {
+        // Which ball is forging?
+        const forgingPos =
+          (state.effectsA ?? []).some(e => e.type === 'forgeHeat') ? state.ballAPos :
+          (state.effectsB ?? []).some(e => e.type === 'forgeHeat') ? state.ballBPos : null;
+        const forgingR = (state.effectsA ?? []).some(e => e.type === 'forgeHeat')
+          ? state.ballA.radius : state.ballB.radius;
+
+        const off = new OffscreenCanvas(ARENA_SIZE, ARENA_SIZE);
+        const offCtx = off.getContext('2d')!;
+
+        // Fill dark overlay
+        offCtx.globalAlpha = state.castingOverlay;
+        offCtx.fillStyle = overlayColor;
+        offCtx.fillRect(0, 0, ARENA_SIZE, ARENA_SIZE);
+
+        // Punch spotlight using destination-out radial gradient
+        if (forgingPos) {
+          offCtx.globalCompositeOperation = 'destination-out';
+          offCtx.globalAlpha = 1;
+          const spotR = forgingR * 4.5;
+          const grad = offCtx.createRadialGradient(
+            forgingPos.x, forgingPos.y, forgingR * 0.5,
+            forgingPos.x, forgingPos.y, spotR,
+          );
+          grad.addColorStop(0,    'rgba(0,0,0,0.92)');
+          grad.addColorStop(0.25, 'rgba(0,0,0,0.70)');
+          grad.addColorStop(0.55, 'rgba(0,0,0,0.30)');
+          grad.addColorStop(1,    'rgba(0,0,0,0)');
+          offCtx.fillStyle = grad;
+          offCtx.fillRect(0, 0, ARENA_SIZE, ARENA_SIZE);
+        }
+
+        ctx.drawImage(off, 0, 0);
+      } else {
+        // Standard flat overlay for low-alpha effects (e.g. Revenant Soul Surge)
+        ctx.save();
+        ctx.globalAlpha = state.castingOverlay;
+        ctx.fillStyle = overlayColor;
+        ctx.fillRect(0, 0, ARENA_SIZE, ARENA_SIZE);
+        ctx.restore();
+      }
     }
 
     // 2. Ability trail segments (drawn under shields and balls)
@@ -141,6 +185,8 @@ export class Renderer {
     );
 
     // 5. Orbiting weapons (drawn on top of balls, inside the shake transform)
+    const forgeStacksA = (state.effectsA ?? []).find(e => e.type === 'forgeHeat')?.stacks ?? 0;
+    const forgeStacksB = (state.effectsB ?? []).find(e => e.type === 'forgeHeat')?.stacks ?? 0;
     drawOrbitWeapon(
       ctx,
       state.ballAPos.x,
@@ -150,6 +196,7 @@ export class Renderer {
       state.weaponA,
       'A',
       state.rangeMultA ?? 1,
+      forgeStacksA,
     );
     drawOrbitWeapon(
       ctx,
@@ -160,6 +207,7 @@ export class Renderer {
       state.weaponB,
       'B',
       state.rangeMultB ?? 1,
+      forgeStacksB,
     );
 
     // 6. Traveling bullets (drawn over weapons, under hit effects)

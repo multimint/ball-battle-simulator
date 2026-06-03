@@ -48,6 +48,7 @@ export function drawOrbitWeapon(
   weapon: WeaponStats,
   team: 'A' | 'B',
   rangeMult = 1,
+  forgeStacks = 0,
 ): void {
   const baseHitboxR = getWeaponHitboxRadius(weapon);          // orbit distance never scales
   const hitboxR     = getWeaponHitboxRadius(weapon, rangeMult); // shape scales with stacks
@@ -61,7 +62,7 @@ export function drawOrbitWeapon(
 
   switch (weapon.attacks[0].type) {
     case 'melee':
-      drawMeleeShape(ctx, weapon, color, hitboxR);
+      drawMeleeShape(ctx, weapon, color, hitboxR, forgeStacks);
       break;
     case 'shield':
       drawShieldShape(ctx, color, hitboxR);
@@ -85,7 +86,9 @@ export function drawOrbitWeapon(
 
 // ── Shape drawers (all local coords, business-end at +X) ─────────────────────
 
-function drawMeleeShape(ctx: Ctx2D, weapon: WeaponStats, color: string, r: number): void {
+function drawMeleeShape(ctx: Ctx2D, weapon: WeaponStats, color: string, r: number, forgeStacks = 0): void {
+  const stackedShape = getWeaponShape(`${weapon.name} ${forgeStacks}`);
+  if (stackedShape) { stackedShape(ctx, color, r); return; }
   const shape = getWeaponShape(weapon.name);
   if (shape) { shape(ctx, color, r); return; }
   // Generic sword fallback — narrow blade, tip at +X

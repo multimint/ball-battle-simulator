@@ -48,7 +48,7 @@ export function processHit(ctx: HitCtx): void {
       * ctx.statusMgr.getIncomingDamageMultiplier(team);
     modified = ctx.statusMgr.consumeShield(team, modified);
     const rounded = Math.round(modified);
-    const actual  = Math.min(rounded, ctx.hp[team]);
+    const actual  = Math.min(rounded, Math.ceil(ctx.hp[team]));
     ctx.hp[team]  = Math.max(0, ctx.hp[team] - actual);
     if (actual > 0) {
       const fx = defender.position.x + (Math.random() - 0.5) * 20;
@@ -70,7 +70,12 @@ export function processHit(ctx: HitCtx): void {
   handler.resolve({ weapon, attack, attacker, defender, targetTeam, dir, hitAngle, damage, particles: ctx.particles, effects: ctx.effects, spawnUnit: ctx.spawnUnit });
 
   if (attack.hitStatusEffect && lastDmg > 0) {
-    ctx.statusMgr.apply({ team: targetTeam, type: attack.hitStatusEffect, durationMs: attack.hitStatusDuration ?? 2000, magnitude: attack.hitStatusMagnitude ?? 0.3, stackBehavior: 'refresh', maxStacks: 1, color: attack.hitStatusColor ?? '#88CCFF', icon: attack.hitStatusIcon ?? 'burst', simTime: ctx.simTime });
+    const condEffect = attack.hitStatusMinSelfEffect;
+    const condMin    = attack.hitStatusMinSelfStacks ?? 1;
+    const condMet    = !condEffect || (ctx.statusMgr.getEffects(attackerTeam).find(e => e.type === condEffect)?.stacks ?? 0) >= condMin;
+    if (condMet) {
+      ctx.statusMgr.apply({ team: targetTeam, type: attack.hitStatusEffect, durationMs: attack.hitStatusDuration ?? 2000, magnitude: attack.hitStatusMagnitude ?? 0.3, stackBehavior: 'refresh', maxStacks: 1, color: attack.hitStatusColor ?? '#88CCFF', icon: attack.hitStatusIcon ?? 'burst', simTime: ctx.simTime });
+    }
   }
 
   ctx.effects.applyTierEffects(attack.type, targetTeam, weapon.color ?? '#FFFFFF', lastDmg);

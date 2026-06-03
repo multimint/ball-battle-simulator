@@ -152,7 +152,7 @@ function drawTeamStrip(
   const centerY = y + h / 2;
   const dotR    = 16;
   const gap     = 20;
-  const rowGap  = 36; // px between rows when stacked
+  const rowGap  = 60; // px between rows when stacked (must exceed abilityValue font height of 52px)
 
   // Measure widest row to anchor dot position
   let maxTextW = 0;

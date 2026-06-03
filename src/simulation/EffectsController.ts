@@ -14,27 +14,31 @@ export class EffectsController {
   slowMotion = 1.0;
   weaponEffects: WeaponEffect[] = [];
   private freezeFramesRemaining = 0;
-  /** Alpha of the full-arena green overlay drawn during a casting freeze. */
+  /** Alpha of the full-arena overlay drawn during a casting freeze. */
   castingOverlay = 0;
+  castingOverlayColor = '#22CC55';
+  castingOverlayPeakAlpha = 0.22;
   private castingOverlayFrame = 0;
 
   /** Freeze physics for N frames (weapon-effect animations still play at full speed). */
-  applyFreeze(frames: number): void {
+  applyFreeze(frames: number, color = '#22CC55', peakAlpha = 0.22): void {
     this.freezeFramesRemaining = Math.max(this.freezeFramesRemaining, frames);
+    this.castingOverlayColor = color;
+    this.castingOverlayPeakAlpha = peakAlpha;
     this.slowMotion = 0;
     this.castingOverlayFrame = 0;
-    this.castingOverlay = 0.22;
+    this.castingOverlay = peakAlpha;
   }
 
   step(): void {
     if (this.freezeFramesRemaining > 0) {
       this.freezeFramesRemaining--;
       this.castingOverlayFrame++;
-      // Pulse the overlay gently while frozen
-      this.castingOverlay = 0.16 + 0.09 * Math.abs(Math.sin(this.castingOverlayFrame * 0.22));
+      const p = this.castingOverlayPeakAlpha;
+      this.castingOverlay = p * (0.75 + 0.25 * Math.abs(Math.sin(this.castingOverlayFrame * 0.28)));
       this.slowMotion = 0;           // hold frozen
     } else {
-      this.castingOverlay = Math.max(0, this.castingOverlay - 0.018); // fade out after freeze
+      this.castingOverlay = Math.max(0, this.castingOverlay - 0.032); // fade out after freeze
       if (this.slowMotion < 1.0) {
         this.slowMotion = Math.min(1.0, this.slowMotion + SLOW_MOTION_RECOVERY);
       }

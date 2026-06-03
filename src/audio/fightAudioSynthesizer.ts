@@ -295,6 +295,69 @@ function synthFrenzy(): Float32Array {
   return out;
 }
 
+function synthForge(): Float32Array {
+  // Three real forge strikes — hammer on hot iron on an anvil.
+  // Each strike: hard impact crack → metallic clang (rich harmonic series) →
+  // sustained anvil ring with natural pitch drop → sizzle as hot metal cools.
+  // Surreal element: a slowly-beating shimmer from two near-unison partials.
+  const GAP  = 0.21;   // seconds between strike onsets
+  const RING  = 0.62;  // anvil ring sustain length per strike
+  const TOTAL = RING + GAP * 2 + 0.14;
+  const out   = makeBuffer(TOTAL);
+
+  const strike = (offsetS: number, force: number): void => {
+    const ss = Math.round(offsetS * AUDIO_SAMPLE_RATE);
+
+    // ── Hard impact transient (all noise, very short, punchy) ──────────────
+    const impact = oscillator('noise', 0, 0, 0.006, { attackS: 0.0002, decayS: 0.0058, peak: force * 1.10 });
+    highpass(impact, 4500);
+    mix(out, impact, ss);
+
+    // ── Hammer body thud — the mass behind the blow ─────────────────────────
+    const thudFreq = 90 + force * 60;
+    const thud = oscillator('sine', thudFreq, thudFreq * 0.45, 0.14, { attackS: 0.001, decayS: 0.139, peak: force * 0.72 });
+    mix(out, thud, ss);
+
+    // ── Metal clang — bright mid-freq burst (the two objects colliding) ─────
+    const clangFreq = 1200 + force * 500;
+    const clang = oscillator('sine', clangFreq, clangFreq * 0.6, 0.035, { attackS: 0.001, decayS: 0.034, peak: force * 0.65 });
+    mix(out, clang, ss);
+
+    // ── Anvil ring — complex harmonic series, natural pitch drop ────────────
+    // Real anvils ring at their resonant frequency and several partials.
+    const f0 = 680 + force * 180;  // fundamental rises with harder strikes
+    [[1.000, 0.68], [2.756, 0.32], [5.404, 0.14], [8.930, 0.06]].forEach(([ratio, amp]) => {
+      const freq = f0 * ratio;
+      const ringDur = RING / (1 + ratio * 0.12);  // higher partials decay faster
+      const r = oscillator('sine', freq, freq * 0.88, ringDur, { attackS: 0.001, decayS: ringDur - 0.001, peak: force * amp });
+      mix(out, r, ss);
+    });
+
+    // ── Surreal shimmer: slightly detuned twin of the fundamental ──────────
+    // Two near-unison sines beat against each other — ~7 Hz wobble
+    const shimmer = oscillator('sine', f0 * 1.0068, f0 * 0.90, RING * 0.85, { attackS: 0.002, decayS: RING * 0.85 - 0.002, peak: force * 0.28 });
+    mix(out, shimmer, ss);
+
+    // ── Hot-iron sizzle — brief high noise after impact (metal cooling) ────
+    const sizzle = oscillator('noise', 0, 0, 0.055, { attackS: 0.002, decayS: 0.053, peak: force * 0.22 });
+    highpass(sizzle, 6000);
+    lowpass(sizzle, 14000);
+    mix(out, sizzle, ss);
+  };
+
+  strike(0,       0.50);  // first strike  — lighter, sets the rhythm
+  strike(GAP,     0.70);  // second strike — stronger
+  strike(GAP * 2, 0.95);  // third strike  — heaviest, most resonant
+
+  // Low ambient rumble under all three — the forge fire / bellows hum
+  const rumble = oscillator('noise', 0, 0, TOTAL, { attackS: 0.05, decayS: TOTAL - 0.05, peak: 0.08 });
+  lowpass(rumble, 180);
+  mix(out, rumble, 0);
+
+  clampBuf(out);
+  return out;
+}
+
 function synthBounce(intensity: number): Float32Array {
   const vol = 1.30 + intensity * 0.60; // intentionally >1 — clampBuf saturates for punch
   const dur = 0.06 + intensity * 0.02;
@@ -356,6 +419,7 @@ const HIT_SOUNDS: Record<HitSoundKey, (intensity: number) => Float32Array> = {
 const ABILITY_SOUNDS: Record<AbilitySoundKey, () => Float32Array> = {
   berserk: synthBerserk,
   sharp:   synthSharp,
+  forge:   synthForge,
   frenzy:  synthFrenzy,
 };
 
